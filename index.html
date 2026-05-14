@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Registry Pro</title>
+    <title>Registry Pro 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0a0a0a; color: #f0f0f0; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
@@ -19,23 +19,25 @@
     <div class="max-w-md mx-auto">
         <div class="sticky-header p-5">
             <div class="flex justify-between items-center mb-4">
-                <h1 class="text-xl font-black italic text-red-600 italic tracking-tighter">REGISTRY PRO</h1>
+                <h1 class="text-xl font-black italic text-red-600 tracking-tighter">REGISTRY PRO 2026</h1>
                 <div class="flex gap-3 text-[10px] font-bold">
-                    <span class="text-green-500" id="count-win">0</span>
-                    <span class="text-blue-500" id="count-sent">0</span>
-                    <span class="text-zinc-500" id="count-total">0</span>
+                    <span class="text-green-500" id="count-win">WIN: 0</span>
+                    <span class="text-blue-500" id="count-sent">SENT: 0</span>
+                    <span class="text-zinc-500" id="count-total">TOTAL: 0</span>
                 </div>
             </div>
             
             <div class="bg-zinc-900 p-3 rounded-xl border border-zinc-800 mb-4 text-xs">
                 <div class="grid grid-cols-2 gap-2 mb-2">
-                    <input type="text" id="newName" placeholder="Name" class="bg-black border border-zinc-700 p-2 rounded">
-                    <input type="text" id="newCat" placeholder="Category" class="bg-black border border-zinc-700 p-2 rounded">
+                    <input type="text" id="newName" placeholder="Actor Name" class="bg-black border border-zinc-700 p-2 rounded text-white">
+                    <input type="text" id="newCat" placeholder="Category/Show" class="bg-black border border-zinc-700 p-2 rounded text-white">
                 </div>
+                <!-- NEW FIELD FOR MAIL AGENT -->
+                <input type="text" id="newAgent" placeholder="Mail Agent (e.g. Mount Pleasant)" class="w-full bg-black border border-zinc-700 p-2 rounded text-white mb-2">
                 <button onclick="addRecord()" class="w-full bg-red-600 p-2 rounded font-black uppercase italic">Add Entry</button>
             </div>
 
-            <input type="text" id="search" placeholder="Search..." class="w-full bg-zinc-900 p-3 rounded-xl text-sm border border-zinc-800" onkeyup="render()">
+            <input type="text" id="search" placeholder="Search Billericay Registry..." class="w-full bg-zinc-900 p-3 rounded-xl text-sm border border-zinc-800" onkeyup="render()">
         </div>
 
         <div class="p-4" id="list"></div>
@@ -47,10 +49,10 @@
         </div>
     </div>
 
-    <script id="master-script">
-        // MASTER DATA - This is what gets updated on backup
+    <script>
+        // MASTER DATA
         let records = JSON.parse(localStorage.getItem('autograph_db')) || [
-            {"ID":1, "Name":"Sample Entry", "Status":"PENDING", "Category":"Tennis"}
+            {"ID":1715690000000, "Name":"Hugh Bonneville", "Status":"SUCCESS", "Category":"Stage Door", "Date":"14/05/2026", "Agent":"Mount Pleasant"}
         ];
 
         const states = ["PENDING", "SENT", "SUCCESS", "RTS"];
@@ -65,14 +67,28 @@
         function addRecord() {
             const n = document.getElementById('newName').value;
             const c = document.getElementById('newCat').value;
+            const a = document.getElementById('newAgent').value;
             if(!n) return;
-            records.push({ ID: Date.now(), Name: n, Category: c, Status: "PENDING" });
+
+            const today = new Date().toLocaleDateString('en-GB');
+            
+            records.push({ 
+                ID: Date.now(), 
+                Name: n, 
+                Category: c, 
+                Status: "PENDING", 
+                Date: today,
+                Agent: a || "TBC" 
+            });
+
             document.getElementById('newName').value = '';
+            document.getElementById('newCat').value = '';
+            document.getElementById('newAgent').value = '';
             saveAndRender();
         }
 
         function deleteRec(id) {
-            if(confirm('Delete?')) {
+            if(confirm('Delete from Registry?')) {
                 records = records.filter(r => r.ID !== id);
                 saveAndRender();
             }
@@ -92,20 +108,24 @@
             records.sort((a,b) => b.ID - a.ID).forEach(r => {
                 if (r.Status === "SUCCESS") win++;
                 if (r.Status === "SENT") sent++;
-                if (!r.Name.toLowerCase().includes(q)) return;
+                if (!r.Name.toLowerCase().includes(q) && !r.Category.toLowerCase().includes(q)) return;
 
                 const div = document.createElement('div');
                 div.className = `card p-4 flex justify-between items-center status-${r.Status.toLowerCase()}`;
                 div.innerHTML = `
-                    <div>
-                        <div class="font-bold text-sm">${r.Name}</div>
-                        <div class="text-[9px] text-zinc-500 uppercase font-black">${r.Category}</div>
+                    <div class="flex-1">
+                        <div class="font-bold text-sm text-white">${r.Name}</div>
+                        <div class="flex gap-2 items-center mt-1">
+                            <span class="text-[9px] text-red-500 uppercase font-black">${r.Category}</span>
+                            <span class="text-[9px] text-zinc-600 font-bold tracking-widest">${r.Date || ''}</span>
+                        </div>
+                        <div class="text-[8px] text-zinc-500 mt-1 italic">Agent: ${r.Agent || 'No Data'}</div>
                     </div>
                     <div class="flex items-center gap-3">
-                        <div onclick="toggle(${r.ID})" class="text-[10px] font-black px-2 py-1 bg-black rounded border border-zinc-800 cursor-pointer">
+                        <div onclick="toggle(${r.ID})" class="text-[10px] font-black px-3 py-2 bg-black rounded border border-zinc-800 cursor-pointer text-zinc-300">
                             ${r.Status}
                         </div>
-                        <button onclick="deleteRec(${r.ID})" class="text-zinc-800 text-xs">✕</button>
+                        <button onclick="deleteRec(${r.ID})" class="text-zinc-800 p-2">✕</button>
                     </div>
                 `;
                 list.appendChild(div);
@@ -117,7 +137,6 @@
 
         function downloadBackup() {
             const currentCode = document.documentElement.outerHTML;
-            // This replaces the old data in the code with your live phone data
             const updatedCode = currentCode.replace(
                 /let records = JSON\.parse\(localStorage\.getItem\('autograph_db'\)\) \|\| \[.*?\];/s,
                 `let records = JSON.parse(localStorage.getItem('autograph_db')) || ${JSON.stringify(records)};`
@@ -126,7 +145,7 @@
             const blob = new Blob([updatedCode], { type: 'text/html' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'index.html';
+            a.download = 'registry_backup_2026.html';
             a.click();
         }
 
