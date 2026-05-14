@@ -7,11 +7,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0a0a0a; color: #f0f0f0; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
-        .card { background: #161616; border: 1px solid #262626; border-radius: 12px; margin-bottom: 8px; border-left: 4px solid #525252; }
+        .card { background: #161616; border: 1px solid #262626; border-radius: 12px; margin-bottom: 8px; border-left: 4px solid #525252; transition: all 0.2s; }
         .status-success { border-left-color: #22c55e; }
         .status-sent { border-left-color: #3b82f6; }
         .status-rts { border-left-color: #ef4444; }
+        .status-pending { border-left-color: #525252; }
         .sticky-header { position: sticky; top: 0; z-index: 50; background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(10px); border-bottom: 1px solid #262626; }
+        input:focus { outline: none; border-color: #dc2626; }
     </style>
 </head>
 <body class="pb-20">
@@ -20,28 +22,30 @@
         <div class="sticky-header p-5">
             <div class="flex justify-between items-center mb-4">
                 <h1 class="text-xl font-black italic text-red-600 tracking-tighter">REGISTRY PRO 2026</h1>
-                <div class="flex gap-3 text-[10px] font-bold">
+                <div class="flex gap-3 text-[10px] font-bold uppercase">
                     <span class="text-green-500" id="count-win">WIN: 0</span>
                     <span class="text-blue-500" id="count-sent">SENT: 0</span>
                     <span class="text-zinc-500" id="count-total">TOTAL: 0</span>
                 </div>
             </div>
             
-            <div class="bg-zinc-900 p-3 rounded-xl border border-zinc-800 mb-4 text-xs">
+            <!-- INPUT SECTION -->
+            <div id="input-container" class="bg-zinc-900 p-3 rounded-xl border border-zinc-800 mb-4 text-xs">
                 <div class="grid grid-cols-2 gap-2 mb-2">
                     <input type="text" id="newName" placeholder="Actor Name" class="bg-black border border-zinc-700 p-2 rounded text-white">
-                    <input type="text" id="newCat" placeholder="Category/Show" class="bg-black border border-zinc-700 p-2 rounded text-white">
+                    <input type="text" id="newCat" placeholder="Category / Show" class="bg-black border border-zinc-700 p-2 rounded text-white">
                 </div>
-                <!-- NEW FIELD FOR MAIL AGENT -->
                 <input type="text" id="newAgent" placeholder="Mail Agent (e.g. Mount Pleasant)" class="w-full bg-black border border-zinc-700 p-2 rounded text-white mb-2">
-                <button onclick="addRecord()" class="w-full bg-red-600 p-2 rounded font-black uppercase italic">Add Entry</button>
+                <button id="submit-btn" onclick="addRecord()" class="w-full bg-red-600 p-2 rounded font-black uppercase italic transition-colors">Add Entry</button>
             </div>
 
             <input type="text" id="search" placeholder="Search Billericay Registry..." class="w-full bg-zinc-900 p-3 rounded-xl text-sm border border-zinc-800" onkeyup="render()">
         </div>
 
+        <!-- LIST SECTION -->
         <div class="p-4" id="list"></div>
 
+        <!-- BACKUP SECTION -->
         <div class="p-6">
             <button onclick="downloadBackup()" class="w-full bg-zinc-800 border border-zinc-700 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400">
                 💾 Download GitHub Backup (HTML)
@@ -49,13 +53,19 @@
         </div>
     </div>
 
-    <script>
-        // MASTER DATA
+    <script id="master-script">
+        // MASTER DATA - Pulls from Phone Storage or starts with Hugh example
         let records = JSON.parse(localStorage.getItem('autograph_db')) || [
             {"ID":1715690000000, "Name":"Hugh Bonneville", "Status":"SUCCESS", "Category":"Stage Door", "Date":"14/05/2026", "Agent":"Mount Pleasant"}
         ];
 
         const states = ["PENDING", "SENT", "SUCCESS", "RTS"];
+        let editingID = null;
+
+        function saveAndRender() {
+            localStorage.setItem('autograph_db', JSON.stringify(records));
+            render();
+        }
 
         function toggle(id) {
             const idx = records.findIndex(r => r.ID === id);
@@ -64,23 +74,56 @@
             saveAndRender();
         }
 
+        function editRecord(id) {
+            const r = records.find(r => r.ID === id);
+            if(!r) return;
+
+            // Load data into inputs
+            document.getElementById('newName').value = r.Name;
+            document.getElementById('newCat').value = r.Category;
+            document.getElementById('newAgent').value = r.Agent || '';
+            
+            // Set to Update Mode
+            editingID = id;
+            const btn = document.getElementById('submit-btn');
+            btn.innerText = "Update Entry";
+            btn.className = "w-full bg-blue-600 p-2 rounded font-black uppercase italic transition-colors";
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
         function addRecord() {
             const n = document.getElementById('newName').value;
             const c = document.getElementById('newCat').value;
             const a = document.getElementById('newAgent').value;
             if(!n) return;
 
-            const today = new Date().toLocaleDateString('en-GB');
-            
-            records.push({ 
-                ID: Date.now(), 
-                Name: n, 
-                Category: c, 
-                Status: "PENDING", 
-                Date: today,
-                Agent: a || "TBC" 
-            });
+            if (editingID) {
+                // UPDATE EXISTING RECORD
+                const idx = records.findIndex(r => r.ID === editingID);
+                records[idx].Name = n;
+                records[idx].Category = c;
+                records[idx].Agent = a;
+                
+                // Reset UI to Add Mode
+                editingID = null;
+                const btn = document.getElementById('submit-btn');
+                btn.innerText = "Add Entry";
+                btn.className = "w-full bg-red-600 p-2 rounded font-black uppercase italic transition-colors";
+            } else {
+                // CREATE NEW RECORD
+                const today = new Date().toLocaleDateString('en-GB');
+                records.push({ 
+                    ID: Date.now(), 
+                    Name: n, 
+                    Category: c, 
+                    Status: "PENDING", 
+                    Date: today,
+                    Agent: a || "TBC" 
+                });
+            }
 
+            // Clear inputs and refresh
             document.getElementById('newName').value = '';
             document.getElementById('newCat').value = '';
             document.getElementById('newAgent').value = '';
@@ -94,11 +137,6 @@
             }
         }
 
-        function saveAndRender() {
-            localStorage.setItem('autograph_db', JSON.stringify(records));
-            render();
-        }
-
         function render() {
             const q = document.getElementById('search').value.toLowerCase();
             const list = document.getElementById('list');
@@ -108,7 +146,12 @@
             records.sort((a,b) => b.ID - a.ID).forEach(r => {
                 if (r.Status === "SUCCESS") win++;
                 if (r.Status === "SENT") sent++;
-                if (!r.Name.toLowerCase().includes(q) && !r.Category.toLowerCase().includes(q)) return;
+                
+                const searchPool = `${r.Name} ${r.Category} ${r.Agent || ''}`.toLowerCase();
+                if (!searchPool.includes(q)) return;
+
+                const displayDate = r.Date ? r.Date : "Legacy Entry";
+                const displayAgent = r.Agent && r.Agent !== "TBC" ? r.Agent : "No Agent Logged";
 
                 const div = document.createElement('div');
                 div.className = `card p-4 flex justify-between items-center status-${r.Status.toLowerCase()}`;
@@ -116,20 +159,22 @@
                     <div class="flex-1">
                         <div class="font-bold text-sm text-white">${r.Name}</div>
                         <div class="flex gap-2 items-center mt-1">
-                            <span class="text-[9px] text-red-500 uppercase font-black">${r.Category}</span>
-                            <span class="text-[9px] text-zinc-600 font-bold tracking-widest">${r.Date || ''}</span>
+                            <span class="text-[9px] text-red-500 uppercase font-black tracking-tight">${r.Category}</span>
+                            <span class="text-[9px] text-zinc-600 font-bold tracking-widest">${displayDate}</span>
                         </div>
-                        <div class="text-[8px] text-zinc-500 mt-1 italic">Agent: ${r.Agent || 'No Data'}</div>
+                        <div class="text-[8px] text-zinc-500 mt-1 italic uppercase tracking-tighter">Agent: ${displayAgent}</div>
                     </div>
                     <div class="flex items-center gap-3">
-                        <div onclick="toggle(${r.ID})" class="text-[10px] font-black px-3 py-2 bg-black rounded border border-zinc-800 cursor-pointer text-zinc-300">
+                        <button onclick="editRecord(${r.ID})" class="text-zinc-600 text-[10px] font-black uppercase hover:text-blue-500">Edit</button>
+                        <div onclick="toggle(${r.ID})" class="text-[10px] font-black px-3 py-2 bg-black rounded border border-zinc-800 cursor-pointer text-zinc-300 min-w-[70px] text-center">
                             ${r.Status}
                         </div>
-                        <button onclick="deleteRec(${r.ID})" class="text-zinc-800 p-2">✕</button>
+                        <button onclick="deleteRec(${r.ID})" class="text-zinc-800 p-1 text-sm">✕</button>
                     </div>
                 `;
                 list.appendChild(div);
             });
+            
             document.getElementById('count-win').innerText = `WIN: ${win}`;
             document.getElementById('count-sent').innerText = `SENT: ${sent}`;
             document.getElementById('count-total').innerText = `TOTAL: ${records.length}`;
