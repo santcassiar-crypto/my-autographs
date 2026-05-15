@@ -3,120 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Registry Pro 2026 | Billericay Vault</title>
+    <title>Registry Pro | Billericay Vault</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #050505; color: #e4e4e7; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        body { background-color: #050505; color: #e4e4e7; font-family: 'Inter', sans-serif; }
         .bento-card { background: #111113; border: 1px solid #27272a; border-radius: 16px; transition: transform 0.2s; }
-        .glass { background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(12px); }
-        
-        /* NEWS TICKER ANIMATION */
-        @keyframes ticker {
-            0% { transform: translateX(100%); }
-            100% { transform: translateX(-100%); }
-        }
+        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
         .ticker-text { display: inline-block; white-space: nowrap; animation: ticker 25s linear infinite; }
-        
         .status-success { color: #22c55e; border-bottom: 2px solid #22c55e; }
         .status-sent { color: #3b82f6; border-bottom: 2px solid #3b82f6; }
         .status-rts { color: #ef4444; border-bottom: 2px solid #ef4444; }
-        .status-pending { color: #71717a; border-bottom: 2px solid #71717a; }
+        .status-pending { color: #a1a1aa; border-bottom: 2px solid #a1a1aa; }
     </style>
 </head>
 <body class="pb-24">
 
-    <div class="w-full bg-red-600 py-1 overflow-hidden sticky top-0 z-[60] border-b border-red-500 shadow-lg">
+    <div class="w-full bg-red-600 py-1.5 overflow-hidden sticky top-0 z-[60] border-b border-red-500">
         <div class="ticker-text font-black italic uppercase text-[10px] text-white tracking-widest">
-            🚨 INTEL: TOM HIDDLESTON CONFIRMS BROADWAY MOVE — UK WINDOW CLOSING SOON • IAN MCKELLEN ANNOUNCED FOR 'LEAR' AT YARD THEATRE • HENRY CAVILL FILMING 'HIGHLANDER' IN SCOTLAND • LIONESSES SEASON FINALE TOMORROW 1PM • DIRK NOWITZKI RECENTLY ACTIVE IN EUROPE •
+            🚨 INTEL: SIR IAN MCKELLEN TO STAR IN 'LEAR' @ THE YARD THEATRE (NOV 2026) • HENRY CAVILL FILMING 'HIGHLANDER' @ EILEAN DONAN CASTLE & SKYE • TOM HIDDLESTON BROADWAY DATES SET (OCT 31) • JODIE COMER CAST IN HBO 'THE CHAIN' • 
         </div>
     </div>
 
     <div class="max-w-md mx-auto p-4">
         <header class="mb-6 space-y-4 pt-2">
-            <div class="flex justify-between items-end">
-                <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic">Registry<span class="text-red-600 italic">Pro</span></h1>
-                <span class="text-[10px] font-mono text-zinc-500 uppercase tracking-widest bg-zinc-900 px-2 py-1 rounded">Billericay 6</span>
-            </div>
-
-            <div class="bento-card p-4 border-blue-900/20 bg-blue-950/10">
-                <h2 class="text-[9px] font-black uppercase text-blue-500 mb-2 tracking-widest">Postie Forecast: Sat 16/05</h2>
-                <div class="flex items-center justify-between">
-                    <span class="text-xs text-zinc-300">Targeting: <strong class="text-white uppercase italic">Dirk Nowitzki</strong></span>
-                    <span class="bg-blue-600 text-[9px] px-2 py-0.5 rounded-full text-white font-bold animate-pulse">85% CHANCE</span>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-3 gap-2 text-center">
-                <div class="bento-card p-3"><span class="text-[9px] text-zinc-500 font-bold uppercase block mb-1">Wins</span><span id="win-count" class="text-2xl font-black text-green-500">0</span></div>
-                <div class="bento-card p-3"><span class="text-[9px] text-zinc-500 font-bold uppercase block mb-1">Rate</span><span id="win-rate" class="text-2xl font-black text-white">0%</span></div>
-                <div class="bento-card p-3 border-red-900/30"><span class="text-[9px] text-zinc-500 font-bold uppercase block mb-1">Vault</span><span id="total-count" class="text-2xl font-black text-red-600">0</span></div>
+            <h1 class="text-3xl font-black tracking-tighter text-white uppercase italic text-center">Registry<span class="text-red-600">Pro</span></h1>
+            
+            <div class="grid grid-cols-4 gap-2">
+                <div class="bento-card p-2 text-center"><span class="text-[8px] text-zinc-500 font-bold uppercase block">Wins</span><span id="win-count" class="text-lg font-black text-green-500">0</span></div>
+                <div class="bento-card p-2 text-center"><span class="text-[8px] text-zinc-500 font-bold uppercase block">Sent</span><span id="sent-count" class="text-lg font-black text-blue-500">0</span></div>
+                <div class="bento-card p-2 text-center"><span class="text-[8px] text-zinc-500 font-bold uppercase block">Pend</span><span id="pending-count" class="text-lg font-black text-zinc-400">0</span></div>
+                <div class="bento-card p-2 text-center"><span class="text-[8px] text-zinc-500 font-bold uppercase block">RTS</span><span id="rts-count" class="text-lg font-black text-red-600">0</span></div>
             </div>
         </header>
 
-        <section class="bento-card p-4 mb-6 border-zinc-800 bg-zinc-900/50">
-            <div class="space-y-3">
-                <input type="text" id="newName" placeholder="Actor / Legend Name" class="w-full bg-black border border-zinc-800 p-3 rounded-xl text-sm text-white focus:border-red-600 outline-none">
-                <div class="grid grid-cols-2 gap-2">
-                    <input type="text" id="newCat" placeholder="Category" class="bg-black border border-zinc-800 p-3 rounded-xl text-xs text-white">
-                    <input type="text" id="newAgent" placeholder="Mail Agent" class="bg-black border border-zinc-800 p-3 rounded-xl text-xs text-white">
-                </div>
-                <button onclick="addRecord()" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl font-bold uppercase italic text-sm transition-all shadow-lg">Submit to Registry</button>
-            </div>
-        </section>
+        <div class="bento-card p-4 mb-6 border-blue-900/40 bg-blue-950/10">
+            <h2 class="text-[10px] font-black uppercase text-blue-500 mb-2 tracking-widest">Vault Recovery</h2>
+            <p class="text-[9px] text-zinc-400 mb-3 italic">Paste your 182-record array (from GitHub or backup) below to rebuild the Vault.</p>
+            <textarea id="raw-import" placeholder='[{"Name":"Dirk Nowitzki", "Status":"SENT"...}, ...]' class="w-full bg-black border border-zinc-800 rounded-lg p-2 text-[10px] h-20 text-blue-300 outline-none focus:border-blue-500"></textarea>
+            <button onclick="rebuildVault()" class="w-full mt-2 bg-blue-600 text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest">Rebuild 182 Records</button>
+        </div>
 
-        <div class="sticky top-10 z-50 mb-6">
-            <input type="text" id="search" placeholder="Search Billericay Registry..." onkeyup="render()" class="w-full glass border border-zinc-800 p-4 rounded-2xl text-sm shadow-2xl focus:border-red-600 outline-none">
+        <div class="sticky top-12 z-50 mb-6">
+            <input type="text" id="search" placeholder="Search Vault..." onkeyup="render()" class="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-sm shadow-2xl outline-none focus:border-red-600">
         </div>
 
         <div id="list" class="space-y-3"></div>
-
-        <div class="fixed bottom-0 left-0 w-full p-4 glass border-t border-zinc-800 z-50">
-            <div class="max-w-md mx-auto">
-                <button onclick="downloadBackup()" class="w-full bg-zinc-900 border border-zinc-700 p-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-colors">
-                    💾 Download GitHub Archive (.HTML)
-                </button>
-            </div>
-        </div>
     </div>
 
     <script>
-        let records = JSON.parse(localStorage.getItem('autograph_db_v2')) || [
-            {"ID":1715781600000, "Name":"Kevin Keegan", "Status":"SUCCESS", "Category":"Football", "Date":"15/05/2026", "Agent":"Home"},
-            {"ID":1715781500000, "Name":"Griff Rhys Jones", "Status":"SUCCESS", "Category":"Theatre", "Date":"15/05/2026", "Agent":"Apollo Theatre"},
-            {"ID":1715781400000, "Name":"Tom Hiddleston", "Status":"SENT", "Category":"Theatre", "Date":"12/05/2026", "Agent":"UK Base"}
-        ];
+        let records = JSON.parse(localStorage.getItem('autograph_db_v3')) || [];
 
-        const intelTags = {
-            "Tom Hiddleston": "Golden Window",
-            "Ian McKellen": "Stage Alert",
-            "Henry Cavill": "On Set",
-            "Dirk Nowitzki": "High Prob"
-        };
-
-        function addRecord() {
-            const name = document.getElementById('newName').value;
-            if(!name) return;
-            records.push({
-                ID: Date.now(),
-                Name: name,
-                Category: document.getElementById('newCat').value || "General",
-                Status: "PENDING",
-                Date: new Date().toLocaleDateString('en-GB'),
-                Agent: document.getElementById('newAgent').value || "TBC"
-            });
-            document.getElementById('newName').value = '';
-            saveAndRender();
+        function rebuildVault() {
+            try {
+                const input = document.getElementById('raw-import').value;
+                const data = JSON.parse(input);
+                if (Array.isArray(data)) {
+                    records = data;
+                    saveAndRender();
+                    alert("Vault Rebuilt: " + records.length + " records loaded.");
+                }
+            } catch (e) {
+                alert("Error: Check the format of your pasted data.");
+            }
         }
 
         function toggleStatus(id) {
             const states = ["PENDING", "SENT", "SUCCESS", "RTS"];
-            const idx = records.findIndex(r => r.ID === id);
+            const idx = records.findIndex(r => r.ID === id || r.Name === id);
             records[idx].Status = states[(states.indexOf(records[idx].Status) + 1) % states.length];
             saveAndRender();
         }
 
         function saveAndRender() {
-            localStorage.setItem('autograph_db_v2', JSON.stringify(records));
+            localStorage.setItem('autograph_db_v3', JSON.stringify(records));
             render();
         }
 
@@ -124,54 +83,30 @@
             const q = document.getElementById('search').value.toLowerCase();
             const list = document.getElementById('list');
             list.innerHTML = '';
-            let wins = 0;
-            const now = Date.now();
+            let stats = {SUCCESS:0, SENT:0, PENDING:0, RTS:0};
 
-            records.sort((a,b) => b.ID - a.ID).forEach(r => {
-                if(r.Status === "SUCCESS") wins++;
+            records.forEach(r => {
+                if(stats[r.Status] !== undefined) stats[r.Status]++;
                 if(!r.Name.toLowerCase().includes(q)) return;
 
-                const tag = intelTags[r.Name] || null;
-                const isNew = (now - r.ID) < 86400000;
-
                 const div = document.createElement('div');
-                div.className = "bento-card p-4 relative overflow-hidden";
+                div.className = "bento-card p-4";
                 div.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                                <h3 class="font-bold text-white tracking-tight">${r.Name}</h3>
-                                ${isNew ? '<span class="text-[8px] font-black text-red-500 italic">JUST LOGGED</span>' : ''}
-                            </div>
-                            <div class="flex flex-wrap gap-2 text-[9px] font-bold uppercase tracking-tight">
-                                <span class="text-red-500">${r.Category}</span>
-                                <span class="text-zinc-600">${r.Date}</span>
-                                ${tag ? `<span class="bg-zinc-800 text-zinc-300 px-1.5 rounded">${tag}</span>` : ''}
-                            </div>
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="font-black text-white italic text-sm uppercase">${r.Name}</h3>
+                            <span class="text-[9px] text-zinc-600 font-bold uppercase">${r.Category || 'GENERAL'}</span>
                         </div>
-                        <div class="text-right">
-                            <button onclick="toggleStatus(${r.ID})" class="status-${r.Status.toLowerCase()} text-[10px] font-black tracking-widest mb-2 block w-20 py-2 bg-black rounded border border-zinc-800 uppercase">
-                                ${r.Status}
-                            </button>
-                            <button onclick="deleteRecord(${r.ID})" class="text-[8px] text-zinc-800 uppercase font-bold">Wipe Record</button>
-                        </div>
+                        <button onclick="toggleStatus('${r.ID || r.Name}')" class="status-${r.Status.toLowerCase()} text-[10px] font-black w-20 py-2 bg-black rounded border border-zinc-800">${r.Status}</button>
                     </div>
                 `;
                 list.appendChild(div);
             });
 
-            document.getElementById('win-count').innerText = wins;
-            document.getElementById('total-count').innerText = records.length;
-            document.getElementById('win-rate').innerText = records.length ? Math.round((wins/records.length)*100) + "%" : "0%";
-        }
-
-        function deleteRecord(id) { if(confirm('Erase from Archive?')) { records = records.filter(r => r.ID !== id); saveAndRender(); } }
-        function downloadBackup() {
-            const blob = new Blob([document.documentElement.outerHTML], {type: 'text/html'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `Registry_Backup_May2026.html`;
-            a.click();
+            document.getElementById('win-count').innerText = stats.SUCCESS;
+            document.getElementById('sent-count').innerText = stats.SENT;
+            document.getElementById('pending-count').innerText = stats.PENDING;
+            document.getElementById('rts-count').innerText = stats.RTS;
         }
 
         render();
