@@ -1,69 +1,29 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registry Pro | Billericay Vault</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background-color: #050505; color: #e4e4e7; font-family: 'Inter', sans-serif; }
-        .bento-card { background: #111113; border: 1px solid #27272a; border-radius: 20px; }
-        .glass { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(12px); }
-    </style>
+    <title>Recovery Mode</title>
 </head>
-<body class="pb-32">
-    <div class="max-w-md mx-auto p-4">
-        <div id="debug-info" class="text-[9px] text-zinc-600 mb-2 font-mono uppercase"></div>
-        
-        <div id="list" class="space-y-3"></div>
-    </div>
+<body>
+    <h1 id="status">Loading...</h1>
+    <div id="list"></div>
 
     <script>
-        // Ensure you load the exact key where your 113+ records are saved
-        const STORAGE_KEY = 'autograph_db_v3';
-        let savedData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-        
-        // Combine master list with saved data
-        // If masterList is incomplete, rely primarily on savedData
-        let records = [...savedData];
+        // Check what is in storage
+        const data = localStorage.getItem('autograph_db_v3');
+        const status = document.getElementById('status');
+        const list = document.getElementById('list');
 
-        function render() {
-            const q = document.getElementById('search').value.toLowerCase();
-            const list = document.getElementById('list');
-            list.innerHTML = '';
-            
-            // Debug: Show how many records are loaded
-            document.getElementById('debug-info').innerText = `TOTAL RECORDS IN VAULT: ${records.length}`;
-
-            let s = {SUCCESS:0, SENT:0, PENDING:0, RTS:0};
-
-            // Remove any limits here. .forEach will now process all items in the array.
-            records.sort((a,b) => b.ID - a.ID).forEach(r => {
-                if(s[r.Status] !== undefined) s[r.Status]++;
-                if(!r.Name.toLowerCase().includes(q)) return;
-
-                const div = document.createElement('div');
-                div.className = "bento-card p-5 border-l-4 " + 
-                    (r.Status === "SUCCESS" ? "border-l-green-500" : r.Status === "SENT" ? "border-l-blue-500" : "border-l-zinc-800");
-                
-                div.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <h3 class="font-black text-white text-sm">${r.Name}</h3>
-                        <button onclick="toggleStatus(${r.ID})" class="text-[9px] font-black uppercase p-2 border border-zinc-800 rounded">
-                            ${r.Status}
-                        </button>
-                    </div>
-                `;
+        if (!data) {
+            status.innerText = "No data found in storage.";
+        } else {
+            const records = JSON.parse(data);
+            status.innerText = "Records found: " + records.length;
+            records.forEach(r => {
+                let div = document.createElement('div');
+                div.innerText = r.Name + " - " + r.Status;
                 list.appendChild(div);
             });
-
-            document.getElementById('win-count').innerText = s.SUCCESS;
-            document.getElementById('sent-count').innerText = s.SENT;
-            document.getElementById('pending-count').innerText = s.PENDING;
-            document.getElementById('rts-count').innerText = s.RTS;
         }
-
-        render();
     </script>
 </body>
 </html>
