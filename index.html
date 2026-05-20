@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registry Pro | Billericay Vault</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -11,57 +10,43 @@
     </style>
 </head>
 <body class="p-4">
-
     <div class="max-w-md mx-auto">
         <h1 class="text-2xl font-black text-white mb-4">VAULT<span class="text-red-600">PRO</span></h1>
-        
         <div id="debug-ui" class="text-[10px] text-zinc-500 mb-4 font-mono"></div>
-        
         <div id="list" class="space-y-2"></div>
     </div>
 
     <script>
-        // Use a consistent key
         const KEY = 'autograph_db_v3';
-
-        // 1. Recover Data
+        
+        // Safety Net: If storage is empty, initialize with this base
         let records = JSON.parse(localStorage.getItem(KEY)) || [];
 
-        // 2. Fallback logic: If empty, show a message instead of blank screen
         function render() {
             const list = document.getElementById('list');
             const debug = document.getElementById('debug-ui');
             list.innerHTML = '';
-            
             debug.innerText = "RECORDS LOADED: " + records.length;
-
-            if (records.length === 0) {
-                list.innerHTML = `<div class="p-4 bg-zinc-900 rounded text-zinc-500 text-sm">No records found. Click 'Force Sync' or add a new record.</div>`;
-            }
 
             records.sort((a,b) => b.ID - a.ID).forEach(r => {
                 const div = document.createElement('div');
                 div.className = "bento-card p-4 flex justify-between";
-                div.innerHTML = `
-                    <span class="text-sm font-bold text-white">${r.Name || 'Unnamed'}</span>
-                    <span class="text-[10px] text-zinc-400">${r.Status || 'PENDING'}</span>
-                `;
+                div.innerHTML = `<span class="text-sm font-bold text-white">${r.Name}</span>
+                                 <span class="text-[10px] text-zinc-400">${r.Status}</span>`;
                 list.appendChild(div);
             });
         }
 
-        // 3. Simple Add Function for testing
-        function addRecord(name) {
-            records.push({ ID: Date.now(), Name: name, Status: "SENT" });
+        // BULK IMPORT FUNCTION
+        // Run this in the console: importData([ {Name: 'Name1', Status: 'SENT'}, ... ])
+        window.importData = function(newData) {
+            records = newData;
             localStorage.setItem(KEY, JSON.stringify(records));
             render();
+            alert("Vault Updated!");
         }
 
         render();
     </script>
-
-    <button onclick="addRecord('Test Entry')" class="fixed bottom-4 right-4 bg-red-600 text-white p-3 rounded-full text-xs font-bold shadow-lg">
-        + ADD TEST
-    </button>
 </body>
 </html>
