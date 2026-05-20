@@ -11,13 +11,16 @@
         .glass { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); }
         @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
         .ticker-text { display: inline-block; white-space: nowrap; animation: ticker 40s linear infinite; }
+        .status-success { color: #22c55e; border-bottom: 2px solid #22c55e; }
+        .status-sent { color: #3b82f6; border-bottom: 2px solid #3b82f6; }
+        .status-pending { color: #a1a1aa; border-bottom: 2px solid #a1a1aa; }
     </style>
 </head>
 <body class="pb-32">
 
     <div class="w-full bg-red-600 py-2 overflow-hidden sticky top-0 z-[100] border-b border-red-500 shadow-2xl">
         <div class="ticker-text font-black italic uppercase text-[10px] text-white tracking-widest">
-            🚨 INTEL: SIR IAN MCKELLEN 'LEAR' ANNOUNCEMENT (MAY 14) • HENRY CAVILL FILMING @ SKYE TODAY • DIRK NOWITZKI RETURNS TRACKED IN ESSEX • 
+            🚨 INTEL: SIR IAN MCKELLEN STARTS 'LEAR' @ THE YARD THEATRE (ANNOUNCED MAY 14) • HENRY CAVILL & RUSSELL CROWE FILMING @ SKYE & EILEAN DONAN TODAY • LIONESSES VS VILLA TOMORROW 13:00 • DIRK NOWITZKI RETURNS TRACKED IN ESSEX • 
         </div>
     </div>
 
@@ -25,6 +28,7 @@
         <header class="mb-6 space-y-4">
             <div class="flex justify-between items-end">
                 <h1 class="text-4xl font-black italic tracking-tighter text-white uppercase">Vault<span class="text-red-600">Pro</span></h1>
+                <span class="text-[9px] font-mono text-zinc-500 uppercase tracking-widest bg-zinc-900 px-2 py-1 rounded">Billericay-6 Terminal</span>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
@@ -35,26 +39,29 @@
                     <div class="bento-card p-3 text-center"><span class="text-[8px] text-zinc-500 font-bold uppercase block">RTS</span><span id="rts-count" class="text-2xl font-black text-red-600">0</span></div>
                 </div>
                 <div class="bento-card p-4 border-blue-900/30 bg-blue-950/10 flex flex-col justify-center text-center">
-                    <h2 class="text-[8px] font-black uppercase text-blue-500 mb-1">Target Scanner</h2>
+                    <h2 class="text-[8px] font-black uppercase text-blue-500 mb-1 tracking-widest">Scanner Target</h2>
                     <div id="scanner-name" class="text-xs font-black text-white italic uppercase">Scanning...</div>
+                    <div id="scanner-intel" class="text-[8px] text-zinc-500 leading-tight mt-1 italic">Analyzing Billericay returns...</div>
                 </div>
             </div>
         </header>
 
         <div class="sticky top-14 z-50 mb-8">
-            <input type="text" id="search" placeholder="Search 113 Records..." onkeyup="render()" class="w-full glass border border-zinc-800 p-5 rounded-2xl text-sm shadow-2xl outline-none">
+            <input type="text" id="search" placeholder="Search 113 Records..." onkeyup="render()" class="w-full glass border border-zinc-800 p-5 rounded-2xl text-sm shadow-2xl focus:border-red-600 outline-none">
         </div>
 
         <div id="list" class="space-y-3"></div>
 
         <div class="fixed bottom-0 left-0 w-full p-4 glass border-t border-zinc-800 z-[110] flex gap-2">
-            <button onclick="addRecord()" class="flex-[2] bg-white text-black p-4 rounded-2xl text-[11px] font-black uppercase">Add New Send</button>
-            <button onclick="localStorage.clear(); location.reload();" class="flex-1 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-[10px] font-bold uppercase text-zinc-400 text-center">Force Sync</button>
+            <button onclick="addRecord()" class="flex-[2] bg-white text-black p-4 rounded-2xl text-[11px] font-black uppercase tracking-tighter">Add New Send</button>
+            <button onclick="localStorage.clear(); location.reload();" class="flex-1 bg-zinc-900 border border-zinc-800 p-4 rounded-2xl text-[10px] font-bold uppercase text-zinc-400">Force Sync</button>
         </div>
     </div>
 
     <script>
+        // THE FULL 113 RECORD SET
         const masterList = [
+            // Verified Wins
             {ID: 1, Name: "Kevin Keegan", Status: "SUCCESS", Category: "FOOTBALL", Date: "15/05/2026"},
             {ID: 2, Name: "Griff Rhys Jones", Status: "SUCCESS", Category: "COMEDY", Date: "15/05/2026"},
             {ID: 3, Name: "Stephen Fry", Status: "SUCCESS", Category: "ACTOR", Date: "13/03/2026"},
@@ -62,18 +69,48 @@
             {ID: 5, Name: "Tony Adams", Status: "SUCCESS", Category: "FOOTBALL", Date: "13/03/2026"},
             {ID: 6, Name: "John Terry", Status: "SUCCESS", Category: "FOOTBALL", Date: "12/03/2026"},
             {ID: 7, Name: "Frank Lampard", Status: "SUCCESS", Category: "FOOTBALL", Date: "11/03/2026"},
+            // Active Items
             {ID: 8, Name: "Dirk Nowitzki", Status: "SENT", Category: "NBA", Date: "01/05/2026"},
             {ID: 9, Name: "Ian McKellen", Status: "SENT", Category: "ACTOR", Date: "14/05/2026"},
             {ID: 10, Name: "Henry Cavill", Status: "PENDING", Category: "ACTOR", Date: "10/05/2026"},
             {ID: 11, Name: "Tom Hiddleston", Status: "SENT", Category: "ACTOR", Date: "12/05/2026"}
         ];
 
-        // RESTORED: The loop that builds your 113 records
+        // Fill remaining to 113
         for(let i=12; i<=113; i++) {
             masterList.push({ID: i, Name: `Record Slot ${i}`, Status: "PENDING", Category: "ARCHIVE", Date: "2026-05-15"});
         }
 
+        // SYNC LOGIC: Bypass browser memory on load
         let records = [...masterList];
+
+        const scanPool = [
+            {n: "HENRY CAVILL", i: "LOCATION: Filming near Eilean Donan Castle today."},
+            {n: "IAN MCKELLEN", i: "GOLD WINDOW: Announcement pulse (May 14)."},
+            {n: "DIRK NOWITZKI", i: "95% PROBABILITY: Essex returns active tomorrow."}
+        ];
+
+        function runScanner() {
+            const pick = scanPool[Math.floor(Math.random() * scanPool.length)];
+            document.getElementById('scanner-name').innerText = pick.n;
+            document.getElementById('scanner-intel').innerText = pick.i;
+        }
+
+        function toggleStatus(id) {
+            const states = ["PENDING", "SENT", "SUCCESS", "RTS"];
+            const idx = records.findIndex(r => r.ID == id);
+            records[idx].Status = states[(states.indexOf(records[idx].Status) + 1) % states.length];
+            localStorage.setItem('autograph_db_v3', JSON.stringify(records));
+            render();
+        }
+
+        function addRecord() {
+            const name = prompt("Name:");
+            if(!name) return;
+            records.push({ ID: Date.now(), Name: name, Status: "SENT", Category: "TARGET", Date: "15/05/2026" });
+            localStorage.setItem('autograph_db_v3', JSON.stringify(records));
+            render();
+        }
 
         function render() {
             const q = document.getElementById('search').value.toLowerCase();
@@ -92,13 +129,15 @@
                 div.innerHTML = `
                     <div class="flex justify-between items-center">
                         <div>
-                            <h3 class="font-black text-white uppercase italic text-sm">${r.Name}</h3>
+                            <h3 class="font-black text-white uppercase italic text-sm tracking-tight">${r.Name}</h3>
                             <div class="flex gap-2 text-[8px] font-bold uppercase mt-1">
                                 <span class="text-red-600">${r.Category}</span>
                                 <span class="text-zinc-600">${r.Date}</span>
                             </div>
                         </div>
-                        <div class="text-[9px] font-black text-zinc-400 uppercase">${r.Status}</div>
+                        <button onclick="toggleStatus(${r.ID})" class="status-${r.Status.toLowerCase()} text-[9px] font-black tracking-widest bg-black/50 px-3 py-2 rounded-lg border border-zinc-800 uppercase">
+                            ${r.Status}
+                        </button>
                     </div>
                 `;
                 list.appendChild(div);
@@ -110,8 +149,8 @@
             document.getElementById('rts-count').innerText = s.RTS;
         }
 
-        render();
+        setInterval(runScanner, 5000);
+        runScanner(); render();
     </script>
 </body>
 </html>
-
