@@ -1,218 +1,109 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultPro FIXED</title>
-
+<meta charset="utf-8">
+<title>Vault Fix</title>
 <style>
-body{margin:0;font-family:Arial;background:#050505;color:#eee;}
-header{position:sticky;top:0;background:#111;padding:10px;border-bottom:1px solid #222;}
-
-input,select{
-width:100%;
-padding:10px;
-margin-top:5px;
-background:#000;
-color:#fff;
-border:1px solid #333;
-border-radius:6px;
-}
-
-.stats{
-display:grid;
-grid-template-columns:repeat(4,1fr);
-gap:6px;
-padding:10px;
-}
-
-.box{
-background:#111;
-padding:10px;
-border-radius:8px;
-text-align:center;
-font-size:12px;
-}
-
-.list{padding:10px;}
-
-.card{
-background:#111;
-border:1px solid #222;
-padding:10px;
-margin-bottom:8px;
-border-radius:8px;
-}
-
-button{
-background:#222;
-border:1px solid #333;
-color:#fff;
-padding:6px;
-font-size:11px;
-border-radius:6px;
-margin:4px;
-}
-
-.small{font-size:10px;color:#888;}
+body{font-family:Arial;background:#000;color:#fff;margin:0}
+header{padding:10px;background:#111;position:sticky;top:0}
+input,select{width:100%;padding:8px;margin-top:5px}
+.card{background:#111;margin:10px;padding:10px;border-radius:6px}
+button{margin:5px;padding:6px}
+.small{font-size:10px;color:#888}
 </style>
 </head>
 
 <body>
 
 <header>
-<input id="search" placeholder="Search..." />
+<input id="search" placeholder="search">
 </header>
 
-<div class="stats">
-<div class="box">TOTAL<br><b id="t"></b></div>
-<div class="box">SUCCESS<br><b id="s"></b></div>
-<div class="box">PENDING<br><b id="p"></b></div>
-<div class="box">RTS<br><b id="r"></b></div>
+<div>
+<button id="reset">RESET</button>
+<button id="more">LOAD MORE</button>
 </div>
 
-<div style="padding:10px">
-<button id="addBtn">+ ADD</button>
-<button id="resetBtn">RESET</button>
-<button id="moreBtn">LOAD MORE</button>
-</div>
-
-<div id="list" class="list"></div>
+<div id="stats"></div>
+<div id="list"></div>
 
 <script>
 
-////////////////////////////////////////////////////
-const MASTER_DATA = [
-{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
-{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
-{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
-{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},
-{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},
-{"ID":6,"Name":"Paul Merson","Status":"SUCCESS"},
-{"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},
-{"ID":8,"Name":"Joshua Kimmich","Status":"SUCCESS"},
-{"ID":9,"Name":"Ron Ferdinand","Status":"SUCCESS"},
-{"ID":10,"Name":"Erling Haaland","Status":"SUCCESS"}
+const MASTER = [
+{ID:1,Name:"Jannik Sinner",Status:"SUCCESS"},
+{ID:2,Name:"Keanu Reeves",Status:"RTS"},
+{ID:3,Name:"Alan Carr",Status:"SUCCESS"},
+{ID:4,Name:"Harry Kane",Status:"PENDING"},
+{ID:5,Name:"David Attenborough",Status:"SUCCESS"}
 ];
 
-////////////////////////////////////////////////////
+let DB = JSON.parse(localStorage.getItem("vault")) || structuredClone(MASTER);
 
-let DB = JSON.parse(localStorage.getItem("vault_full"));
-if(!DB) DB = JSON.parse(JSON.stringify(MASTER_DATA));
-
-let VIEW_LIMIT = 50;
-let searchQuery = "";
+let limit = 50;
+let q = "";
 
 function save(){
-    localStorage.setItem("vault_full", JSON.stringify(DB));
+localStorage.setItem("vault",JSON.stringify(DB));
 }
 
-////////////////////////////////////////////////////
-// EVENTS (NO INLINE HTML EVENTS)
-////////////////////////////////////////////////////
-
-document.getElementById("search").addEventListener("input", (e)=>{
-    searchQuery = e.target.value.toLowerCase();
-    VIEW_LIMIT = 50;
-    render();
-});
-
-document.getElementById("addBtn").onclick = ()=>{
-    const n = prompt("Name:");
-    if(!n) return;
-
-    DB.unshift({
-        ID: Date.now(),
-        Name: n,
-        Status: "PENDING"
-    });
-
-    save();
-    render();
+document.getElementById("search").oninput = e=>{
+q = e.target.value.toLowerCase();
+render();
 };
 
-document.getElementById("resetBtn").onclick = ()=>{
-    DB = JSON.parse(JSON.stringify(MASTER_DATA));
-    VIEW_LIMIT = 50;
-    save();
-    render();
+document.getElementById("reset").onclick = ()=>{
+DB = structuredClone(MASTER);
+limit = 50;
+save();
+render();
 };
 
-document.getElementById("moreBtn").onclick = ()=>{
-    VIEW_LIMIT += 50;
-    render();
+document.getElementById("more").onclick = ()=>{
+limit += 50;
+render();
 };
-
-////////////////////////////////////////////////////
-// RENDER (FULLY STABLE)
-////////////////////////////////////////////////////
 
 function render(){
 
-    const filtered = searchQuery
-        ? DB.filter(x => x.Name.toLowerCase().includes(searchQuery))
-        : DB;
+let filtered = q
+? DB.filter(x=>x.Name.toLowerCase().includes(q))
+: DB;
 
-    const list = filtered.slice(0, VIEW_LIMIT);
+let show = filtered.slice(0,limit);
 
-    const container = document.getElementById("list");
-    container.innerHTML = "";
+document.getElementById("list").innerHTML =
+show.map(r=>`
+<div class="card">
+<input value="${r.Name}" onchange="edit(${r.ID},this.value)">
+<select onchange="status(${r.ID},this.value)">
+<option ${r.Status=="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${r.Status=="PENDING"?"selected":""}>PENDING</option>
+<option ${r.Status=="RTS"?"selected":""}>RTS</option>
+</select>
+<div class="small">${r.ID}</div>
+</div>
+`).join("");
 
-    list.forEach(r=>{
-
-        const div = document.createElement("div");
-        div.className = "card";
-
-        const input = document.createElement("input");
-        input.value = r.Name;
-
-        input.onchange = (e)=>{
-            r.Name = e.target.value;
-            save();
-        };
-
-        const select = document.createElement("select");
-
-        ["SUCCESS","PENDING","RTS","Sent","LOGGED"].forEach(s=>{
-            const opt = document.createElement("option");
-            opt.value = s;
-            opt.text = s;
-            if(r.Status === s) opt.selected = true;
-            select.appendChild(opt);
-        });
-
-        select.onchange = (e)=>{
-            r.Status = e.target.value;
-            save();
-            stats();
-        };
-
-        const small = document.createElement("div");
-        small.className = "small";
-        small.textContent = "ID: " + r.ID;
-
-        div.appendChild(input);
-        div.appendChild(select);
-        div.appendChild(small);
-
-        container.appendChild(div);
-    });
-
-    stats();
+stats();
 }
-
-////////////////////////////////////////////////////
-// STATS
-////////////////////////////////////////////////////
 
 function stats(){
-    document.getElementById("t").innerText = DB.length;
-    document.getElementById("s").innerText = DB.filter(x=>x.Status=="SUCCESS").length;
-    document.getElementById("p").innerText = DB.filter(x=>x.Status=="PENDING").length;
-    document.getElementById("r").innerText = DB.filter(x=>x.Status=="RTS").length;
+document.getElementById("stats").innerText =
+"TOTAL: "+DB.length+
+" | SUCCESS: "+DB.filter(x=>x.Status=="SUCCESS").length+
+" | PENDING: "+DB.filter(x=>x.Status=="PENDING").length+
+" | RTS: "+DB.filter(x=>x.Status=="RTS").length;
 }
 
-////////////////////////////////////////////////////
+function edit(id,val){
+let x=DB.find(i=>i.ID==id);
+if(x){x.Name=val;save();}
+}
+
+function status(id,val){
+let x=DB.find(i=>i.ID==id);
+if(x){x.Status=val;save();}
+}
 
 render();
 
