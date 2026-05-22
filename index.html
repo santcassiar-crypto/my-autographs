@@ -41,14 +41,12 @@ body{
 
 <body class="min-h-screen pb-24">
 
-<!-- TOP BAR -->
 <div class="bg-red-600 text-white text-center text-[11px] py-2 font-bold tracking-wide">
-VAULTPRO v6 MASTER • MOBILE SAFE • OFFLINE READY
+VAULTPRO v6 MASTER • FULL SEARCH ENABLED • OFFLINE READY
 </div>
 
 <div class="max-w-6xl mx-auto p-3">
 
-<!-- HEADER -->
 <div class="stickyTop py-3 mb-3">
 
 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -106,13 +104,10 @@ RESET
 </div>
 </div>
 
-<!-- STATS -->
 <div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4"></div>
 
-<!-- AUDIT -->
 <div id="audit" class="mb-4"></div>
 
-<!-- RECORDS -->
 <div id="list" class="space-y-2"></div>
 
 </div>
@@ -121,10 +116,26 @@ RESET
 
 /* =========================================================
 FULL DATABASE
-Replace this sample with your FULL JSON dataset
 ========================================================= */
 
 const MASTER_DB = [
+
+{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
+{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
+{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
+{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
+{"ID":1779457496694,"Name":"George Graham - Home","Status":"PENDING"},
+{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},
+{"ID":1779457437040,"Name":"Gosh4 Goals","Status":"PENDING"},
+{"ID":1779457382999,"Name":"San Antonio Training Centre","Status":"PENDING"},
+{"ID":1779457367391,"Name":"OKC training centre","Status":"PENDING"},
+{"ID":1779457333472,"Name":"FC Barcelona - Training ground","Status":"PENDING"},
+{"ID":1779457307017,"Name":"Gary Oldman","Status":"SUCCESS"},
+{"ID":1779457276281,"Name":"Arsenal womens team","Status":"PENDING"},
+{"ID":1779457232607,"Name":"Park theatre x 2","Status":"PENDING"},
+{"ID":1779457195881,"Name":"Jeremy Sochan","Status":"PENDING"},
+{"ID":1779369334553,"Name":"Geoff Hurst","Status":"LOGGED"},
+{"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},
 
 {"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
 {"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
@@ -148,45 +159,45 @@ const MASTER_DB = [
 {"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"},
 {"ID":21,"Name":"Tommy Fleetwood","Status":"SUCCESS"},
 {"ID":22,"Name":"Lamine Yamal (Club)","Status":"SUCCESS"},
-{"ID":23,"Name":"Gary Oldman","Status":"SUCCESS"},
-{"ID":24,"Name":"Geoff Hurst","Status":"LOGGED"},
-{"ID":25,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
-{"ID":26,"Name":"Jonathan ross tv show","Status":"PENDING"},
-{"ID":27,"Name":"Matchroom - Brentwood","Status":"PENDING"},
-{"ID":28,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
-{"ID":29,"Name":"George Graham - Home","Status":"PENDING"},
-{"ID":30,"Name":"LFC Gala Event","Status":"PENDING"},
-{"ID":31,"Name":"Gosh4 Goals","Status":"PENDING"},
-{"ID":32,"Name":"San Antonio Training Centre","Status":"PENDING"},
-{"ID":33,"Name":"OKC training centre","Status":"PENDING"},
-{"ID":34,"Name":"FC Barcelona - Training ground","Status":"PENDING"},
-{"ID":35,"Name":"Arsenal womens team","Status":"PENDING"},
-{"ID":36,"Name":"Park theatre x 2","Status":"PENDING"},
-{"ID":37,"Name":"Jeremy Sochan","Status":"PENDING"},
-{"ID":38,"Name":"Emma Stone","Status":"PENDING"},
-{"ID":39,"Name":"Hugh Jackman","Status":"PENDING"},
-{"ID":40,"Name":"Michael Sheen","Status":"SUCCESS"},
-{"ID":41,"Name":"Line of Duty Cast","Status":"PENDING"},
-{"ID":42,"Name":"England Women","Status":"PENDING"},
-{"ID":43,"Name":"Tom Hiddleston","Status":"PENDING"},
-{"ID":44,"Name":"Jodie Comer","Status":"PENDING"},
-{"ID":45,"Name":"Ralph Fiennes","Status":"PENDING"},
-{"ID":46,"Name":"Pierce Brosnan","Status":"PENDING"},
-{"ID":47,"Name":"Mobland 2 (Cast)","Status":"PENDING"},
-{"ID":48,"Name":"The Batman Part II (Cast)","Status":"PENDING"},
-{"ID":49,"Name":"Wife and Dog (Cast)","Status":"PENDING"},
-{"ID":50,"Name":"Highlander (Cast/Henry Cavill)","Status":"PENDING"}
+{"ID":23,"Name":"Sebastian Coe","Status":"RTS"},
+{"ID":24,"Name":"Hugh Bonneville","Status":"SUCCESS"},
+{"ID":25,"Name":"Erling Haaland (Academy)","Status":"SUCCESS"},
+{"ID":26,"Name":"Mark Addy","Status":"SUCCESS"},
+{"ID":27,"Name":"Mikel Arteta","Status":"Sent"},
+{"ID":28,"Name":"Billy Crudup","Status":"SUCCESS"},
+{"ID":29,"Name":"Cole Palmer","Status":"RTS"},
+{"ID":30,"Name":"Dougray Scott","Status":"PENDING"},
+{"ID":31,"Name":"Jude Bellingham","Status":"PENDING"},
+{"ID":32,"Name":"Kylian Mbappé","Status":"PENDING"},
+{"ID":33,"Name":"Kevin De Bruyne","Status":"PENDING"},
+{"ID":34,"Name":"Jack Wilshere","Status":"PENDING"},
+{"ID":35,"Name":"Usain Bolt","Status":"PENDING"},
+{"ID":36,"Name":"Dirk Nowitzki","Status":"PENDING"},
+{"ID":37,"Name":"Harry Kane (CK66)","Status":"PENDING"},
+{"ID":38,"Name":"Grant Hill","Status":"PENDING"},
+{"ID":39,"Name":"Paolo Banchero","Status":"PENDING"},
+{"ID":40,"Name":"Rik Smits","Status":"SUCCESS"},
+{"ID":41,"Name":"Robert Parish","Status":"SUCCESS"},
+{"ID":42,"Name":"John McEnroe","Status":"PENDING"},
+{"ID":43,"Name":"Matas Buzelis","Status":"PENDING"},
+{"ID":44,"Name":"Lee Evans","Status":"PENDING"},
+{"ID":45,"Name":"Joe Marler","Status":"PENDING"},
+{"ID":46,"Name":"Celia Imrie","Status":"PENDING"},
+{"ID":47,"Name":"Diane Morgan","Status":"PENDING"},
+{"ID":48,"Name":"Lauren Daigle","Status":"PENDING"},
+{"ID":49,"Name":"Anna Maxwell Martin","Status":"PENDING"},
+{"ID":50,"Name":"Alex Ferguson (2)","Status":"PENDING"}
 
 ];
 
 /* =========================================================
-LIVE DATABASE
+LIVE DB
 ========================================================= */
 
 let DB = structuredClone(MASTER_DB);
 
 /* =========================================================
-STAMP SYSTEM
+STAMPS
 ========================================================= */
 
 let stamps = 20;
@@ -210,7 +221,7 @@ function updateStampUI(){
 }
 
 /* =========================================================
-SCORING ENGINE
+SCORING
 ========================================================= */
 
 function score(r){
@@ -235,8 +246,7 @@ function score(r){
 }
 
 /* =========================================================
-SMART RENDER
-50 visible / ALL searchable
+RENDER
 ========================================================= */
 
 function render(){
@@ -245,7 +255,6 @@ function render(){
 
     let filtered;
 
-    // SEARCH MODE
     if(q.length > 0){
 
         filtered = DB.filter(r =>
@@ -254,7 +263,6 @@ function render(){
 
     } else {
 
-        // DEFAULT MODE = show top 50 only
         filtered = [...DB]
             .sort((a,b)=>score(b)-score(a))
             .slice(0,50);
@@ -363,7 +371,7 @@ function updateStats(){
 }
 
 /* =========================================================
-AUDIT ENGINE
+AUDIT
 ========================================================= */
 
 function runAudit(){
