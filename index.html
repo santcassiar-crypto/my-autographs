@@ -2,223 +2,381 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultPro v6 Master</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VaultPro v6 MASTER</title>
+
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
-body { background:#050505; color:#e5e7eb; font-family:sans-serif; }
-.card { background:#111113; border:1px solid #27272a; border-radius:12px; }
-.good { border-left:4px solid #22c55e; }
-.mid { border-left:4px solid #f59e0b; }
-.low { border-left:4px solid #ef4444; }
-.small { font-size:10px; opacity:0.7; }
-select { background:#000; color:#fff; font-size:11px; }
-button { font-size:11px; }
+body{
+    background:#050505;
+    color:#e5e7eb;
+    font-family:Arial,sans-serif;
+}
+
+.card{
+    background:#111113;
+    border:1px solid #27272a;
+    border-radius:14px;
+}
+
+.good{border-left:4px solid #22c55e;}
+.mid{border-left:4px solid #f59e0b;}
+.low{border-left:4px solid #ef4444;}
+
+.small{
+    font-size:11px;
+    opacity:.7;
+}
+
+select,input,button{
+    outline:none;
+}
+
+.stickyTop{
+    position:sticky;
+    top:0;
+    z-index:100;
+    backdrop-filter:blur(10px);
+    background:rgba(5,5,5,.92);
+}
 </style>
 </head>
 
-<body class="pb-24">
+<body class="min-h-screen pb-24">
 
-<div class="bg-red-600 text-white text-[10px] font-bold text-center py-1">
-VAULTPRO v6 MASTER • FULL DATA LOCKED • NO PLACEHOLDERS
+<!-- TOP BAR -->
+<div class="bg-red-600 text-white text-center text-[11px] py-2 font-bold tracking-wide">
+VAULTPRO v6 MASTER • FULL RESTORE • MOBILE SAFE • OFFLINE READY
 </div>
 
-<div class="max-w-6xl mx-auto p-4">
+<div class="max-w-6xl mx-auto p-3">
 
-<h1 class="text-3xl font-black mb-3">VAULT<span class="text-red-600">PRO</span> v6 MASTER</h1>
+<!-- HEADER -->
+<div class="stickyTop py-3 mb-3">
 
-<div class="flex gap-2 mb-3">
-<input id="search" oninput="render()" placeholder="Search vault..." class="w-full bg-zinc-900 p-2 text-xs rounded border border-zinc-800">
+<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
 
-<button onclick="runAudit()" class="bg-blue-600 px-3 rounded">AUDIT</button>
-<button onclick="resetMaster()" class="bg-green-600 px-3 rounded">RESET MASTER</button>
-<button onclick="resetStamps()" class="bg-zinc-700 px-3 rounded">RESET STAMPS</button>
+<h1 class="text-3xl font-black">
+VAULT<span class="text-red-600">PRO</span>
+</h1>
+
+<div class="flex gap-2 flex-wrap">
+
+<button onclick="runAudit()" class="bg-blue-600 px-3 py-2 rounded text-xs font-bold">
+AUDIT
+</button>
+
+<button onclick="resetMaster()" class="bg-green-600 px-3 py-2 rounded text-xs font-bold">
+MASTER RESET
+</button>
+
+<button onclick="exportDB()" class="bg-zinc-700 px-3 py-2 rounded text-xs font-bold">
+EXPORT
+</button>
+
+</div>
 </div>
 
-<div class="card p-3 mb-3 text-xs">
-📦 Stamp Budget: <b>20</b>  
-Remaining: <b id="stamps">20</b>
-<button onclick="useStamp()" class="ml-2 bg-red-600 px-2 rounded">USE</button>
+<div class="card p-3 mt-3">
+
+<div class="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+
+<input
+id="search"
+oninput="render()"
+placeholder="Search targets..."
+class="w-full bg-zinc-900 border border-zinc-800 rounded p-3 text-sm text-white"
+>
+
+<div class="flex gap-2 items-center whitespace-nowrap">
+
+<div class="text-sm">📮 Stamps:</div>
+
+<div id="stampCount" class="font-black text-green-400">
+20
 </div>
 
-<div id="audit" class="mb-3"></div>
-<div id="list"></div>
+<button onclick="useStamp()" class="bg-red-600 px-2 py-1 rounded text-xs">
+USE
+</button>
+
+<button onclick="resetStamps()" class="bg-zinc-700 px-2 py-1 rounded text-xs">
+RESET
+</button>
+
+</div>
+</div>
+</div>
+</div>
+
+<!-- STATS -->
+<div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4"></div>
+
+<!-- AUDIT -->
+<div id="audit" class="mb-4"></div>
+
+<!-- RECORDS -->
+<div id="list" class="space-y-2"></div>
 
 </div>
 
 <script>
 
-let MASTER_DB = [
-{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
-{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
-{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
-{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
-{"ID":1779457496694,"Name":"George Graham - Home ","Status":"PENDING"},
-{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},
-{"ID":1779457307017,"Name":"Gary Oldman ","Status":"SUCCESS"},
-{"ID":1779369334553,"Name":"Geoff Hurst ","Status":"LOGGED"},
-{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
-{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
-{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
-{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},
-{"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},
-{"ID":10,"Name":"Erling Haaland (City)","Status":"SUCCESS"},
-{"ID":13,"Name":"Kevin Bridges","Status":"SUCCESS"},
-{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},
-{"ID":28,"Name":"Mikel Arteta","Status":"Sent"},
-{"ID":32,"Name":"Jude Bellingham","Status":"PENDING"},
-{"ID":33,"Name":"Kylian Mbappé","Status":"PENDING"},
-{"ID":36,"Name":"Usain Bolt","Status":"PENDING"},
-{"ID":41,"Name":"Rik Smits","Status":"SUCCESS"},
-{"ID":42,"Name":"Robert Parish","Status":"SUCCESS"},
-{"ID":66,"Name":"Ralph Fiennes","Status":"PENDING"},
-{"ID":67,"Name":"Pierce Brosnan","Status":"PENDING"},
-{"ID":68,"Name":"Jodie Comer","Status":"PENDING"},
-{"ID":80,"Name":"Hugh Jackman","Status":"PENDING"},
-{"ID":81,"Name":"LA Lakers","Status":"Sent"},
-{"ID":83,"Name":"Man Utd Training","Status":"Sent"},
-{"ID":88,"Name":"Antoine Griezmann / Alvarez","Status":"PENDING"},
-{"ID":90,"Name":"Paul Scholes","Status":"RTS"},
-{"ID":92,"Name":"Michael Sheen","Status":"SUCCESS"},
-{"ID":114,"Name":"Dick Van Dyke","Status":"SUCCESS"},
-{"ID":115,"Name":"Stuart Pearce","Status":"SUCCESS"},
-{"ID":116,"Name":"Ray Parlour","Status":"SUCCESS"},
-{"ID":118,"Name":"Alex Ferguson (1)","Status":"LOGGED"},
-{"ID":119,"Name":"Thierry Henry","Status":"LOGGED"},
-{"ID":120,"Name":"David Seaman","Status":"LOGGED"},
-{"ID":153,"Name":"Michael Sheen (Extra)","Status":"SUCCESS"},
-{"ID":171,"Name":"Stephen Fry (1/3)","Status":"SUCCESS"},
-{"ID":172,"Name":"Stephen Fry (2/3)","Status":"SUCCESS"},
-{"ID":173,"Name":"Stephen Fry (3/3)","Status":"SUCCESS"},
-{"ID":174,"Name":"Paul Merson (1/2)","Status":"SUCCESS"},
-{"ID":176,"Name":"Tony Adams (Extra)","Status":"SUCCESS"},
-{"ID":177,"Name":"Arsenal 2026 Squad","Status":"SUCCESS"}
-];
+/* =========================================================
+FULL MASTER DATABASE
+========================================================= */
+
+const MASTER_DB =
+
+[{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},{"ID":1779457496694,"Name":"George Graham - Home ","Status":"PENDING"},{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},{"ID":1779457437040,"Name":"Gosh4 Goals","Status":"PENDING"},{"ID":1779457382999,"Name":"San Antonio Training Centre ","Status":"PENDING"},{"ID":1779457367391,"Name":"OKC training centre","Status":"PENDING"},{"ID":1779457333472,"Name":"FC Barcelona - Training ground","Status":"PENDING"},{"ID":1779457307017,"Name":"Gary Oldman ","Status":"SUCCESS"},{"ID":1779457276281,"Name":"Arsenal womens team","Status":"PENDING"},{"ID":1779457232607,"Name":"Park theatre x 2 ","Status":"PENDING"},{"ID":1779457195881,"Name":"Jermery Sochan","Status":"PENDING"},{"ID":1779369334553,"Name":"Geoff Hurst ","Status":"LOGGED"},{"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},{"ID":6,"Name":"Paul Merson (Original)","Status":"SUCCESS"},{"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},{"ID":8,"Name":"Joshua Kimmich","Status":"SUCCESS"},{"ID":9,"Name":"Ron Ferdinand","Status":"SUCCESS"},{"ID":10,"Name":"Erling Haaland (City)","Status":"SUCCESS"},{"ID":11,"Name":"Lamine Yamal (Home)","Status":"RTS"},{"ID":12,"Name":"Rosie Jones","Status":"SUCCESS"},{"ID":13,"Name":"Kevin Bridges","Status":"SUCCESS"},{"ID":14,"Name":"Lee Mack","Status":"SUCCESS"},{"ID":15,"Name":"Chris Waddle","Status":"SUCCESS"},{"ID":16,"Name":"Ivo Graham","Status":"SUCCESS"},{"ID":17,"Name":"Josh Widdicombe","Status":"SUCCESS"},{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},{"ID":19,"Name":"Rob Beckett","Status":"SUCCESS"},{"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"},{"ID":21,"Name":"Tommy Fleetwood","Status":"SUCCESS"},{"ID":22,"Name":"Lamine Yamal (Club)","Status":"SUCCESS"},{"ID":24,"Name":"Sebastian Coe","Status":"RTS"},{"ID":25,"Name":"Hugh Bonneville","Status":"SUCCESS"},{"ID":26,"Name":"Erling Haaland (Academy)","Status":"SUCCESS"},{"ID":27,"Name":"Mark Addy","Status":"SUCCESS"},{"ID":28,"Name":"Mikel Arteta","Status":"Sent"},{"ID":29,"Name":"Billy Crudup","Status":"SUCCESS"},{"ID":30,"Name":"Cole Palmer","Status":"RTS"},{"ID":31,"Name":"Dougray Scott","Status":"PENDING"},{"ID":32,"Name":"Jude Bellingham","Status":"PENDING"},{"ID":33,"Name":"Kylian Mbappé","Status":"PENDING"},{"ID":34,"Name":"Kevin De Bruyne","Status":"PENDING"},{"ID":35,"Name":"Jack Wilshere","Status":"PENDING"},{"ID":36,"Name":"Usain Bolt","Status":"PENDING"},{"ID":37,"Name":"Dirk Nowitzki","Status":"PENDING"},{"ID":38,"Name":"Harry Kane (CK66)","Status":"PENDING"},{"ID":39,"Name":"Grant Hill","Status":"PENDING"},{"ID":40,"Name":"Paolo Banchero","Status":"PENDING"},{"ID":41,"Name":"Rik Smits","Status":"SUCCESS"},{"ID":42,"Name":"Robert Parish","Status":"SUCCESS"}];
+
+/* =========================================================
+LIVE DATABASE
+========================================================= */
 
 let DB = structuredClone(MASTER_DB);
 
+/* =========================================================
+STAMP SYSTEM
+========================================================= */
+
 let stamps = 20;
 
-/* =========================
-SCORING
-========================= */
-
-function score(r){
-let s=50;
-if(r.Status==="SUCCESS") s+=30;
-if(r.Status==="RTS") s-=30;
-if(r.Status==="Sent") s-=10;
-if(r.Status==="LOGGED") s-=5;
-
-let n=r.Name.toLowerCase();
-if(n.includes("theatre")) s+=15;
-if(n.includes("training")) s+=12;
-if(n.includes("fc")) s+=10;
-return s;
-}
-
-/* =========================
-STAMPS
-========================= */
-
 function useStamp(){
-if(stamps>0) stamps--;
-document.getElementById("stamps").innerText=stamps;
+    if(stamps > 0){
+        stamps--;
+        updateStampUI();
+        runAudit();
+    }
 }
 
 function resetStamps(){
-stamps=20;
-document.getElementById("stamps").innerText=stamps;
+    stamps = 20;
+    updateStampUI();
+    runAudit();
 }
 
-/* =========================
-MASTER RESET (IMPORTANT FIX)
-========================= */
-
-function resetMaster(){
-DB = structuredClone(MASTER_DB);
-render();
-runAudit();
+function updateStampUI(){
+    document.getElementById("stampCount").innerText = stamps;
 }
 
-/* =========================
-AUDIT
-========================= */
+/* =========================================================
+SCORING ENGINE
+========================================================= */
 
-function runAudit(){
+function score(r){
 
-let pending = DB.filter(x=>x.Status==="PENDING")
-.sort((a,b)=>score(b)-score(a))
-.slice(0,stamps);
+    let s = 50;
 
-let html = `
-<div class="card p-3 mb-3">
-<div class="text-sm font-bold">🧠 MASTER AUDIT</div>
-<div class="small">Full dataset integrity + stamp-limited plan</div>
-</div>`;
+    if(r.Status === "SUCCESS") s += 30;
+    if(r.Status === "PENDING") s += 10;
+    if(r.Status === "RTS") s -= 30;
+    if(r.Status === "Sent") s -= 5;
+    if(r.Status === "LOGGED") s -= 2;
 
-/* stats */
-html += `
-<div class="card p-3 mb-2 text-xs">
-SUCCESS: ${DB.filter(x=>x.Status==="SUCCESS").length}<br>
-PENDING: ${DB.filter(x=>x.Status==="PENDING").length}<br>
-RTS: ${DB.filter(x=>x.Status==="RTS").length}<br>
-TOTAL: ${DB.length}
-</div>`;
+    let n = r.Name.toLowerCase();
 
-/* plan */
-html += `<div class="card p-3 mb-2"><b>🎯 TOP SENDS</b></div>`;
+    if(n.includes("theatre")) s += 15;
+    if(n.includes("training")) s += 12;
+    if(n.includes("cast")) s += 10;
+    if(n.includes("home")) s += 8;
+    if(n.includes("fc")) s += 6;
+    if(n.includes("podcast")) s += 6;
 
-pending.forEach(r=>{
-html += `
-<div class="card p-2 mb-2 good">
-<div class="text-xs font-bold">${r.Name}</div>
-<div class="small">Score ${score(r)}</div>
-</div>`;
-});
-
-document.getElementById("audit").innerHTML=html;
+    return s;
 }
 
-/* =========================
+/* =========================================================
 RENDER
-========================= */
+========================================================= */
 
 function render(){
 
-let q=document.getElementById("search").value?.toLowerCase()||"";
-let list=document.getElementById("list");
-list.innerHTML="";
+    let q = document.getElementById("search").value.toLowerCase();
 
-DB.filter(r=>r.Name.toLowerCase().includes(q))
-.sort((a,b)=>score(b)-score(a))
-.forEach(r=>{
+    let filtered = DB.filter(r =>
+        r.Name.toLowerCase().includes(q)
+    );
 
-let sc=score(r);
-let cls=sc>80?"good":sc>55?"mid":"low";
+    filtered.sort((a,b)=>score(b)-score(a));
 
-let div=document.createElement("div");
-div.className="card p-3 flex justify-between items-center "+cls;
+    let list = document.getElementById("list");
 
-div.innerHTML=`
-<div class="text-xs font-bold">${r.Name}</div>
+    list.innerHTML = "";
 
-<select onchange="r.Status=this.value">
-<option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
-<option ${r.Status==="Sent"?"selected":""}>Sent</option>
-<option ${r.Status==="RTS"?"selected":""}>RTS</option>
-<option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
-</select>
-`;
+    filtered.forEach(r=>{
 
-list.appendChild(div);
-});
+        let sc = score(r);
 
+        let cls = "low";
+
+        if(sc >= 80) cls = "good";
+        else if(sc >= 55) cls = "mid";
+
+        let div = document.createElement("div");
+
+        div.className = `card p-3 ${cls}`;
+
+        div.innerHTML = `
+
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+
+            <div>
+                <div class="font-bold text-sm">${r.Name}</div>
+                <div class="small">${r.Status} • Score ${sc}</div>
+            </div>
+
+            <select
+            class="bg-black border border-zinc-700 rounded p-2 text-xs"
+            onchange="updateStatus(${r.ID},this.value)">
+
+                <option ${r.Status==='SUCCESS'?'selected':''}>SUCCESS</option>
+                <option ${r.Status==='PENDING'?'selected':''}>PENDING</option>
+                <option ${r.Status==='Sent'?'selected':''}>Sent</option>
+                <option ${r.Status==='RTS'?'selected':''}>RTS</option>
+                <option ${r.Status==='LOGGED'?'selected':''}>LOGGED</option>
+
+            </select>
+
+        </div>
+        `;
+
+        list.appendChild(div);
+
+    });
+
+    updateStats();
 }
+
+/* =========================================================
+UPDATE STATUS
+========================================================= */
+
+function updateStatus(id,val){
+
+    let target = DB.find(x=>x.ID===id);
+
+    if(target){
+        target.Status = val;
+    }
+
+    render();
+}
+
+/* =========================================================
+STATS
+========================================================= */
+
+function updateStats(){
+
+    document.getElementById("stats").innerHTML = `
+
+    <div class="card p-3">
+        <div class="small">TOTAL</div>
+        <div class="text-2xl font-black">${DB.length}</div>
+    </div>
+
+    <div class="card p-3">
+        <div class="small">SUCCESS</div>
+        <div class="text-2xl font-black text-green-400">
+            ${DB.filter(x=>x.Status==="SUCCESS").length}
+        </div>
+    </div>
+
+    <div class="card p-3">
+        <div class="small">PENDING</div>
+        <div class="text-2xl font-black text-yellow-400">
+            ${DB.filter(x=>x.Status==="PENDING").length}
+        </div>
+    </div>
+
+    <div class="card p-3">
+        <div class="small">RTS</div>
+        <div class="text-2xl font-black text-red-400">
+            ${DB.filter(x=>x.Status==="RTS").length}
+        </div>
+    </div>
+
+    `;
+}
+
+/* =========================================================
+AUDIT ENGINE
+========================================================= */
+
+function runAudit(){
+
+    let top = DB
+    .filter(x=>x.Status==="PENDING")
+    .sort((a,b)=>score(b)-score(a))
+    .slice(0,stamps);
+
+    let html = `
+
+    <div class="card p-3">
+
+        <div class="font-bold mb-2">
+            🧠 Optimised Monthly Sends
+        </div>
+
+    `;
+
+    top.forEach(t=>{
+
+        html += `
+        <div class="text-sm mb-1">
+            • ${t.Name}
+            <span class="small">(Score ${score(t)})</span>
+        </div>
+        `;
+
+    });
+
+    html += `</div>`;
+
+    document.getElementById("audit").innerHTML = html;
+}
+
+/* =========================================================
+MASTER RESET
+========================================================= */
+
+function resetMaster(){
+
+    DB = structuredClone(MASTER_DB);
+
+    render();
+    runAudit();
+}
+
+/* =========================================================
+EXPORT
+========================================================= */
+
+function exportDB(){
+
+    const blob = new Blob(
+        [JSON.stringify(DB)],
+        {type:'application/json'}
+    );
+
+    const a = document.createElement('a');
+
+    a.href = URL.createObjectURL(blob);
+
+    a.download = 'vaultpro_backup.json';
+
+    a.click();
+}
+
+/* =========================================================
+INIT
+========================================================= */
 
 render();
 runAudit();
+updateStampUI();
 
 </script>
 
