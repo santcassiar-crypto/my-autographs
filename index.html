@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultPro FULL 180 SAFE</title>
+<title>VaultPro FULL SAFE</title>
 
 <style>
 body{margin:0;font-family:Arial;background:#050505;color:#eee;}
@@ -61,7 +61,7 @@ margin:4px;
 <body>
 
 <header>
-<input id="search" placeholder="Search 180+ records..." oninput="render()">
+<input id="search" placeholder="Search records..." oninput="render()">
 </header>
 
 <div class="stats">
@@ -82,7 +82,7 @@ margin:4px;
 <script>
 
 ////////////////////////////////////////////////////
-// MASTER DATA (SOURCE OF TRUTH)
+// MASTER DATA
 ////////////////////////////////////////////////////
 const MASTER_DATA = [
 {"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
@@ -94,28 +94,21 @@ const MASTER_DATA = [
 {"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},
 {"ID":8,"Name":"Joshua Kimmich","Status":"SUCCESS"},
 {"ID":9,"Name":"Ron Ferdinand","Status":"SUCCESS"},
-{"ID":10,"Name":"Erling Haaland","Status":"SUCCESS"},
-{"ID":11,"Name":"Lamine Yamal","Status":"RTS"},
-{"ID":12,"Name":"Rosie Jones","Status":"SUCCESS"},
-{"ID":13,"Name":"Kevin Bridges","Status":"SUCCESS"},
-{"ID":14,"Name":"Lee Mack","Status":"SUCCESS"},
-{"ID":15,"Name":"Chris Waddle","Status":"SUCCESS"},
-{"ID":16,"Name":"Ivo Graham","Status":"SUCCESS"},
-{"ID":17,"Name":"Josh Widdicombe","Status":"SUCCESS"},
-{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},
-{"ID":19,"Name":"Rob Beckett","Status":"SUCCESS"},
-{"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"}
+{"ID":10,"Name":"Erling Haaland","Status":"SUCCESS"}
 ];
 
 ////////////////////////////////////////////////////
-// STATE
+// SAFE INIT (NO BREAKING JSON / CLONE ISSUES)
 ////////////////////////////////////////////////////
 
-const MASTER = structuredClone(MASTER_DATA);
+let DB;
 
-let DB = JSON.parse(localStorage.getItem("vault_full"))
-    ? JSON.parse(localStorage.getItem("vault_full"))
-    : structuredClone(MASTER);
+try {
+    const saved = localStorage.getItem("vault_full");
+    DB = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(MASTER_DATA));
+} catch(e) {
+    DB = JSON.parse(JSON.stringify(MASTER_DATA));
+}
 
 let VIEW_LIMIT = 50;
 
@@ -124,18 +117,18 @@ function save(){
 }
 
 ////////////////////////////////////////////////////
-// RENDER (SEARCH ALL, SHOW LIMITED)
+// RENDER
 ////////////////////////////////////////////////////
 
 function render(){
 
-    let q = document.getElementById("search").value.toLowerCase();
+    const q = document.getElementById("search").value.toLowerCase();
 
-    let filtered = q
+    const filtered = q
         ? DB.filter(x => x.Name.toLowerCase().includes(q))
         : DB;
 
-    let list = filtered.slice(0, VIEW_LIMIT);
+    const list = filtered.slice(0, VIEW_LIMIT);
 
     document.getElementById("list").innerHTML = list.map(r => `
         <div class="card">
@@ -147,7 +140,7 @@ function render(){
                 <option ${r.Status=="Sent"?"selected":""}>Sent</option>
                 <option ${r.Status=="LOGGED"?"selected":""}>LOGGED</option>
             </select>
-            <div class="small">ID:${r.ID}</div>
+            <div class="small">ID: ${r.ID}</div>
         </div>
     `).join("");
 
@@ -155,7 +148,7 @@ function render(){
 }
 
 ////////////////////////////////////////////////////
-// STATS (FULL DATASET)
+// STATS
 ////////////////////////////////////////////////////
 
 function stats(){
@@ -166,17 +159,23 @@ function stats(){
 }
 
 ////////////////////////////////////////////////////
-// EDIT FUNCTIONS
+// EDIT
 ////////////////////////////////////////////////////
 
 function edit(id,val){
-    let x = DB.find(i => i.ID === id);
-    if(x){ x.Name = val; save(); }
+    const x = DB.find(i => i.ID === id);
+    if(x){
+        x.Name = val;
+        save();
+    }
 }
 
 function status(id,val){
-    let x = DB.find(i => i.ID === id);
-    if(x){ x.Status = val; save(); }
+    const x = DB.find(i => i.ID === id);
+    if(x){
+        x.Status = val;
+        save();
+    }
 }
 
 ////////////////////////////////////////////////////
@@ -184,7 +183,7 @@ function status(id,val){
 ////////////////////////////////////////////////////
 
 function add(){
-    let n = prompt("Name:");
+    const n = prompt("Name:");
     if(!n) return;
 
     DB.unshift({
@@ -198,7 +197,7 @@ function add(){
 }
 
 function reset(){
-    DB = structuredClone(MASTER);
+    DB = JSON.parse(JSON.stringify(MASTER_DATA));
     save();
     VIEW_LIMIT = 50;
     render();
