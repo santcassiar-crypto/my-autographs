@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultPro v8.1 Editable System</title>
+<title>VaultPro v9 Optimiser</title>
 
 <style>
 body{
@@ -68,97 +68,150 @@ button{
 }
 
 .small{font-size:11px;color:#aaa;}
+
+.priority{
+    border-left:4px solid gold;
+}
 </style>
 </head>
 
 <body>
 
 <header>
-<input id="search" placeholder="Search all records..." oninput="render()">
+<input id="search" placeholder="Search vault..." oninput="render()">
 </header>
 
 <div class="stats">
 <div class="box">TOTAL<br><b id="t"></b></div>
-<div class="box">SUCCESS<br><b id="s"></b></div>
+<div class="box">HIGH PRIORITY<br><b id="hp"></b></div>
 <div class="box">PENDING<br><b id="p"></b></div>
-<div class="box">RTS<br><b id="r"></b></div>
+<div class="box">SUCCESS<br><b id="s"></b></div>
 </div>
 
 <div style="padding:10px">
-<button onclick="addRecord()">+ ADD</button>
-<button onclick="exportDB()">EXPORT</button>
-<button onclick="importDB()">IMPORT</button>
+<button onclick="add()">+ ADD</button>
+<button onclick="nextSend()">NEXT STAMP TARGET</button>
 </div>
 
 <div id="list" class="list"></div>
 
 <script>
 
-// =======================
-// LOAD DATABASE
-// =======================
+// =========================
+// FULL DATASET (YOUR CORE DB)
+// =========================
 
-let DB = JSON.parse(localStorage.getItem("vault_db_v81")) || [];
+let DB = JSON.parse(localStorage.getItem("vault_v9")) || [
 
-// =======================
-// SAVE
-// =======================
+{ID:1,Name:"Jannik Sinner",Status:"SUCCESS"},
+{ID:2,Name:"Keanu Reeves",Status:"RTS"},
+{ID:3,Name:"Alan Carr",Status:"SUCCESS"},
+{ID:4,Name:"Harry Kane (Bayern)",Status:"RTS"},
+{ID:5,Name:"David Attenborough",Status:"SUCCESS"},
+{ID:6,Name:"Paul Merson (Original)",Status:"SUCCESS"},
+{ID:7,Name:"Tony Adams",Status:"SUCCESS"},
+{ID:8,Name:"Joshua Kimmich",Status:"SUCCESS"},
+{ID:9,Name:"Erling Haaland (City)",Status:"SUCCESS"},
+{ID:10,Name:"Lamine Yamal (Club)",Status:"SUCCESS"},
+{ID:11,Name:"Cole Palmer",Status:"RTS"},
+{ID:12,Name:"Jude Bellingham",Status:"PENDING"},
+{ID:13,Name:"Kylian Mbappé",Status:"PENDING"},
+{ID:14,Name:"Kevin De Bruyne",Status:"PENDING"},
+{ID:15,Name:"Usain Bolt",Status:"PENDING"},
+{ID:16,Name:"Dirk Nowitzki",Status:"PENDING"},
+{ID:17,Name:"Ian Wright",Status:"PENDING"},
+{ID:18,Name:"Ian McKellen",Status:"PENDING"},
+{ID:19,Name:"Ralph Fiennes",Status:"PENDING"},
+{ID:20,Name:"Jodie Comer",Status:"PENDING"}
+
+// (your full 180+ dataset continues here in same format)
+];
+
+// =========================
 
 function save(){
-    localStorage.setItem("vault_db_v81", JSON.stringify(DB));
+    localStorage.setItem("vault_v9",JSON.stringify(DB));
 }
 
-// =======================
-// CORE FUNCTIONS
-// =======================
+// =========================
+// INTELLIGENCE ENGINE
+// =========================
 
 function score(r){
-    if(r.Status==="SUCCESS") return 100;
-    if(r.Status==="Sent") return 70;
-    if(r.Status==="RTS") return 40;
-    if(r.Status==="PENDING") return 20;
-    return 10;
+
+    let base =
+        r.Status==="SUCCESS"?100:
+        r.Status==="RTS"?30:
+        r.Status==="PENDING"?20:
+        10;
+
+    let n=r.Name.toLowerCase();
+
+    // BOOST PRIORITY TARGETS
+    if(n.includes("football")||n.includes("arsenal")) base+=10;
+    if(n.includes("actor")||n.includes("cast")) base+=5;
+
+    return base;
 }
+
+// STAMP OPTIMISER CORE
+function stampValue(r){
+
+    // probability model (simple heuristic)
+    let base = score(r);
+
+    if(r.Status==="RTS") return base * 0.3;
+    if(r.Status==="SUCCESS") return 0;
+    if(r.Status==="PENDING") return base * 0.8;
+
+    return base * 0.5;
+}
+
+function nextSend(){
+
+    let sorted = [...DB]
+        .filter(x=>x.Status!=="SUCCESS")
+        .sort((a,b)=>stampValue(b)-stampValue(a));
+
+    let top = sorted[0];
+
+    alert("NEXT STAMP TARGET:\n\n" + top.Name);
+}
+
+// =========================
+// SEARCH
+// =========================
 
 function render(){
 
-    let q = document.getElementById("search").value.toLowerCase();
+    let q=document.getElementById("search").value.toLowerCase();
 
-    let filtered = DB;
+    let filtered=DB;
 
     if(q){
-        filtered = DB.filter(r =>
+        filtered=DB.filter(r=>
             r.Name.toLowerCase().includes(q)
         );
     }
 
     filtered.sort((a,b)=>score(b)-score(a));
 
-    let list = document.getElementById("list");
+    let list=document.getElementById("list");
     list.innerHTML="";
 
-    filtered.forEach((r,i)=>{
+    filtered.forEach(r=>{
 
-        let div = document.createElement("div");
-        div.className="card";
+        let div=document.createElement("div");
 
-        div.innerHTML = `
+        let priority = stampValue(r)>60 ? "priority" : "";
 
-            <input value="${r.Name}"
-                onchange="editName(${r.ID},this.value)">
+        div.className="card "+priority;
 
-            <select onchange="editStatus(${r.ID},this.value)">
-                <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
-                <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
-                <option ${r.Status==="Sent"?"selected":""}>Sent</option>
-                <option ${r.Status==="RTS"?"selected":""}>RTS</option>
-                <option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
-            </select>
-
-            <div class="small">Score: ${score(r)}</div>
-
-            <button onclick="del(${r.ID})">DELETE</button>
-
+        div.innerHTML=`
+            <b>${r.Name}</b>
+            <div class="small">
+                ${r.Status} • Score ${score(r)} • StampValue ${Math.round(stampValue(r))}
+            </div>
         `;
 
         list.appendChild(div);
@@ -167,81 +220,32 @@ function render(){
     stats();
 }
 
+// =========================
+// STATS
+// =========================
+
 function stats(){
 
-    document.getElementById("t").innerText = DB.length;
-    document.getElementById("s").innerText = DB.filter(x=>x.Status==="SUCCESS").length;
-    document.getElementById("p").innerText = DB.filter(x=>x.Status==="PENDING").length;
-    document.getElementById("r").innerText = DB.filter(x=>x.Status==="RTS").length;
+    document.getElementById("t").innerText=DB.length;
+    document.getElementById("s").innerText=DB.filter(x=>x.Status==="SUCCESS").length;
+    document.getElementById("p").innerText=DB.filter(x=>x.Status==="PENDING").length;
+    document.getElementById("hp").innerText=DB.filter(x=>stampValue(x)>60).length;
 }
 
-// =======================
-// EDIT SYSTEM
-// =======================
+// =========================
+// ADD
+// =========================
 
-function editName(id,val){
-    DB.find(x=>x.ID===id).Name = val;
-    save();
-}
+function add(){
+    let n=prompt("Name:");
+    if(!n)return;
 
-function editStatus(id,val){
-    DB.find(x=>x.ID===id).Status = val;
-    save();
-}
-
-// =======================
-// ADD / DELETE
-// =======================
-
-function addRecord(){
-
-    let name = prompt("Enter name:");
-    if(!name) return;
-
-    DB.unshift({
-        ID:Date.now(),
-        Name:name,
-        Status:"PENDING"
-    });
-
+    DB.unshift({ID:Date.now(),Name:n,Status:"PENDING"});
     save();
     render();
 }
 
-function del(id){
-    DB = DB.filter(x=>x.ID!==id);
-    save();
-    render();
-}
-
-// =======================
-// IMPORT / EXPORT
-// =======================
-
-function exportDB(){
-    let blob = new Blob([JSON.stringify(DB)],{type:"application/json"});
-    let a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download="vault.json";
-    a.click();
-}
-
-function importDB(){
-    let i=document.createElement("input");
-    i.type="file";
-    i.onchange=e=>{
-        let f=e.target.files[0];
-        let r=new FileReader();
-        r.onload=ev=>{
-            DB=JSON.parse(ev.target.result);
-            save();
-            render();
-        };
-        r.readAsText(f);
-    };
-    i.click();
-}
-
+// INIT
 render();
 
 </script>
