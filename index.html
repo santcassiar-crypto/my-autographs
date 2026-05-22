@@ -2,18 +2,18 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Autograph Tracker FIXED</title>
+<title>Autograph Tracker Pro</title>
 
 <style>
 body{margin:0;font-family:Arial;background:#000;color:#fff}
 header{position:sticky;top:0;background:#111;padding:10px}
-input,select{width:100%;padding:8px;margin-top:5px}
+input,select,textarea{width:100%;padding:8px;margin-top:5px;background:#000;color:#fff;border:1px solid #333;border-radius:6px}
 .card{background:#111;margin:10px;padding:10px;border-radius:6px;border:1px solid #222}
 button{margin:5px;padding:6px}
 .small{font-size:10px;color:#888}
 .bad{border:1px solid red !important}
 .warn{border:1px solid orange !important}
-.filters button{margin-right:5px}
+.section{padding:10px;background:#0b0b0b;margin:10px;border-radius:6px}
 </style>
 </head>
 
@@ -23,7 +23,7 @@ button{margin:5px;padding:6px}
 <input id="search" placeholder="Search 180+ records...">
 </header>
 
-<div class="filters">
+<div>
 <button onclick="setFilter('ALL')">ALL</button>
 <button onclick="setFilter('PENDING')">PENDING</button>
 <button onclick="setFilter('SENT')">SENT</button>
@@ -38,6 +38,8 @@ button{margin:5px;padding:6px}
 <button onclick="more()">LOAD MORE</button>
 </div>
 
+<div class="section" id="next"></div>
+
 <div id="stats"></div>
 <div id="list"></div>
 
@@ -47,21 +49,16 @@ button{margin:5px;padding:6px}
 // YOUR DATA (PASTE FULL 180 HERE)
 ////////////////////////////////////////////////////
 const MASTER_DATA = [
-{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
-{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
-{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
-{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
-{"ID":1779457496694,"Name":"George Graham - Home ","Status":"PENDING"},
-{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},
-{"ID":1779457307017,"Name":"Gary Oldman ","Status":"SUCCESS"},
-{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
-{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
-{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"}
+{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS","SentDate":"","Notes":""},
+{"ID":2,"Name":"Keanu Reeves","Status":"RTS","SentDate":"","Notes":""},
+{"ID":3,"Name":"Alan Carr","Status":"SUCCESS","SentDate":"","Notes":""},
+{"ID":4,"Name":"Harry Kane","Status":"PENDING","SentDate":"","Notes":""},
+{"ID":5,"Name":"David Attenborough","Status":"SUCCESS","SentDate":"","Notes":""}
 ];
 
 ////////////////////////////////////////////////////
 
-let DB = JSON.parse(localStorage.getItem("vault_fixed"))
+let DB = JSON.parse(localStorage.getItem("vault_pro_v2"))
     || JSON.parse(JSON.stringify(MASTER_DATA));
 
 let limit = 50;
@@ -69,7 +66,7 @@ let search = "";
 let filter = "ALL";
 
 function save(){
-localStorage.setItem("vault_fixed",JSON.stringify(DB));
+localStorage.setItem("vault_pro_v2",JSON.stringify(DB));
 }
 
 function daysSince(d){
@@ -78,7 +75,7 @@ return Math.floor((Date.now()-new Date(d))/(1000*60*60*24));
 }
 
 ////////////////////////////////////////////////////
-// SEARCH (FIXED + GLOBAL)
+// SEARCH
 ////////////////////////////////////////////////////
 
 document.getElementById("search").oninput = (e)=>{
@@ -104,7 +101,8 @@ DB.unshift({
 ID:Date.now(),
 Name:n,
 Status:"PENDING",
-SentDate:""
+SentDate:"",
+Notes:""
 });
 
 save();
@@ -134,39 +132,58 @@ render();
 }
 
 ////////////////////////////////////////////////////
-// CORE RENDER (FIXED ORDER)
+// NEXT TO SEND (PRIORITY QUEUE)
+////////////////////////////////////////////////////
+
+function getNext(){
+return DB
+.filter(x=>x.Status==="PENDING")
+.slice(0,10);
+}
+
+function renderNext(){
+document.getElementById("next").innerHTML =
+"<h3>Next to Send</h3>" +
+getNext().map(r=>`
+<div class="card">
+<b>${r.Name}</b>
+<button onclick="markSent(${r.ID})">Mark Sent</button>
+</div>
+`).join("");
+}
+
+////////////////////////////////////////////////////
+// CORE RENDER
 ////////////////////////////////////////////////////
 
 function render(){
 
 let list = DB;
 
-/* 1. SEARCH FIRST (ALL RECORDS) */
+/* SEARCH FIRST */
 if(search){
-list = list.filter(x =>
-x.Name.toLowerCase().includes(search)
-);
+list = list.filter(x=>x.Name.toLowerCase().includes(search));
 }
 
-/* 2. FILTER */
-if(filter==="PENDING") list = list.filter(x=>x.Status==="PENDING");
-if(filter==="SENT") list = list.filter(x=>x.Status==="SENT");
-if(filter==="SUCCESS") list = list.filter(x=>x.Status==="SUCCESS");
-if(filter==="RTS") list = list.filter(x=>x.Status==="RTS");
+/* FILTER */
+if(filter==="PENDING") list=list.filter(x=>x.Status==="PENDING");
+if(filter==="SENT") list=list.filter(x=>x.Status==="SENT");
+if(filter==="SUCCESS") list=list.filter(x=>x.Status==="SUCCESS");
+if(filter==="RTS") list=list.filter(x=>x.Status==="RTS");
 
 if(filter==="OVERDUE"){
-list = list.filter(x=>{
+list=list.filter(x=>{
 if(x.Status!=="SENT") return false;
-let d = daysSince(x.SentDate);
+let d=daysSince(x.SentDate);
 return d && d>30;
 });
 }
 
-/* 3. LIMIT LAST (IMPORTANT) */
-list = list.slice(0, limit);
+list = list.slice(0,limit);
 
-/* RENDER */
-document.getElementById("list").innerHTML = list.map(r=>{
+/* MAIN LIST */
+document.getElementById("list").innerHTML =
+list.map(r=>{
 
 let age = daysSince(r.SentDate);
 
@@ -176,6 +193,7 @@ else if(r.Status==="SENT" && age>30) cls="card warn";
 
 return `
 <div class="${cls}">
+
 <input value="${r.Name}" onchange="r.Name=this.value;save()">
 
 <select onchange="r.Status=this.value;save()">
@@ -187,19 +205,26 @@ return `
 
 <button onclick="markSent(${r.ID})">Mark Sent</button>
 
+<textarea onchange="r.Notes=this.value;save()" placeholder="Notes / news / context">${r.Notes||""}</textarea>
+
 <div class="small">
 ID:${r.ID} | Sent:${r.SentDate||"—"} | Age:${age||"—"}
 </div>
+
 </div>
 `;
 }).join("");
 
+/* STATS */
 document.getElementById("stats").innerText =
 `TOTAL:${DB.length}
  SENT:${DB.filter(x=>x.Status==="SENT").length}
  PENDING:${DB.filter(x=>x.Status==="PENDING").length}
  SUCCESS:${DB.filter(x=>x.Status==="SUCCESS").length}
  RTS:${DB.filter(x=>x.Status==="RTS").length}`;
+
+/* NEXT PANEL */
+renderNext();
 }
 
 render();
