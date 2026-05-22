@@ -2,28 +2,42 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>VaultPro Future</title>
+<title>VaultOS PWA</title>
+
+<!-- PWA CORE -->
+<link rel="manifest" href="data:application/manifest+json,{
+  \"name\":\"VaultOS\",
+  \"short_name\":\"VaultOS\",
+  \"start_url\":\".\",
+  \"display\":\"standalone\",
+  \"background_color\":\"#000000\",
+  \"theme_color\":\"#111111\",
+  \"icons\":[]
+}">
 
 <style>
 body{margin:0;font-family:Arial;background:#000;color:#fff}
-header{position:sticky;top:0;background:#111;padding:10px}
+header{position:sticky;top:0;background:#111;padding:10px;z-index:10}
+
 input,select,textarea{
 width:100%;padding:8px;margin-top:5px;
 background:#000;color:#fff;border:1px solid #333;border-radius:6px
 }
+
 .card{background:#111;margin:10px;padding:10px;border-radius:8px;border:1px solid #222}
 button{margin:5px;padding:6px}
 .small{font-size:10px;color:#888}
-.bad{border:1px solid red !important}
-.warn{border:1px solid orange !important}
-.section{padding:10px;background:#0b0b0b;margin:10px;border-radius:8px}
+
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px}
+.box{background:#111;padding:10px;border-radius:6px;text-align:center}
+.section{padding:10px;margin:10px;background:#0b0b0b;border-radius:8px}
 </style>
 </head>
 
 <body>
 
 <header>
-<input id="search" placeholder="Search full database...">
+<input id="search" placeholder="Search VaultOS...">
 </header>
 
 <div>
@@ -32,41 +46,26 @@ button{margin:5px;padding:6px}
 <button onclick="setFilter('SENT')">SENT</button>
 <button onclick="setFilter('SUCCESS')">SIGNED</button>
 <button onclick="setFilter('RTS')">RTS</button>
-<button onclick="setFilter('OVERDUE')">OVERDUE</button>
+<button onclick="setFilter('FOLLOWUP')">FOLLOW UP</button>
 </div>
 
-<div>
-<button onclick="add()">+ ADD</button>
-<button onclick="exportData()">EXPORT BACKUP</button>
-<button onclick="loadBackup()">IMPORT BACKUP</button>
-</div>
+<div class="grid" id="stats"></div>
 
 <div class="section" id="priority"></div>
 
-<div id="stats"></div>
+<div>
+<button onclick="add()">+ ADD</button>
+<button onclick="exportData()">EXPORT</button>
+<button onclick="importData()">IMPORT</button>
+</div>
+
 <div id="list"></div>
 
 <script>
 
 ////////////////////////////////////////////////////
-// VERSIONED DATA MODEL (IMPORTANT)
+// DATA CORE (SAFE + VERSIONED)
 ////////////////////////////////////////////////////
-
-const SCHEMA_VERSION = 1;
-
-/*
-Every record ALWAYS becomes:
-{
- ID,
- Name,
- Status,
- SentDate,
- Priority,
- Notes,
- CreatedAt,
- UpdatedAt
-}
-*/
 
 const MASTER_DATA = [
 {"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
@@ -76,76 +75,39 @@ const MASTER_DATA = [
 {"ID":5,"Name":"David Attenborough","Status":"SUCCESS"}
 ];
 
-////////////////////////////////////////////////////
+let DB = load();
 
-let DB = loadDB();
-
-let search = "";
-let filter = "ALL";
-
-////////////////////////////////////////////////////
-// SAFE LOAD (NO DATA LOSS)
-////////////////////////////////////////////////////
-
-function loadDB(){
-let raw = localStorage.getItem("vault_future_v1");
-
-if(raw){
-try{
-return JSON.parse(raw);
-}catch(e){}
-}
-
-/* FIRST RUN */
-return MASTER_DATA.map(normalize);
-}
-
-function normalize(r){
-return {
-ID:r.ID,
-Name:r.Name,
-Status:r.Status||"PENDING",
-SentDate:r.SentDate||"",
-Priority:r.Priority||"NORMAL",
-Notes:r.Notes||"",
-CreatedAt:r.CreatedAt||Date.now(),
-UpdatedAt:r.UpdatedAt||Date.now(),
-_schema:SCHEMA_VERSION
-};
+function load(){
+let raw = localStorage.getItem("vault_pwa_v1");
+if(raw) return JSON.parse(raw);
+return MASTER_DATA;
 }
 
 function save(){
-localStorage.setItem("vault_future_v1",JSON.stringify(DB));
-backupAuto();
+localStorage.setItem("vault_pwa_v1",JSON.stringify(DB));
+backup();
 }
 
-////////////////////////////////////////////////////
-// AUTO BACKUP (CRITICAL SAFETY FEATURE)
-////////////////////////////////////////////////////
-
-function backupAuto(){
-localStorage.setItem("vault_future_backup",JSON.stringify({
+function backup(){
+localStorage.setItem("vault_pwa_backup",JSON.stringify({
 time:Date.now(),
 data:DB
 }));
 }
 
-function exportData(){
-let blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-let a = document.createElement("a");
-a.href = URL.createObjectURL(blob);
-a.download = "vault_backup.json";
-a.click();
-}
+////////////////////////////////////////////////////
+// STATE
+////////////////////////////////////////////////////
 
-function loadBackup(){
-let raw = prompt("Paste backup JSON:");
-if(!raw) return;
+let search="";
+let filter="ALL";
 
-DB = JSON.parse(raw).map(normalize);
-save();
+document.getElementById("search").oninput=(e)=>{
+search=e.target.value.toLowerCase();
 render();
-}
+};
+
+function setFilter(f){filter=f;render();}
 
 ////////////////////////////////////////////////////
 // UTIL
@@ -156,78 +118,100 @@ if(!d) return null;
 return Math.floor((Date.now()-new Date(d))/(1000*60*60*24));
 }
 
-function setFilter(f){
-filter=f;
-render();
+function addDays(n){
+let d=new Date();
+d.setDate(d.getDate()+n);
+return d.toISOString().split("T")[0];
 }
 
 ////////////////////////////////////////////////////
-// SEARCH (GLOBAL SAFE)
-////////////////////////////////////////////////////
-
-document.getElementById("search").oninput = e=>{
-search = e.target.value.toLowerCase();
-render();
-};
-
-////////////////////////////////////////////////////
-// CORE ACTIONS (SAFE MUTATION ONLY)
+// ACTIONS
 ////////////////////////////////////////////////////
 
 function add(){
-let n = prompt("Name:");
+let n=prompt("Name:");
 if(!n) return;
 
-DB.unshift(normalize({
+DB.unshift({
 ID:Date.now(),
 Name:n,
-Status:"PENDING"
-}));
+Status:"PENDING",
+SentDate:"",
+FollowUp:addDays(30),
+Priority:"NORMAL",
+Notes:""
+});
 
-save();
-render();
+save();render();
 }
 
 function markSent(id){
-let r = DB.find(x=>x.ID===id);
+let r=DB.find(x=>x.ID===id);
 if(!r) return;
 
 r.Status="SENT";
 r.SentDate=new Date().toISOString().split("T")[0];
-r.UpdatedAt=Date.now();
+r.FollowUp=addDays(30);
 
-save();
-render();
+save();render();
 }
 
 ////////////////////////////////////////////////////
-// SMART PRIORITY ENGINE
+// SMART ENGINE
 ////////////////////////////////////////////////////
 
 function score(r){
-let s = 0;
-
-if(r.Status==="PENDING") s+=50;
+let s=0;
+if(r.Status==="PENDING") s+=60;
 if(r.Priority==="HIGH") s+=30;
-if(r.Status==="SENT") s-=10;
-
-let age = daysSince(r.SentDate);
-if(age) s -= age;
-
+let age=daysSince(r.SentDate);
+if(age) s-=age;
 return s;
 }
 
-function priorityList(){
+function nextQueue(){
 return DB
 .filter(x=>x.Status==="PENDING")
 .sort((a,b)=>score(b)-score(a))
 .slice(0,10);
 }
 
+function followUps(){
+return DB.filter(x=>
+x.Status==="SENT" &&
+x.FollowUp &&
+new Date(x.FollowUp)<new Date()
+);
+}
+
+////////////////////////////////////////////////////
+// STATS
+////////////////////////////////////////////////////
+
+function renderStats(){
+let total=DB.length;
+let pending=DB.filter(x=>x.Status==="PENDING").length;
+let sent=DB.filter(x=>x.Status==="SENT").length;
+let success=DB.filter(x=>x.Status==="SUCCESS").length;
+let rts=DB.filter(x=>x.Status==="RTS").length;
+
+document.getElementById("stats").innerHTML=`
+<div class="box">TOTAL<br>${total}</div>
+<div class="box">PENDING<br>${pending}</div>
+<div class="box">SENT<br>${sent}</div>
+<div class="box">SIGNED<br>${success}</div>
+<div class="box">RTS<br>${rts}</div>
+`;
+}
+
+////////////////////////////////////////////////////
+// PRIORITY
+////////////////////////////////////////////////////
+
 function renderPriority(){
-document.getElementById("priority").innerHTML =
-"<h3>🔥 Next Best Sends</h3>" +
-priorityList().map(r=>`
+document.getElementById("priority").innerHTML=
+"<h3>🔥 Next to Send</h3>"+
+nextQueue().map(r=>`
 <div class="card">
 <b>${r.Name}</b>
 <div class="small">Score: ${score(r)}</div>
@@ -237,82 +221,66 @@ priorityList().map(r=>`
 }
 
 ////////////////////////////////////////////////////
-// RENDER ENGINE
+// VIEW
 ////////////////////////////////////////////////////
 
 function render(){
 
-let list = DB;
+let list=DB;
 
-/* SEARCH */
 if(search){
 list=list.filter(x=>x.Name.toLowerCase().includes(search));
 }
 
-/* FILTER */
 if(filter==="PENDING") list=list.filter(x=>x.Status==="PENDING");
 if(filter==="SENT") list=list.filter(x=>x.Status==="SENT");
 if(filter==="SUCCESS") list=list.filter(x=>x.Status==="SUCCESS");
 if(filter==="RTS") list=list.filter(x=>x.Status==="RTS");
+if(filter==="FOLLOWUP") list=followUps();
 
-if(filter==="OVERDUE"){
-list=list.filter(x=>{
-if(x.Status!=="SENT") return false;
-let d=daysSince(x.SentDate);
-return d && d>30;
-});
-}
+document.getElementById("list").innerHTML=
+list.map(r=>`
+<div class="card">
 
-/* RENDER */
-document.getElementById("list").innerHTML =
-list.map(r=>{
+<input value="${r.Name}" onchange="r.Name=this.value;save()">
 
-let age=daysSince(r.SentDate);
-
-let cls="card";
-if(r.Status==="SENT" && age>60) cls="card bad";
-else if(r.Status==="SENT" && age>30) cls="card warn";
-
-return `
-<div class="${cls}">
-
-<input value="${r.Name}" onchange="r.Name=this.value;r.UpdatedAt=Date.now();save()">
-
-<select onchange="r.Status=this.value;r.UpdatedAt=Date.now();save()">
+<select onchange="r.Status=this.value;save()">
 <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
 <option ${r.Status==="SENT"?"selected":""}>SENT</option>
 <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
 <option ${r.Status==="RTS"?"selected":""}>RTS</option>
 </select>
 
-<select onchange="r.Priority=this.value;r.UpdatedAt=Date.now();save()">
-<option ${r.Priority==="NORMAL"?"selected":""}>NORMAL</option>
-<option ${r.Priority==="HIGH"?"selected":""}>HIGH</option>
-</select>
-
 <button onclick="markSent(${r.ID})">Mark Sent</button>
 
-<textarea onchange="r.Notes=this.value;r.UpdatedAt=Date.now();save()">${r.Notes}</textarea>
-
 <div class="small">
-ID:${r.ID} | Sent:${r.SentDate||"—"} | Age:${age||"—"}
+ID:${r.ID} | Follow-up:${r.FollowUp||"—"}
 </div>
 
 </div>
-`;
-}).join("");
+`).join("");
 
-
-/* STATS */
-document.getElementById("stats").innerText =
-`TOTAL:${DB.length}
- SENT:${DB.filter(x=>x.Status==="SENT").length}
- PENDING:${DB.filter(x=>x.Status==="PENDING").length}
- SUCCESS:${DB.filter(x=>x.Status==="SUCCESS").length}
- RTS:${DB.filter(x=>x.Status==="RTS").length}`;
-
-/* PRIORITY */
+renderStats();
 renderPriority();
+}
+
+////////////////////////////////////////////////////
+// EXPORT / IMPORT
+////////////////////////////////////////////////////
+
+function exportData(){
+let blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="vaultos_backup.json";
+a.click();
+}
+
+function importData(){
+let raw=prompt("Paste backup JSON:");
+if(!raw) return;
+DB=JSON.parse(raw);
+save();render();
 }
 
 render();
