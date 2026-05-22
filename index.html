@@ -2,22 +2,13 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>VaultOS PWA</title>
+<title>VaultOS OCR Tracker</title>
 
-<!-- PWA CORE -->
-<link rel="manifest" href="data:application/manifest+json,{
-  \"name\":\"VaultOS\",
-  \"short_name\":\"VaultOS\",
-  \"start_url\":\".\",
-  \"display\":\"standalone\",
-  \"background_color\":\"#000000\",
-  \"theme_color\":\"#111111\",
-  \"icons\":[]
-}">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 body{margin:0;font-family:Arial;background:#000;color:#fff}
-header{position:sticky;top:0;background:#111;padding:10px;z-index:10}
+header{position:sticky;top:0;background:#111;padding:10px}
 
 input,select,textarea{
 width:100%;padding:8px;margin-top:5px;
@@ -27,7 +18,6 @@ background:#000;color:#fff;border:1px solid #333;border-radius:6px
 .card{background:#111;margin:10px;padding:10px;border-radius:8px;border:1px solid #222}
 button{margin:5px;padding:6px}
 .small{font-size:10px;color:#888}
-
 .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px}
 .box{background:#111;padding:10px;border-radius:6px;text-align:center}
 .section{padding:10px;margin:10px;background:#0b0b0b;border-radius:8px}
@@ -37,7 +27,7 @@ button{margin:5px;padding:6px}
 <body>
 
 <header>
-<input id="search" placeholder="Search VaultOS...">
+<input id="search" placeholder="Search Vault...">
 </header>
 
 <div>
@@ -46,17 +36,21 @@ button{margin:5px;padding:6px}
 <button onclick="setFilter('SENT')">SENT</button>
 <button onclick="setFilter('SUCCESS')">SIGNED</button>
 <button onclick="setFilter('RTS')">RTS</button>
-<button onclick="setFilter('FOLLOWUP')">FOLLOW UP</button>
 </div>
 
 <div class="grid" id="stats"></div>
 
+<div class="section">
+<h3>📸 OCR Import (Image → Record)</h3>
+<input type="file" id="ocrInput" accept="image/*">
+<button onclick="extractOCR()">Extract & Create Record</button>
+<div class="small">Upload envelope/letter photo → auto extract name + address</div>
+</div>
+
 <div class="section" id="priority"></div>
 
 <div>
-<button onclick="add()">+ ADD</button>
-<button onclick="exportData()">EXPORT</button>
-<button onclick="importData()">IMPORT</button>
+<button onclick="add()">+ ADD MANUAL</button>
 </div>
 
 <div id="list"></div>
@@ -64,7 +58,7 @@ button{margin:5px;padding:6px}
 <script>
 
 ////////////////////////////////////////////////////
-// DATA CORE (SAFE + VERSIONED)
+// DATA
 ////////////////////////////////////////////////////
 
 const MASTER_DATA = [
@@ -78,21 +72,13 @@ const MASTER_DATA = [
 let DB = load();
 
 function load(){
-let raw = localStorage.getItem("vault_pwa_v1");
+let raw = localStorage.getItem("vault_os_ocr");
 if(raw) return JSON.parse(raw);
 return MASTER_DATA;
 }
 
 function save(){
-localStorage.setItem("vault_pwa_v1",JSON.stringify(DB));
-backup();
-}
-
-function backup(){
-localStorage.setItem("vault_pwa_backup",JSON.stringify({
-time:Date.now(),
-data:DB
-}));
+localStorage.setItem("vault_os_ocr",JSON.stringify(DB));
 }
 
 ////////////////////////////////////////////////////
@@ -110,22 +96,7 @@ render();
 function setFilter(f){filter=f;render();}
 
 ////////////////////////////////////////////////////
-// UTIL
-////////////////////////////////////////////////////
-
-function daysSince(d){
-if(!d) return null;
-return Math.floor((Date.now()-new Date(d))/(1000*60*60*24));
-}
-
-function addDays(n){
-let d=new Date();
-d.setDate(d.getDate()+n);
-return d.toISOString().split("T")[0];
-}
-
-////////////////////////////////////////////////////
-// ACTIONS
+// CORE ACTIONS
 ////////////////////////////////////////////////////
 
 function add(){
@@ -135,53 +106,90 @@ if(!n) return;
 DB.unshift({
 ID:Date.now(),
 Name:n,
-Status:"PENDING",
-SentDate:"",
-FollowUp:addDays(30),
-Priority:"NORMAL",
-Notes:""
+Address:"",
+Status:"PENDING"
 });
 
-save();render();
-}
-
-function markSent(id){
-let r=DB.find(x=>x.ID===id);
-if(!r) return;
-
-r.Status="SENT";
-r.SentDate=new Date().toISOString().split("T")[0];
-r.FollowUp=addDays(30);
-
-save();render();
+save();
+render();
 }
 
 ////////////////////////////////////////////////////
-// SMART ENGINE
+// OCR FEATURE
 ////////////////////////////////////////////////////
 
-function score(r){
-let s=0;
-if(r.Status==="PENDING") s+=60;
-if(r.Priority==="HIGH") s+=30;
-let age=daysSince(r.SentDate);
-if(age) s-=age;
-return s;
+function extractOCR(){
+
+let file=document.getElementById("ocrInput").files[0];
+if(!file) return alert("Upload an image first");
+
+Tesseract.recognize(
+file,
+'eng',
+{ logger:m=>console.log(m) }
+).then(({data:{text}})=>{
+
+console.log("OCR TEXT:",text);
+
+let parsed=parseText(text);
+
+createFromOCR(parsed);
+
+});
+
 }
 
-function nextQueue(){
-return DB
-.filter(x=>x.Status==="PENDING")
-.sort((a,b)=>score(b)-score(a))
-.slice(0,10);
+function parseText(text){
+
+let lines=text
+.split("\n")
+.map(l=>l.trim())
+.filter(Boolean);
+
+let name=lines[0]||"Unknown";
+let address=lines.slice(1,6).join(", ");
+
+return {name,address,raw:text};
 }
 
-function followUps(){
-return DB.filter(x=>
-x.Status==="SENT" &&
-x.FollowUp &&
-new Date(x.FollowUp)<new Date()
+function createFromOCR(data){
+
+DB.unshift({
+ID:Date.now(),
+Name:data.name,
+Address:data.address,
+Status:"PENDING",
+Notes:"OCR IMPORT",
+RawOCR:data.raw
+});
+
+save();
+render();
+
+alert("Record created from image!");
+}
+
+////////////////////////////////////////////////////
+// VIEW PIPELINE
+////////////////////////////////////////////////////
+
+function getView(){
+
+let list=DB;
+
+if(search){
+list=list.filter(x=>
+x.Name.toLowerCase().includes(search) ||
+(x.Address||"").toLowerCase().includes(search)
 );
+}
+
+if(filter==="PENDING") list=list.filter(x=>x.Status==="PENDING");
+if(filter==="SENT") list=list.filter(x=>x.Status==="SENT");
+if(filter==="SUCCESS") list=list.filter(x=>x.Status==="SUCCESS");
+if(filter==="RTS") list=list.filter(x=>x.Status==="RTS");
+
+return list;
 }
 
 ////////////////////////////////////////////////////
@@ -189,6 +197,7 @@ new Date(x.FollowUp)<new Date()
 ////////////////////////////////////////////////////
 
 function renderStats(){
+
 let total=DB.length;
 let pending=DB.filter(x=>x.Status==="PENDING").length;
 let sent=DB.filter(x=>x.Status==="SENT").length;
@@ -205,44 +214,20 @@ document.getElementById("stats").innerHTML=`
 }
 
 ////////////////////////////////////////////////////
-// PRIORITY
-////////////////////////////////////////////////////
-
-function renderPriority(){
-document.getElementById("priority").innerHTML=
-"<h3>🔥 Next to Send</h3>"+
-nextQueue().map(r=>`
-<div class="card">
-<b>${r.Name}</b>
-<div class="small">Score: ${score(r)}</div>
-<button onclick="markSent(${r.ID})">Mark Sent</button>
-</div>
-`).join("");
-}
-
-////////////////////////////////////////////////////
-// VIEW
+// RENDER
 ////////////////////////////////////////////////////
 
 function render(){
 
-let list=DB;
-
-if(search){
-list=list.filter(x=>x.Name.toLowerCase().includes(search));
-}
-
-if(filter==="PENDING") list=list.filter(x=>x.Status==="PENDING");
-if(filter==="SENT") list=list.filter(x=>x.Status==="SENT");
-if(filter==="SUCCESS") list=list.filter(x=>x.Status==="SUCCESS");
-if(filter==="RTS") list=list.filter(x=>x.Status==="RTS");
-if(filter==="FOLLOWUP") list=followUps();
+let list=getView();
 
 document.getElementById("list").innerHTML=
 list.map(r=>`
 <div class="card">
 
 <input value="${r.Name}" onchange="r.Name=this.value;save()">
+
+<textarea placeholder="Address" onchange="r.Address=this.value;save()">${r.Address||""}</textarea>
 
 <select onchange="r.Status=this.value;save()">
 <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
@@ -251,36 +236,12 @@ list.map(r=>`
 <option ${r.Status==="RTS"?"selected":""}>RTS</option>
 </select>
 
-<button onclick="markSent(${r.ID})">Mark Sent</button>
-
-<div class="small">
-ID:${r.ID} | Follow-up:${r.FollowUp||"—"}
-</div>
+<div class="small">ID: ${r.ID}</div>
 
 </div>
 `).join("");
 
 renderStats();
-renderPriority();
-}
-
-////////////////////////////////////////////////////
-// EXPORT / IMPORT
-////////////////////////////////////////////////////
-
-function exportData(){
-let blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="vaultos_backup.json";
-a.click();
-}
-
-function importData(){
-let raw=prompt("Paste backup JSON:");
-if(!raw) return;
-DB=JSON.parse(raw);
-save();render();
 }
 
 render();
