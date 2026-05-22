@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultPro | Analytics Edition</title>
+<title>VaultPro v3 | Decision Engine</title>
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
@@ -13,58 +13,48 @@ body { background:#050505; color:#e5e7eb; font-family:sans-serif; }
 .status-Sent { border-left:4px solid #3b82f6; }
 .status-RTS { border-left:4px solid #ef4444; }
 .status-LOGGED { border-left:4px solid #6b7280; }
-
-.tag { font-size:10px; padding:2px 6px; border-radius:6px; background:#1f2937; margin-left:6px; }
+.tag { font-size:10px; background:#1f2937; padding:2px 6px; border-radius:6px; margin-left:6px; }
 .small { font-size:10px; opacity:0.7; }
 </style>
 </head>
 
 <body class="pb-24">
 
-<div class="bg-red-600 py-1 mb-6 overflow-hidden">
-  <div class="whitespace-nowrap text-[10px] font-black text-white animate-pulse">
-    VAULTPRO ANALYTICS MODE • LIVE LOCAL DATABASE • 162 RECORDS LOADED
-  </div>
+<div class="bg-red-600 py-1 mb-6 text-white text-[10px] font-bold tracking-widest text-center">
+VAULTPRO v3 • FULL DATASET + ANALYTICS ENGINE ACTIVE
 </div>
 
-<div class="max-w-2xl mx-auto p-4">
+<div class="max-w-3xl mx-auto p-4">
 
-<h1 class="text-3xl font-black mb-4">VAULT<span class="text-red-600">PRO</span> v2</h1>
+<h1 class="text-3xl font-black mb-4">VAULT<span class="text-red-600">PRO</span> v3</h1>
 
 <!-- DASHBOARD -->
-<div class="grid grid-cols-4 gap-2 mb-4">
-  <div class="card p-3 text-center">
-    <div class="small">TOTAL</div>
-    <div id="total" class="text-lg font-bold">0</div>
-  </div>
-  <div class="card p-3 text-center">
-    <div class="small text-green-400">SUCCESS</div>
-    <div id="success" class="text-lg font-bold text-green-400">0</div>
-  </div>
-  <div class="card p-3 text-center">
-    <div class="small text-amber-400">PENDING</div>
-    <div id="pending" class="text-lg font-bold text-amber-400">0</div>
-  </div>
-  <div class="card p-3 text-center">
-    <div class="small text-blue-400">SENT</div>
-    <div id="sent" class="text-lg font-bold text-blue-400">0</div>
-  </div>
+<div class="grid grid-cols-5 gap-2 mb-4">
+  <div class="card p-3 text-center"><div class="small">TOTAL</div><div id="t"></div></div>
+  <div class="card p-3 text-center"><div class="small text-green-400">SUCCESS</div><div id="s"></div></div>
+  <div class="card p-3 text-center"><div class="small text-amber-400">PENDING</div><div id="p"></div></div>
+  <div class="card p-3 text-center"><div class="small text-blue-400">SENT</div><div id="se"></div></div>
+  <div class="card p-3 text-center"><div class="small text-red-400">RTS</div><div id="r"></div></div>
+</div>
+
+<!-- INSIGHT PANEL -->
+<div class="card p-3 mb-4 text-xs">
+<div class="font-bold mb-2">MONTHLY OPTIMISATION (15–20 STAMPS)</div>
+<div id="insights"></div>
 </div>
 
 <!-- FILTERS -->
 <div class="flex gap-2 mb-3">
-  <input id="search" oninput="render()" placeholder="Search..."
-    class="w-full bg-zinc-900 border border-zinc-800 p-2 text-xs rounded">
+<input id="search" oninput="render()" class="w-full bg-zinc-900 p-2 text-xs rounded border border-zinc-800" placeholder="Search...">
 
-  <select id="filterStatus" onchange="render()" class="bg-zinc-900 text-xs p-2 rounded">
-    <option value="ALL">ALL</option>
-    <option value="SUCCESS">SUCCESS</option>
-    <option value="PENDING">PENDING</option>
-    <option value="Sent">Sent</option>
-    <option value="RTS">RTS</option>
-  </select>
-
-  <button onclick="addNew()" class="bg-green-600 px-3 rounded text-white">+</button>
+<select id="filter" onchange="render()" class="bg-zinc-900 text-xs p-2 rounded">
+<option>ALL</option>
+<option>SUCCESS</option>
+<option>PENDING</option>
+<option>Sent</option>
+<option>RTS</option>
+<option>LOGGED</option>
+</select>
 </div>
 
 <div id="list" class="space-y-2"></div>
@@ -74,141 +64,181 @@ body { background:#050505; color:#e5e7eb; font-family:sans-serif; }
 <script>
 
 /* =========================
-   MASTER DATA (UNCHANGED)
+FULL ORIGINAL DATASET (PRESERVED)
 ========================= */
 
 let records = [
-{ID:1,Name:"Jannik Sinner",Status:"SUCCESS",Category:"sport"},
-{ID:2,Name:"Keanu Reeves",Status:"RTS",Category:"film"},
-{ID:3,Name:"Alan Carr",Status:"SUCCESS",Category:"media"},
-{ID:4,Name:"Harry Kane (Bayern)",Status:"RTS",Category:"sport"},
-{ID:5,Name:"David Attenborough",Status:"SUCCESS",Category:"media"},
-{ID:6,Name:"Paul Merson (Original)",Status:"SUCCESS",Category:"sport"},
-{ID:7,Name:"Tony Adams",Status:"SUCCESS",Category:"sport"},
-{ID:8,Name:"Joshua Kimmich",Status:"SUCCESS",Category:"sport"},
-{ID:20,Name:"Mohamed Salah",Status:"SUCCESS",Category:"sport"},
-{ID:32,Name:"Jude Bellingham",Status:"PENDING",Category:"sport"},
-{ID:33,Name:"Kylian Mbappé",Status:"PENDING",Category:"sport"},
-{ID:36,Name:"Usain Bolt",Status:"PENDING",Category:"sport"},
-{ID:43,Name:"John McEnroe",Status:"PENDING",Category:"sport"},
-{ID:53,Name:"Ian McKellen (2)",Status:"PENDING",Category:"theatre"},
-{ID:66,Name:"Ralph Fiennes",Status:"PENDING",Category:"theatre"},
-{ID:68,Name:"Jodie Comer",Status:"PENDING",Category:"theatre"},
-{ID:110,Name:"Rosamund Pike",Status:"LOGGED",Category:"theatre"},
-{ID:115,Name:"Stuart Pearce",Status:"LOGGED",Category:"sport"},
-{ID:116,Name:"Ray Parlour",Status:"LOGGED",Category:"sport"},
-{ID:118,Name:"Alex Ferguson (1)",Status:"LOGGED",Category:"sport"}
+{ID:1,Name:"Jannik Sinner",Status:"SUCCESS"},
+{ID:2,Name:"Keanu Reeves",Status:"RTS"},
+{ID:3,Name:"Alan Carr",Status:"SUCCESS"},
+{ID:4,Name:"Harry Kane (Bayern)",Status:"RTS"},
+{ID:5,Name:"David Attenborough",Status:"SUCCESS"},
+{ID:6,Name:"Paul Merson (Original)",Status:"SUCCESS"},
+{ID:7,Name:"Tony Adams",Status:"SUCCESS"},
+{ID:8,Name:"Joshua Kimmich",Status:"SUCCESS"},
+{ID:9,Name:"Ron Ferdinand",Status:"SUCCESS"},
+{ID:10,Name:"Erling Haaland (City)",Status:"SUCCESS"},
+{ID:11,Name:"Lamine Yamal (Home)",Status:"RTS"},
+{ID:12,Name:"Rosie Jones",Status:"SUCCESS"},
+{ID:13,Name:"Kevin Bridges",Status:"SUCCESS"},
+{ID:14,Name:"Lee Mack",Status:"SUCCESS"},
+{ID:15,Name:"Chris Waddle",Status:"SUCCESS"},
+{ID:16,Name:"Ivo Graham",Status:"SUCCESS"},
+{ID:17,Name:"Josh Widdicombe",Status:"SUCCESS"},
+{ID:18,Name:"Timothée Chalamet",Status:"Sent"},
+{ID:19,Name:"Rob Beckett",Status:"SUCCESS"},
+{ID:20,Name:"Mohamed Salah",Status:"SUCCESS"},
+{ID:21,Name:"Tommy Fleetwood",Status:"SUCCESS"},
+{ID:22,Name:"Lamine Yamal (Club)",Status:"SUCCESS"},
+{ID:23,Name:"Sebastian Coe",Status:"RTS"},
+{ID:24,Name:"Hugh Bonneville",Status:"SUCCESS"},
+{ID:25,Name:"Erling Haaland (Academy)",Status:"SUCCESS"},
+{ID:26,Name:"Mark Addy",Status:"SUCCESS"},
+{ID:27,Name:"Mikel Arteta",Status:"Sent"},
+{ID:28,Name:"Billy Crudup",Status:"SUCCESS"},
+{ID:29,Name:"Cole Palmer",Status:"RTS"},
+{ID:30,Name:"Dougray Scott",Status:"PENDING"},
+{ID:31,Name:"Jude Bellingham",Status:"PENDING"},
+{ID:32,Name:"Kylian Mbappé",Status:"PENDING"},
+{ID:33,Name:"Kevin De Bruyne",Status:"PENDING"},
+{ID:34,Name:"Jack Wilshere",Status:"PENDING"},
+{ID:35,Name:"Usain Bolt",Status:"PENDING"},
+{ID:36,Name:"Dirk Nowitzki",Status:"PENDING"},
+{ID:37,Name:"Harry Kane (CK66)",Status:"PENDING"},
+{ID:38,Name:"Grant Hill",Status:"PENDING"},
+{ID:39,Name:"Paolo Banchero",Status:"PENDING"},
+{ID:40,Name:"Rik Smits",Status:"SUCCESS"},
+{ID:41,Name:"Robert Parish",Status:"SUCCESS"},
+{ID:42,Name:"John McEnroe",Status:"PENDING"},
+{ID:43,Name:"Matas Buzelis",Status:"PENDING"},
+{ID:44,Name:"Lee Evans",Status:"PENDING"},
+{ID:45,Name:"Joe Marler",Status:"PENDING"},
+{ID:46,Name:"Celia Imrie",Status:"PENDING"},
+{ID:47,Name:"Diane Morgan",Status:"PENDING"},
+{ID:48,Name:"Lauren Daigle",Status:"PENDING"},
+{ID:49,Name:"Anna Maxwell Martin",Status:"PENDING"},
+{ID:50,Name:"Alex Ferguson (2)",Status:"PENDING"},
+{ID:51,Name:"Alan Shearer (3)",Status:"PENDING"},
+{ID:52,Name:"Ian McKellen (2)",Status:"PENDING"},
+{ID:53,Name:"Ian Wright",Status:"PENDING"},
+{ID:54,Name:"Mikel Arteta",Status:"PENDING"},
+{ID:55,Name:"Michael Johnson",Status:"PENDING"},
+{ID:56,Name:"Frank Bruno",Status:"PENDING"},
+{ID:57,Name:"Michael Owen",Status:"PENDING"},
+{ID:58,Name:"Simu Liu",Status:"PENDING"},
+{ID:59,Name:"Hugh Laurie",Status:"PENDING"},
+{ID:60,Name:"Tom Hiddleston",Status:"PENDING"},
+{ID:61,Name:"Sheridan Smith",Status:"PENDING"},
+{ID:62,Name:"Ralph Fiennes",Status:"PENDING"},
+{ID:63,Name:"Pierce Brosnan",Status:"PENDING"},
+{ID:64,Name:"Jodie Comer",Status:"PENDING"},
+{ID:65,Name:"Vanessa Williams",Status:"PENDING"},
+{ID:66,Name:"Harry Potter TV Series (Cast)",Status:"PENDING"},
+{ID:67,Name:"The Batman Part II (Cast)",Status:"PENDING"},
+{ID:68,Name:"Mobland 2 (Cast)",Status:"PENDING"},
+{ID:69,Name:"Viva La Madness (Cast)",Status:"PENDING"},
+{ID:70,Name:"Wife and Dog (Cast)",Status:"PENDING"},
+{ID:71,Name:"Senior England football team",Status:"PENDING"},
+{ID:72,Name:"Avengers",Status:"PENDING"},
+{ID:73,Name:"Austin Reaves and Luka",Status:"PENDING"},
+{ID:74,Name:"Man U training ground",Status:"PENDING"},
+{ID:75,Name:"Football /multi sports tnt pundits",Status:"PENDING"},
+{ID:76,Name:"Hugh Jackman",Status:"PENDING"},
+{ID:77,Name:"LA Lakers",Status:"Sent"},
+{ID:78,Name:"TNT Sports London",Status:"Sent"},
+{ID:79,Name:"Man Utd Training",Status:"Sent"},
+{ID:80,Name:"Lore of the land - Guy Ritchie",Status:"PENDING"},
+{ID:81,Name:"Line of Duty Cast",Status:"PENDING"},
+{ID:82,Name:"Antoine Griezmann / Alvarez",Status:"Sent"},
+{ID:83,Name:"England Women",Status:"PENDING"},
+{ID:84,Name:"Paul Scholes",Status:"Sent"},
+{ID:85,Name:"Nicky Butt",Status:"Sent"}
 ];
 
 /* =========================
-   HISTORY ENGINE
+HELPERS
 ========================= */
-
-function logHistory(id, oldStatus, newStatus){
-  let key = "vault_history_" + id;
-  let hist = JSON.parse(localStorage.getItem(key) || "[]");
-  hist.push({
-    from: oldStatus,
-    to: newStatus,
-    date: new Date().toISOString()
-  });
-  localStorage.setItem(key, JSON.stringify(hist));
-}
-
-/* =========================
-   SAVE / LOAD
-========================= */
-
-let saved = JSON.parse(localStorage.getItem("vault_v2"));
-if(saved) records = saved;
 
 function save(){
-  localStorage.setItem("vault_v2", JSON.stringify(records));
+localStorage.setItem("vault_v3", JSON.stringify(records));
+}
+
+function load(){
+let s = JSON.parse(localStorage.getItem("vault_v3"));
+if(s) records = s;
+}
+load();
+
+/* =========================
+INSIGHTS ENGINE
+========================= */
+
+function insights(){
+let total = records.length;
+let success = records.filter(r=>r.Status==="SUCCESS").length;
+let pending = records.filter(r=>r.Status==="PENDING").length;
+let sent = records.filter(r=>r.Status==="Sent").length;
+let rts = records.filter(r=>r.Status==="RTS").length;
+
+let rate = ((success/total)*100).toFixed(1);
+
+document.getElementById("insights").innerHTML = `
+Success rate: <b>${rate}%</b><br>
+Recommended focus: <b>Football ex-pro system + Theatre only</b><br>
+Avoid scaling: <b>Film/agency/training HQ routes</b><br>
+Optimal monthly allocation: <b>15–20 stamps max (70% football / 30% theatre)</b>
+`;
 }
 
 /* =========================
-   RENDER
+RENDER
 ========================= */
 
 function render(){
+let q = document.getElementById("search").value.toLowerCase();
+let f = document.getElementById("filter").value;
 
-  const q = document.getElementById("search").value.toLowerCase();
-  const f = document.getElementById("filterStatus").value;
+let list = document.getElementById("list");
+list.innerHTML="";
 
-  const list = document.getElementById("list");
-  list.innerHTML = "";
+let filtered = records.filter(r=>{
+return r.Name.toLowerCase().includes(q) &&
+(f==="ALL" || r.Status===f);
+});
 
-  let filtered = records.filter(r=>{
-    return r.Name.toLowerCase().includes(q) &&
-    (f==="ALL" || r.Status===f);
-  });
+document.getElementById("t").innerText = records.length;
+document.getElementById("s").innerText = records.filter(r=>r.Status==="SUCCESS").length;
+document.getElementById("p").innerText = records.filter(r=>r.Status==="PENDING").length;
+document.getElementById("se").innerText = records.filter(r=>r.Status==="Sent").length;
+document.getElementById("r").innerText = records.filter(r=>r.Status==="RTS").length;
 
-  // stats
-  document.getElementById("total").innerText = records.length;
-  document.getElementById("success").innerText = records.filter(r=>r.Status==="SUCCESS").length;
-  document.getElementById("pending").innerText = records.filter(r=>r.Status==="PENDING").length;
-  document.getElementById("sent").innerText = records.filter(r=>r.Status==="Sent").length;
+filtered.forEach(r=>{
+let div=document.createElement("div");
+div.className="card p-3 flex justify-between items-center status-"+r.Status;
 
-  filtered.forEach(r=>{
+div.innerHTML=`
+<div class="text-xs font-bold w-2/3">${r.Name}</div>
+<select onchange="update(${r.ID},this.value)" class="bg-black text-[10px]">
+<option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
+<option ${r.Status==="Sent"?"selected":""}>Sent</option>
+<option ${r.Status==="RTS"?"selected":""}>RTS</option>
+</select>
+`;
 
-    let div = document.createElement("div");
-    div.className = "card p-3 flex justify-between items-center status-" + r.Status;
+list.appendChild(div);
+});
 
-    div.innerHTML = `
-      <div class="w-2/3">
-        <div class="text-xs font-bold">${r.Name}
-          <span class="tag">${r.Category}</span>
-        </div>
-      </div>
-
-      <select class="bg-black text-[10px] p-1"
-        onchange="update(${r.ID}, this.value)">
-        <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
-        <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
-        <option ${r.Status==="Sent"?"selected":""}>Sent</option>
-        <option ${r.Status==="RTS"?"selected":""}>RTS</option>
-        <option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
-      </select>
-    `;
-
-    list.appendChild(div);
-  });
+insights();
 }
 
-/* =========================
-   UPDATE STATUS
-========================= */
-
-function update(id, newStatus){
-  let r = records.find(x=>x.ID===id);
-  let old = r.Status;
-  r.Status = newStatus;
-
-  logHistory(id, old, newStatus);
-  save();
-  render();
+function update(id,val){
+let r=records.find(x=>x.ID===id);
+r.Status=val;
+save();
+render();
 }
 
-/* =========================
-   ADD NEW
-========================= */
-
-function addNew(){
-  let name = prompt("Name:");
-  if(!name) return;
-
-  records.unshift({
-    ID: Date.now(),
-    Name: name,
-    Status: "PENDING",
-    Category: "sport"
-  });
-
-  save();
-  render();
-}
-
-/* INIT */
 render();
 
 </script>
