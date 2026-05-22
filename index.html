@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultPro FULL SAFE</title>
+<title>VaultPro FIXED</title>
 
 <style>
 body{margin:0;font-family:Arial;background:#050505;color:#eee;}
@@ -61,7 +61,7 @@ margin:4px;
 <body>
 
 <header>
-<input id="search" placeholder="Search records..." oninput="render()">
+<input id="search" placeholder="Search..." />
 </header>
 
 <div class="stats">
@@ -72,17 +72,15 @@ margin:4px;
 </div>
 
 <div style="padding:10px">
-<button onclick="add()">+ ADD</button>
-<button onclick="reset()">RESET</button>
-<button onclick="more()">LOAD MORE</button>
+<button id="addBtn">+ ADD</button>
+<button id="resetBtn">RESET</button>
+<button id="moreBtn">LOAD MORE</button>
 </div>
 
 <div id="list" class="list"></div>
 
 <script>
 
-////////////////////////////////////////////////////
-// MASTER DATA
 ////////////////////////////////////////////////////
 const MASTER_DATA = [
 {"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
@@ -98,51 +96,107 @@ const MASTER_DATA = [
 ];
 
 ////////////////////////////////////////////////////
-// SAFE INIT (NO BREAKING JSON / CLONE ISSUES)
-////////////////////////////////////////////////////
 
-let DB;
-
-try {
-    const saved = localStorage.getItem("vault_full");
-    DB = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(MASTER_DATA));
-} catch(e) {
-    DB = JSON.parse(JSON.stringify(MASTER_DATA));
-}
+let DB = JSON.parse(localStorage.getItem("vault_full"));
+if(!DB) DB = JSON.parse(JSON.stringify(MASTER_DATA));
 
 let VIEW_LIMIT = 50;
+let searchQuery = "";
 
 function save(){
     localStorage.setItem("vault_full", JSON.stringify(DB));
 }
 
 ////////////////////////////////////////////////////
-// RENDER
+// EVENTS (NO INLINE HTML EVENTS)
+////////////////////////////////////////////////////
+
+document.getElementById("search").addEventListener("input", (e)=>{
+    searchQuery = e.target.value.toLowerCase();
+    VIEW_LIMIT = 50;
+    render();
+});
+
+document.getElementById("addBtn").onclick = ()=>{
+    const n = prompt("Name:");
+    if(!n) return;
+
+    DB.unshift({
+        ID: Date.now(),
+        Name: n,
+        Status: "PENDING"
+    });
+
+    save();
+    render();
+};
+
+document.getElementById("resetBtn").onclick = ()=>{
+    DB = JSON.parse(JSON.stringify(MASTER_DATA));
+    VIEW_LIMIT = 50;
+    save();
+    render();
+};
+
+document.getElementById("moreBtn").onclick = ()=>{
+    VIEW_LIMIT += 50;
+    render();
+};
+
+////////////////////////////////////////////////////
+// RENDER (FULLY STABLE)
 ////////////////////////////////////////////////////
 
 function render(){
 
-    const q = document.getElementById("search").value.toLowerCase();
-
-    const filtered = q
-        ? DB.filter(x => x.Name.toLowerCase().includes(q))
+    const filtered = searchQuery
+        ? DB.filter(x => x.Name.toLowerCase().includes(searchQuery))
         : DB;
 
     const list = filtered.slice(0, VIEW_LIMIT);
 
-    document.getElementById("list").innerHTML = list.map(r => `
-        <div class="card">
-            <input value="${r.Name}" onchange="edit(${r.ID},this.value)">
-            <select onchange="status(${r.ID},this.value)">
-                <option ${r.Status=="SUCCESS"?"selected":""}>SUCCESS</option>
-                <option ${r.Status=="PENDING"?"selected":""}>PENDING</option>
-                <option ${r.Status=="RTS"?"selected":""}>RTS</option>
-                <option ${r.Status=="Sent"?"selected":""}>Sent</option>
-                <option ${r.Status=="LOGGED"?"selected":""}>LOGGED</option>
-            </select>
-            <div class="small">ID: ${r.ID}</div>
-        </div>
-    `).join("");
+    const container = document.getElementById("list");
+    container.innerHTML = "";
+
+    list.forEach(r=>{
+
+        const div = document.createElement("div");
+        div.className = "card";
+
+        const input = document.createElement("input");
+        input.value = r.Name;
+
+        input.onchange = (e)=>{
+            r.Name = e.target.value;
+            save();
+        };
+
+        const select = document.createElement("select");
+
+        ["SUCCESS","PENDING","RTS","Sent","LOGGED"].forEach(s=>{
+            const opt = document.createElement("option");
+            opt.value = s;
+            opt.text = s;
+            if(r.Status === s) opt.selected = true;
+            select.appendChild(opt);
+        });
+
+        select.onchange = (e)=>{
+            r.Status = e.target.value;
+            save();
+            stats();
+        };
+
+        const small = document.createElement("div");
+        small.className = "small";
+        small.textContent = "ID: " + r.ID;
+
+        div.appendChild(input);
+        div.appendChild(select);
+        div.appendChild(small);
+
+        container.appendChild(div);
+    });
 
     stats();
 }
@@ -156,56 +210,6 @@ function stats(){
     document.getElementById("s").innerText = DB.filter(x=>x.Status=="SUCCESS").length;
     document.getElementById("p").innerText = DB.filter(x=>x.Status=="PENDING").length;
     document.getElementById("r").innerText = DB.filter(x=>x.Status=="RTS").length;
-}
-
-////////////////////////////////////////////////////
-// EDIT
-////////////////////////////////////////////////////
-
-function edit(id,val){
-    const x = DB.find(i => i.ID === id);
-    if(x){
-        x.Name = val;
-        save();
-    }
-}
-
-function status(id,val){
-    const x = DB.find(i => i.ID === id);
-    if(x){
-        x.Status = val;
-        save();
-    }
-}
-
-////////////////////////////////////////////////////
-// ACTIONS
-////////////////////////////////////////////////////
-
-function add(){
-    const n = prompt("Name:");
-    if(!n) return;
-
-    DB.unshift({
-        ID: Date.now(),
-        Name: n,
-        Status: "PENDING"
-    });
-
-    save();
-    render();
-}
-
-function reset(){
-    DB = JSON.parse(JSON.stringify(MASTER_DATA));
-    save();
-    VIEW_LIMIT = 50;
-    render();
-}
-
-function more(){
-    VIEW_LIMIT += 50;
-    render();
 }
 
 ////////////////////////////////////////////////////
