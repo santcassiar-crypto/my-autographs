@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Autograph Tracker Pro 180+</title>
+<title>Autograph Tracker FIXED</title>
 
 <style>
 body{margin:0;font-family:Arial;background:#000;color:#fff}
@@ -10,9 +10,9 @@ header{position:sticky;top:0;background:#111;padding:10px}
 input,select{width:100%;padding:8px;margin-top:5px}
 .card{background:#111;margin:10px;padding:10px;border-radius:6px;border:1px solid #222}
 button{margin:5px;padding:6px}
+.small{font-size:10px;color:#888}
 .bad{border:1px solid red !important}
 .warn{border:1px solid orange !important}
-.small{font-size:10px;color:#888}
 .filters button{margin-right:5px}
 </style>
 </head>
@@ -44,75 +44,32 @@ button{margin:5px;padding:6px}
 <script>
 
 ////////////////////////////////////////////////////
-// FULL DATA (YOUR 180+ RECORDS)
+// YOUR DATA (PASTE FULL 180 HERE)
 ////////////////////////////////////////////////////
-const MASTER_DATA = /* YOUR DATA */ 
-[
+const MASTER_DATA = [
 {"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
 {"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
 {"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
 {"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
 {"ID":1779457496694,"Name":"George Graham - Home ","Status":"PENDING"},
 {"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},
-{"ID":1779457437040,"Name":"Gosh4 Goals","Status":"PENDING"},
-{"ID":1779457382999,"Name":"San Antonio Training Centre ","Status":"PENDING"},
-{"ID":1779457367391,"Name":"OKC training centre","Status":"PENDING"},
-{"ID":1779457333472,"Name":"FC Barcelona - Training ground","Status":"PENDING"},
 {"ID":1779457307017,"Name":"Gary Oldman ","Status":"SUCCESS"},
-{"ID":1779457276281,"Name":"Arsenal womens team","Status":"PENDING"},
-{"ID":1779457232607,"Name":"Park theatre x 2 ","Status":"PENDING"},
-{"ID":1779457195881,"Name":"Jermery Sochan","Status":"PENDING"},
-{"ID":1779369334553,"Name":"Geoff Hurst ","Status":"LOGGED"},
-{"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},
-
 {"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
 {"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
-{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
-{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},
-{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},
-{"ID":6,"Name":"Paul Merson (Original)","Status":"SUCCESS"},
-{"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},
-{"ID":8,"Name":"Joshua Kimmich","Status":"SUCCESS"},
-{"ID":9,"Name":"Ron Ferdinand","Status":"SUCCESS"},
-{"ID":10,"Name":"Erling Haaland (City)","Status":"SUCCESS"},
-{"ID":11,"Name":"Lamine Yamal (Home)","Status":"RTS"},
-{"ID":12,"Name":"Rosie Jones","Status":"SUCCESS"},
-{"ID":13,"Name":"Kevin Bridges","Status":"SUCCESS"},
-{"ID":14,"Name":"Lee Mack","Status":"SUCCESS"},
-{"ID":15,"Name":"Chris Waddle","Status":"SUCCESS"},
-{"ID":16,"Name":"Ivo Graham","Status":"SUCCESS"},
-{"ID":17,"Name":"Josh Widdicombe","Status":"SUCCESS"},
-{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},
-{"ID":19,"Name":"Rob Beckett","Status":"SUCCESS"},
-{"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"},
-{"ID":21,"Name":"Tommy Fleetwood","Status":"SUCCESS"},
-{"ID":22,"Name":"Lamine Yamal (Club)","Status":"SUCCESS"},
-{"ID":24,"Name":"Sebastian Coe","Status":"RTS"},
-{"ID":25,"Name":"Hugh Bonneville","Status":"SUCCESS"},
-{"ID":26,"Name":"Erling Haaland (Academy)","Status":"SUCCESS"},
-{"ID":27,"Name":"Mark Addy","Status":"SUCCESS"},
-{"ID":28,"Name":"Mikel Arteta","Status":"Sent"},
-{"ID":29,"Name":"Billy Crudup","Status":"SUCCESS"},
-{"ID":30,"Name":"Cole Palmer","Status":"RTS"},
-
-{"ID":31,"Name":"Dougray Scott","Status":"PENDING"},
-{"ID":32,"Name":"Jude Bellingham","Status":"PENDING"},
-{"ID":33,"Name":"Kylian Mbappé","Status":"PENDING"},
-{"ID":34,"Name":"Kevin De Bruyne","Status":"PENDING"},
-{"ID":35,"Name":"Jack Wilshere","Status":"PENDING"},
-{"ID":36,"Name":"Usain Bolt","Status":"PENDING"}
+{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"}
 ];
 
 ////////////////////////////////////////////////////
 
-let DB = JSON.parse(localStorage.getItem("vault180")) || structuredClone(MASTER_DATA);
+let DB = JSON.parse(localStorage.getItem("vault_fixed"))
+    || JSON.parse(JSON.stringify(MASTER_DATA));
 
 let limit = 50;
 let search = "";
 let filter = "ALL";
 
 function save(){
-localStorage.setItem("vault180",JSON.stringify(DB));
+localStorage.setItem("vault_fixed",JSON.stringify(DB));
 }
 
 function daysSince(d){
@@ -121,21 +78,26 @@ return Math.floor((Date.now()-new Date(d))/(1000*60*60*24));
 }
 
 ////////////////////////////////////////////////////
-// UI CONTROLS
+// SEARCH (FIXED + GLOBAL)
 ////////////////////////////////////////////////////
 
-document.getElementById("search").oninput = e=>{
+document.getElementById("search").oninput = (e)=>{
 search = e.target.value.toLowerCase();
+limit = 50;
 render();
 };
 
 function setFilter(f){
-filter=f;
+filter = f;
 render();
 }
 
+////////////////////////////////////////////////////
+// ACTIONS
+////////////////////////////////////////////////////
+
 function add(){
-let n=prompt("Name:");
+let n = prompt("Name:");
 if(!n) return;
 
 DB.unshift({
@@ -150,19 +112,19 @@ render();
 }
 
 function reset(){
-DB = structuredClone(MASTER_DATA);
-limit=50;
+DB = JSON.parse(JSON.stringify(MASTER_DATA));
+limit = 50;
 save();
 render();
 }
 
 function more(){
-limit+=50;
+limit += 50;
 render();
 }
 
 function markSent(id){
-let x=DB.find(i=>i.ID===id);
+let x = DB.find(i=>i.ID===id);
 if(x){
 x.Status="SENT";
 x.SentDate=new Date().toISOString().split("T")[0];
@@ -172,50 +134,55 @@ render();
 }
 
 ////////////////////////////////////////////////////
-// RENDER
+// CORE RENDER (FIXED ORDER)
 ////////////////////////////////////////////////////
 
 function render(){
 
 let list = DB;
 
+/* 1. SEARCH FIRST (ALL RECORDS) */
 if(search){
-list=list.filter(x=>x.Name.toLowerCase().includes(search));
+list = list.filter(x =>
+x.Name.toLowerCase().includes(search)
+);
 }
 
-if(filter==="PENDING") list=list.filter(x=>x.Status==="PENDING");
-if(filter==="SENT") list=list.filter(x=>x.Status==="SENT");
-if(filter==="SUCCESS") list=list.filter(x=>x.Status==="SUCCESS");
-if(filter==="RTS") list=list.filter(x=>x.Status==="RTS");
+/* 2. FILTER */
+if(filter==="PENDING") list = list.filter(x=>x.Status==="PENDING");
+if(filter==="SENT") list = list.filter(x=>x.Status==="SENT");
+if(filter==="SUCCESS") list = list.filter(x=>x.Status==="SUCCESS");
+if(filter==="RTS") list = list.filter(x=>x.Status==="RTS");
 
 if(filter==="OVERDUE"){
-list=list.filter(x=>{
+list = list.filter(x=>{
 if(x.Status!=="SENT") return false;
-let d=daysSince(x.SentDate);
+let d = daysSince(x.SentDate);
 return d && d>30;
 });
 }
 
-list=list.slice(0,limit);
+/* 3. LIMIT LAST (IMPORTANT) */
+list = list.slice(0, limit);
 
-document.getElementById("list").innerHTML =
-list.map(r=>{
+/* RENDER */
+document.getElementById("list").innerHTML = list.map(r=>{
 
 let age = daysSince(r.SentDate);
+
 let cls="card";
 if(r.Status==="SENT" && age>60) cls="card bad";
 else if(r.Status==="SENT" && age>30) cls="card warn";
 
 return `
 <div class="${cls}">
-<input value="${r.Name}" onchange="x=>{DB.find(i=>i.ID==${r.ID}).Name=this.value;save()}">
+<input value="${r.Name}" onchange="r.Name=this.value;save()">
 
-<select onchange="DB.find(i=>i.ID==${r.ID}).Status=this.value;save();render()">
+<select onchange="r.Status=this.value;save()">
 <option ${r.Status=="PENDING"?"selected":""}>PENDING</option>
 <option ${r.Status=="SENT"?"selected":""}>SENT</option>
 <option ${r.Status=="SUCCESS"?"selected":""}>SUCCESS</option>
 <option ${r.Status=="RTS"?"selected":""}>RTS</option>
-<option ${r.Status=="LOGGED"?"selected":""}>LOGGED</option>
 </select>
 
 <button onclick="markSent(${r.ID})">Mark Sent</button>
@@ -231,8 +198,8 @@ document.getElementById("stats").innerText =
 `TOTAL:${DB.length}
  SENT:${DB.filter(x=>x.Status==="SENT").length}
  PENDING:${DB.filter(x=>x.Status==="PENDING").length}
- SUCCESS:${DB.filter(x=>x.Status==="SUCCESS").length}`;
-
+ SUCCESS:${DB.filter(x=>x.Status==="SUCCESS").length}
+ RTS:${DB.filter(x=>x.Status==="RTS").length}`;
 }
 
 render();
