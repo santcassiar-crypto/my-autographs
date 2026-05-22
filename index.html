@@ -2,147 +2,207 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultPro v5 FIXED</title>
+<title>VaultPro v6 | Intelligence System</title>
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
 body { background:#050505; color:#e5e7eb; font-family:sans-serif; }
 .card { background:#111113; border:1px solid #27272a; border-radius:12px; }
-.tab { cursor:pointer; padding:6px 10px; font-size:11px; border-radius:6px; }
-.active { background:#dc2626; color:white; }
-select { background:#000; color:#fff; font-size:11px; }
-.small { font-size:10px; opacity:0.7; }
 .good { border-left:4px solid #22c55e; }
 .mid { border-left:4px solid #f59e0b; }
 .low { border-left:4px solid #ef4444; }
+.small { font-size:10px; opacity:0.7; }
+select { background:#000; color:#fff; font-size:11px; }
+button { font-size:11px; }
 </style>
 </head>
 
 <body class="pb-24">
 
 <div class="bg-red-600 text-white text-[10px] font-bold text-center py-1">
-VAULTPRO v5 FIXED • FULL DATA RESTORED
+VAULTPRO v6 • INTELLIGENCE LAYER • DUPLICATION + STRATEGY CONTROL
 </div>
 
 <div class="max-w-6xl mx-auto p-4">
 
-<h1 class="text-3xl font-black mb-2">VAULT<span class="text-red-600">PRO</span> v5</h1>
+<h1 class="text-3xl font-black mb-3">VAULT<span class="text-red-600">PRO</span> v6</h1>
 
+<!-- CONTROL -->
 <div class="flex gap-2 mb-3">
-<div class="tab active" onclick="switchTab('vault')">VAULT</div>
-<div class="tab" onclick="switchTab('opt')">OPTIMISER</div>
-<div class="tab" onclick="switchTab('stats')">ANALYTICS</div>
+<input id="search" oninput="render()" placeholder="Search..." class="w-full bg-zinc-900 p-2 text-xs rounded border border-zinc-800">
+
+<button onclick="runAudit()" class="bg-blue-600 px-3 rounded">AUDIT SYSTEM</button>
+<button onclick="resetStamps()" class="bg-green-600 px-3 rounded">RESET STAMPS</button>
 </div>
 
-<input id="search" oninput="render()" placeholder="Search..." class="w-full bg-zinc-900 p-2 text-xs rounded border border-zinc-800 mb-3">
+<!-- STAMPS -->
+<div class="card p-3 mb-3 text-xs">
+📦 Monthly Stamp Budget: <b>20</b>  
+Remaining: <b id="stamps">20</b>
+<button onclick="useStamp()" class="ml-2 bg-red-600 px-2 rounded">USE</button>
+</div>
 
-<div id="vault"></div>
-<div id="opt" class="hidden"></div>
-<div id="stats" class="hidden"></div>
+<!-- OUTPUTS -->
+<div id="audit" class="mb-3"></div>
+<div id="list"></div>
 
 </div>
 
 <script>
 
 /* =========================
-FULL RESTORED DATASET (YOUR INPUT)
+FULL DATASET
 ========================= */
 
-let DB = [
-{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
-{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
-{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
-{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
-{"ID":1779457496694,"Name":"George Graham - Home ","Status":"PENDING"},
-{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},
-{"ID":1779457437040,"Name":"Gosh4 Goals","Status":"PENDING"},
-{"ID":1779457382999,"Name":"San Antonio Training Centre ","Status":"PENDING"},
-{"ID":1779457367391,"Name":"OKC training centre","Status":"PENDING"},
-{"ID":1779457333472,"Name":"FC Barcelona - Training ground","Status":"PENDING"},
-{"ID":1779457307017,"Name":"Gary Oldman ","Status":"SUCCESS"},
-{"ID":1779457276281,"Name":"Arsenal womens team","Status":"PENDING"},
-{"ID":1779457232607,"Name":"Park theatre x 2 ","Status":"PENDING"},
-{"ID":1779457195881,"Name":"Jermery Sochan","Status":"PENDING"},
-{"ID":1779369334553,"Name":"Geoff Hurst ","Status":"LOGGED"},
-{"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},
-{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
-{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
-{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
-{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},
-{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},
-{"ID":6,"Name":"Paul Merson (Original)","Status":"SUCCESS"},
-{"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},
-{"ID":8,"Name":"Joshua Kimmich","Status":"SUCCESS"},
-{"ID":9,"Name":"Ron Ferdinand","Status":"SUCCESS"},
-{"ID":10,"Name":"Erling Haaland (City)","Status":"SUCCESS"},
-{"ID":11,"Name":"Lamine Yamal (Home)","Status":"RTS"},
-{"ID":12,"Name":"Rosie Jones","Status":"SUCCESS"},
-{"ID":13,"Name":"Kevin Bridges","Status":"SUCCESS"},
-{"ID":14,"Name":"Lee Mack","Status":"SUCCESS"},
-{"ID":15,"Name":"Chris Waddle","Status":"SUCCESS"},
-{"ID":16,"Name":"Ivo Graham","Status":"SUCCESS"},
-{"ID":17,"Name":"Josh Widdicombe","Status":"SUCCESS"},
-{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"}
-];
+let DB = /* FULL DATA GOES HERE (your restore JSON) */ [];
 
 /* =========================
-CORE
+STAMP SYSTEM
 ========================= */
 
-function score(r){
-let s=50;
-if(r.Status==="SUCCESS") s+=25;
-if(r.Status==="RTS") s-=25;
-if(r.Status==="Sent") s-=10;
-if(r.Status==="LOGGED") s-=5;
+let stamps = 20;
 
-let n=r.Name.toLowerCase();
-if(n.includes("theatre")) s+=15;
-if(n.includes("training")) s+=12;
-if(n.includes("fc")) s+=10;
+/* =========================
+CORE INTELLIGENCE
+========================= */
+
+function baseScore(r){
+
+let s = 50;
+
+if(r.Status==="SUCCESS") s += 30;
+if(r.Status==="RTS") s -= 30;
+if(r.Status==="Sent") s -= 10;
+if(r.Status==="LOGGED") s -= 5;
+
+/* pattern intelligence */
+let n = r.Name.toLowerCase();
+
+if(n.includes("theatre") || n.includes("park")) s += 15;
+if(n.includes("training") || n.includes("fc")) s += 12;
+if(n.includes("cast") || n.includes("series")) s += 10;
+if(n.includes("home")) s += 8;
 
 return s;
 }
 
-function switchTab(t){
-["vault","opt","stats"].forEach(x=>{
-document.getElementById(x).style.display = x===t?"block":"none";
-});
-}
-
 /* =========================
-UPDATE
+DUPLICATE DETECTOR
 ========================= */
 
-function update(id,val){
-let r=DB.find(x=>x.ID===id);
-if(r){r.Status=val; render();}
+function findDuplicates(){
+let map = {};
+let dups = [];
+
+DB.forEach(r=>{
+let key = r.Name.toLowerCase().trim();
+if(!map[key]) map[key] = [];
+map[key].push(r);
+});
+
+Object.values(map).forEach(arr=>{
+if(arr.length > 1) dups.push(arr);
+});
+
+return dups;
 }
 
 /* =========================
-RENDER VAULT
+STAMP CONTROL
+========================= */
+
+function useStamp(){
+if(stamps > 0){
+stamps--;
+document.getElementById("stamps").innerText = stamps;
+}
+}
+
+function resetStamps(){
+stamps = 20;
+document.getElementById("stamps").innerText = stamps;
+}
+
+/* =========================
+AUDIT ENGINE
+========================= */
+
+function runAudit(){
+
+let dups = findDuplicates();
+
+let html = `<div class="card p-3 mb-3">
+<div class="text-sm font-bold">🧠 SYSTEM AUDIT</div>
+<div class="small">Intelligence scan complete</div>
+</div>`;
+
+/* DUPLICATES */
+html += `<div class="card p-3 mb-2">
+<div class="text-xs font-bold">🔁 Duplicate Clusters</div>
+<div class="small">${dups.length} groups found</div>
+</div>`;
+
+/* STATUS BREAKDOWN */
+let s = DB.filter(x=>x.Status==="SUCCESS").length;
+let p = DB.filter(x=>x.Status==="PENDING").length;
+let r = DB.filter(x=>x.Status==="RTS").length;
+
+html += `
+<div class="card p-3 mb-2">
+<div class="text-xs">SUCCESS: ${s}</div>
+<div class="text-xs">PENDING: ${p}</div>
+<div class="text-xs">RTS: ${r}</div>
+</div>`;
+
+/* STAMP WARNING */
+let topPending = DB.filter(x=>x.Status==="PENDING")
+.sort((a,b)=>baseScore(b)-baseScore(a))
+.slice(0, stamps);
+
+html += `<div class="card p-3">
+<div class="text-sm font-bold">🎯 RECOMMENDED SENDS (STAMP SAFE)</div>
+<div class="small">Only top-ranked, non-wasted targets</div>
+</div>`;
+
+topPending.forEach(r=>{
+html += `
+<div class="card p-2 mt-2 good">
+<div class="text-xs font-bold">${r.Name}</div>
+<div class="small">Score: ${baseScore(r)}</div>
+</div>`;
+});
+
+document.getElementById("audit").innerHTML = html;
+}
+
+/* =========================
+RENDER LIST
 ========================= */
 
 function render(){
 
-let q=document.getElementById("search").value?.toLowerCase()||"";
-let v=document.getElementById("vault");
-v.innerHTML="";
+let q = document.getElementById("search").value?.toLowerCase() || "";
+
+let list = document.getElementById("list");
+list.innerHTML = "";
 
 DB.filter(r=>r.Name.toLowerCase().includes(q))
-.sort((a,b)=>score(b)-score(a))
+.sort((a,b)=>baseScore(b)-baseScore(a))
 .forEach(r=>{
 
-let sc=score(r);
-let cls=sc>80?"good":sc>55?"mid":"low";
+let sc = baseScore(r);
+let cls = sc>80?"good":sc>55?"mid":"low";
 
-let div=document.createElement("div");
-div.className="card p-3 flex justify-between items-center "+cls;
+let div = document.createElement("div");
+div.className = "card p-3 flex justify-between items-center "+cls;
 
-div.innerHTML=`
+div.innerHTML = `
+<div>
 <div class="text-xs font-bold">${r.Name}</div>
+<div class="small">Score ${sc}</div>
+</div>
 
-<select onchange="update(${r.ID},this.value)">
+<select onchange="r.Status=this.value">
 <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
 <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
 <option ${r.Status==="Sent"?"selected":""}>Sent</option>
@@ -151,54 +211,13 @@ div.innerHTML=`
 </select>
 `;
 
-v.appendChild(div);
+list.appendChild(div);
 });
 
-renderOpt();
-renderStats();
-}
-
-/* =========================
-OPTIMISER
-========================= */
-
-function renderOpt(){
-
-let top=[...DB]
-.filter(x=>x.Status==="PENDING")
-.sort((a,b)=>score(b)-score(a))
-.slice(0,20);
-
-document.getElementById("opt").innerHTML =
-top.map(r=>`
-<div class="card p-2 mb-2">
-<div class="text-xs font-bold">${r.Name}</div>
-<div class="small">Score ${score(r)}</div>
-</div>
-`).join("");
-}
-
-/* =========================
-ANALYTICS
-========================= */
-
-function renderStats(){
-
-let t=DB.length;
-let s=DB.filter(x=>x.Status==="SUCCESS").length;
-let p=DB.filter(x=>x.Status==="PENDING").length;
-let r=DB.filter(x=>x.Status==="RTS").length;
-
-document.getElementById("stats").innerHTML=`
-<div class="card p-3 text-xs">
-Total: ${t}<br>
-Success: ${s}<br>
-Pending: ${p}<br>
-RTS: ${r}
-</div>`;
 }
 
 render();
+runAudit();
 
 </script>
 
