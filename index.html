@@ -2,25 +2,28 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Autograph Tracker Pro</title>
+<title>VaultPro Future</title>
 
 <style>
 body{margin:0;font-family:Arial;background:#000;color:#fff}
 header{position:sticky;top:0;background:#111;padding:10px}
-input,select,textarea{width:100%;padding:8px;margin-top:5px;background:#000;color:#fff;border:1px solid #333;border-radius:6px}
-.card{background:#111;margin:10px;padding:10px;border-radius:6px;border:1px solid #222}
+input,select,textarea{
+width:100%;padding:8px;margin-top:5px;
+background:#000;color:#fff;border:1px solid #333;border-radius:6px
+}
+.card{background:#111;margin:10px;padding:10px;border-radius:8px;border:1px solid #222}
 button{margin:5px;padding:6px}
 .small{font-size:10px;color:#888}
 .bad{border:1px solid red !important}
 .warn{border:1px solid orange !important}
-.section{padding:10px;background:#0b0b0b;margin:10px;border-radius:6px}
+.section{padding:10px;background:#0b0b0b;margin:10px;border-radius:8px}
 </style>
 </head>
 
 <body>
 
 <header>
-<input id="search" placeholder="Search 180+ records...">
+<input id="search" placeholder="Search full database...">
 </header>
 
 <div>
@@ -34,11 +37,11 @@ button{margin:5px;padding:6px}
 
 <div>
 <button onclick="add()">+ ADD</button>
-<button onclick="reset()">RESET</button>
-<button onclick="more()">LOAD MORE</button>
+<button onclick="exportData()">EXPORT BACKUP</button>
+<button onclick="loadBackup()">IMPORT BACKUP</button>
 </div>
 
-<div class="section" id="next"></div>
+<div class="section" id="priority"></div>
 
 <div id="stats"></div>
 <div id="list"></div>
@@ -46,123 +49,204 @@ button{margin:5px;padding:6px}
 <script>
 
 ////////////////////////////////////////////////////
-// YOUR DATA (PASTE FULL 180 HERE)
+// VERSIONED DATA MODEL (IMPORTANT)
 ////////////////////////////////////////////////////
+
+const SCHEMA_VERSION = 1;
+
+/*
+Every record ALWAYS becomes:
+{
+ ID,
+ Name,
+ Status,
+ SentDate,
+ Priority,
+ Notes,
+ CreatedAt,
+ UpdatedAt
+}
+*/
+
 const MASTER_DATA = [
-{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS","SentDate":"","Notes":""},
-{"ID":2,"Name":"Keanu Reeves","Status":"RTS","SentDate":"","Notes":""},
-{"ID":3,"Name":"Alan Carr","Status":"SUCCESS","SentDate":"","Notes":""},
-{"ID":4,"Name":"Harry Kane","Status":"PENDING","SentDate":"","Notes":""},
-{"ID":5,"Name":"David Attenborough","Status":"SUCCESS","SentDate":"","Notes":""}
+{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
+{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
+{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
+{"ID":4,"Name":"Harry Kane","Status":"PENDING"},
+{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"}
 ];
 
 ////////////////////////////////////////////////////
 
-let DB = JSON.parse(localStorage.getItem("vault_pro_v2"))
-    || JSON.parse(JSON.stringify(MASTER_DATA));
+let DB = loadDB();
 
-let limit = 50;
 let search = "";
 let filter = "ALL";
 
-function save(){
-localStorage.setItem("vault_pro_v2",JSON.stringify(DB));
+////////////////////////////////////////////////////
+// SAFE LOAD (NO DATA LOSS)
+////////////////////////////////////////////////////
+
+function loadDB(){
+let raw = localStorage.getItem("vault_future_v1");
+
+if(raw){
+try{
+return JSON.parse(raw);
+}catch(e){}
 }
+
+/* FIRST RUN */
+return MASTER_DATA.map(normalize);
+}
+
+function normalize(r){
+return {
+ID:r.ID,
+Name:r.Name,
+Status:r.Status||"PENDING",
+SentDate:r.SentDate||"",
+Priority:r.Priority||"NORMAL",
+Notes:r.Notes||"",
+CreatedAt:r.CreatedAt||Date.now(),
+UpdatedAt:r.UpdatedAt||Date.now(),
+_schema:SCHEMA_VERSION
+};
+}
+
+function save(){
+localStorage.setItem("vault_future_v1",JSON.stringify(DB));
+backupAuto();
+}
+
+////////////////////////////////////////////////////
+// AUTO BACKUP (CRITICAL SAFETY FEATURE)
+////////////////////////////////////////////////////
+
+function backupAuto(){
+localStorage.setItem("vault_future_backup",JSON.stringify({
+time:Date.now(),
+data:DB
+}));
+}
+
+function exportData(){
+let blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+let a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "vault_backup.json";
+a.click();
+}
+
+function loadBackup(){
+let raw = prompt("Paste backup JSON:");
+if(!raw) return;
+
+DB = JSON.parse(raw).map(normalize);
+save();
+render();
+}
+
+////////////////////////////////////////////////////
+// UTIL
+////////////////////////////////////////////////////
 
 function daysSince(d){
 if(!d) return null;
 return Math.floor((Date.now()-new Date(d))/(1000*60*60*24));
 }
 
-////////////////////////////////////////////////////
-// SEARCH
-////////////////////////////////////////////////////
-
-document.getElementById("search").oninput = (e)=>{
-search = e.target.value.toLowerCase();
-limit = 50;
-render();
-};
-
 function setFilter(f){
-filter = f;
+filter=f;
 render();
 }
 
 ////////////////////////////////////////////////////
-// ACTIONS
+// SEARCH (GLOBAL SAFE)
+////////////////////////////////////////////////////
+
+document.getElementById("search").oninput = e=>{
+search = e.target.value.toLowerCase();
+render();
+};
+
+////////////////////////////////////////////////////
+// CORE ACTIONS (SAFE MUTATION ONLY)
 ////////////////////////////////////////////////////
 
 function add(){
 let n = prompt("Name:");
 if(!n) return;
 
-DB.unshift({
+DB.unshift(normalize({
 ID:Date.now(),
 Name:n,
-Status:"PENDING",
-SentDate:"",
-Notes:""
-});
+Status:"PENDING"
+}));
 
 save();
-render();
-}
-
-function reset(){
-DB = JSON.parse(JSON.stringify(MASTER_DATA));
-limit = 50;
-save();
-render();
-}
-
-function more(){
-limit += 50;
 render();
 }
 
 function markSent(id){
-let x = DB.find(i=>i.ID===id);
-if(x){
-x.Status="SENT";
-x.SentDate=new Date().toISOString().split("T")[0];
+let r = DB.find(x=>x.ID===id);
+if(!r) return;
+
+r.Status="SENT";
+r.SentDate=new Date().toISOString().split("T")[0];
+r.UpdatedAt=Date.now();
+
 save();
 render();
 }
+
+////////////////////////////////////////////////////
+// SMART PRIORITY ENGINE
+////////////////////////////////////////////////////
+
+function score(r){
+let s = 0;
+
+if(r.Status==="PENDING") s+=50;
+if(r.Priority==="HIGH") s+=30;
+if(r.Status==="SENT") s-=10;
+
+let age = daysSince(r.SentDate);
+if(age) s -= age;
+
+return s;
 }
 
-////////////////////////////////////////////////////
-// NEXT TO SEND (PRIORITY QUEUE)
-////////////////////////////////////////////////////
-
-function getNext(){
+function priorityList(){
 return DB
 .filter(x=>x.Status==="PENDING")
+.sort((a,b)=>score(b)-score(a))
 .slice(0,10);
 }
 
-function renderNext(){
-document.getElementById("next").innerHTML =
-"<h3>Next to Send</h3>" +
-getNext().map(r=>`
+function renderPriority(){
+document.getElementById("priority").innerHTML =
+"<h3>🔥 Next Best Sends</h3>" +
+priorityList().map(r=>`
 <div class="card">
 <b>${r.Name}</b>
+<div class="small">Score: ${score(r)}</div>
 <button onclick="markSent(${r.ID})">Mark Sent</button>
 </div>
 `).join("");
 }
 
 ////////////////////////////////////////////////////
-// CORE RENDER
+// RENDER ENGINE
 ////////////////////////////////////////////////////
 
 function render(){
 
 let list = DB;
 
-/* SEARCH FIRST */
+/* SEARCH */
 if(search){
-list = list.filter(x=>x.Name.toLowerCase().includes(search));
+list=list.filter(x=>x.Name.toLowerCase().includes(search));
 }
 
 /* FILTER */
@@ -179,13 +263,11 @@ return d && d>30;
 });
 }
 
-list = list.slice(0,limit);
-
-/* MAIN LIST */
+/* RENDER */
 document.getElementById("list").innerHTML =
 list.map(r=>{
 
-let age = daysSince(r.SentDate);
+let age=daysSince(r.SentDate);
 
 let cls="card";
 if(r.Status==="SENT" && age>60) cls="card bad";
@@ -194,18 +276,23 @@ else if(r.Status==="SENT" && age>30) cls="card warn";
 return `
 <div class="${cls}">
 
-<input value="${r.Name}" onchange="r.Name=this.value;save()">
+<input value="${r.Name}" onchange="r.Name=this.value;r.UpdatedAt=Date.now();save()">
 
-<select onchange="r.Status=this.value;save()">
-<option ${r.Status=="PENDING"?"selected":""}>PENDING</option>
-<option ${r.Status=="SENT"?"selected":""}>SENT</option>
-<option ${r.Status=="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${r.Status=="RTS"?"selected":""}>RTS</option>
+<select onchange="r.Status=this.value;r.UpdatedAt=Date.now();save()">
+<option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
+<option ${r.Status==="SENT"?"selected":""}>SENT</option>
+<option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${r.Status==="RTS"?"selected":""}>RTS</option>
+</select>
+
+<select onchange="r.Priority=this.value;r.UpdatedAt=Date.now();save()">
+<option ${r.Priority==="NORMAL"?"selected":""}>NORMAL</option>
+<option ${r.Priority==="HIGH"?"selected":""}>HIGH</option>
 </select>
 
 <button onclick="markSent(${r.ID})">Mark Sent</button>
 
-<textarea onchange="r.Notes=this.value;save()" placeholder="Notes / news / context">${r.Notes||""}</textarea>
+<textarea onchange="r.Notes=this.value;r.UpdatedAt=Date.now();save()">${r.Notes}</textarea>
 
 <div class="small">
 ID:${r.ID} | Sent:${r.SentDate||"—"} | Age:${age||"—"}
@@ -215,6 +302,7 @@ ID:${r.ID} | Sent:${r.SentDate||"—"} | Age:${age||"—"}
 `;
 }).join("");
 
+
 /* STATS */
 document.getElementById("stats").innerText =
 `TOTAL:${DB.length}
@@ -223,8 +311,8 @@ document.getElementById("stats").innerText =
  SUCCESS:${DB.filter(x=>x.Status==="SUCCESS").length}
  RTS:${DB.filter(x=>x.Status==="RTS").length}`;
 
-/* NEXT PANEL */
-renderNext();
+/* PRIORITY */
+renderPriority();
 }
 
 render();
