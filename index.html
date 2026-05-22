@@ -2,52 +2,50 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultPro v4 | Optimiser Engine</title>
+<title>VaultPro v5 | Full System</title>
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
 body { background:#050505; color:#e5e7eb; font-family:sans-serif; }
 .card { background:#111113; border:1px solid #27272a; border-radius:12px; }
+.tab { cursor:pointer; padding:6px 10px; font-size:11px; border-radius:6px; }
+.active { background:#dc2626; color:white; }
+select, input { background:#000; color:#fff; font-size:11px; }
+.small { font-size:10px; opacity:0.7; }
 .good { border-left:4px solid #22c55e; }
 .mid { border-left:4px solid #f59e0b; }
 .low { border-left:4px solid #ef4444; }
-.small { font-size:10px; opacity:0.7; }
-button { font-size:11px; }
-select { background:#000; color:#fff; font-size:10px; }
 </style>
 </head>
 
 <body class="pb-24">
 
 <div class="bg-red-600 text-white text-[10px] font-bold text-center py-1">
-VAULTPRO v4 • OPTIMISER ENGINE • STAMP ALLOCATION SYSTEM
+VAULTPRO v5 • FULL SYSTEM • VAULT + OPTIMISER + ANALYTICS
 </div>
 
 <div class="max-w-6xl mx-auto p-4">
 
-<h1 class="text-3xl font-black mb-3">VAULT<span class="text-red-600">PRO</span> v4</h1>
+<h1 class="text-3xl font-black mb-2">VAULT<span class="text-red-600">PRO</span> v5</h1>
 
-<!-- CONTROL PANEL -->
+<!-- TABS -->
 <div class="flex gap-2 mb-3">
-<input id="search" oninput="render()" placeholder="Search vault..." class="w-full bg-zinc-900 p-2 text-xs rounded border border-zinc-800">
-
-<button onclick="generatePlan()" class="bg-green-600 px-3 rounded">GENERATE SEND PLAN</button>
-<button onclick="download()" class="bg-zinc-700 px-3 rounded">BACKUP</button>
+<div class="tab active" onclick="switchTab('vault')">VAULT</div>
+<div class="tab" onclick="switchTab('opt')">OPTIMISER</div>
+<div class="tab" onclick="switchTab('stats')">ANALYTICS</div>
 </div>
 
-<!-- STAMP BUDGET -->
-<div class="card p-3 mb-3 text-xs">
-📦 Monthly Stamp Budget: <b id="budget">20</b>  
-Remaining: <b id="remaining">20</b>
-<button onclick="useStamp()" class="ml-3 bg-red-600 px-2 rounded">- Use Stamp</button>
-<button onclick="resetBudget()" class="ml-1 bg-green-600 px-2 rounded">Reset</button>
-</div>
+<!-- SEARCH -->
+<input id="search" oninput="render()" placeholder="Search vault..." class="w-full bg-zinc-900 p-2 text-xs rounded border border-zinc-800 mb-3">
 
-<!-- PLAN OUTPUT -->
-<div id="plan" class="mb-4"></div>
+<!-- VAULT -->
+<div id="vault" class="space-y-2"></div>
 
-<!-- LIST -->
-<div id="list" class="space-y-2"></div>
+<!-- OPTIMISER -->
+<div id="opt" class="hidden"></div>
+
+<!-- ANALYTICS -->
+<div id="stats" class="hidden"></div>
 
 </div>
 
@@ -57,141 +55,90 @@ Remaining: <b id="remaining">20</b>
 FULL DATASET (YOUR RESTORE)
 ========================= */
 
-let DB = [ /* (your full dataset is assumed inserted here unchanged) */ ];
+let DB = /* YOUR FULL DATA HERE */ [];
 
 /* =========================
-STAMP SYSTEM
+AUTO SAVE
 ========================= */
 
-let budget = 20;
-let remaining = 20;
+function save(){
+localStorage.setItem("vault_v5", JSON.stringify(DB));
+}
+
+function load(){
+const data = localStorage.getItem("vault_v5");
+if(data) DB = JSON.parse(data);
+}
+load();
 
 /* =========================
-CATEGORY SCORING ENGINE
+SCORING ENGINE
 ========================= */
 
-function score(name, status){
+function score(r){
 
-let score = 50; // base
+let s = 50;
 
-// SUCCESS reinforcement
-if(status === "SUCCESS") score += 25;
+if(r.Status==="SUCCESS") s += 25;
+if(r.Status==="RTS") s -= 25;
+if(r.Status==="Sent") s -= 10;
+if(r.Status==="LOGGED") s -= 5;
 
-// RTS penalty
-if(status.includes("RTS")) score -= 25;
+const n = r.Name.toLowerCase();
 
-// Sent slight penalty (already attempted)
-if(status === "Sent") score -= 10;
+if(n.includes("theatre")||n.includes("park")||n.includes("romeo")) s += 20;
+if(n.includes("training")||n.includes("fc")||n.includes("lakers")) s += 15;
+if(n.includes("cast")||n.includes("batman")||n.includes("avengers")) s += 10;
 
-// LOGGED neutral
-if(status === "LOGGED") score -= 5;
-
-// CATEGORY BOOSTS
-const n = name.toLowerCase();
-
-if(n.includes("theatre") || n.includes("park") || n.includes("romeo") || n.includes("west end")) score += 20;
-if(n.includes("training") || n.includes("fc") || n.includes("lakers") || n.includes("england")) score += 18;
-if(n.includes("cast") || n.includes("series") || n.includes("batman") || n.includes("avengers")) score += 15;
-if(n.includes("home")) score += 10;
-
-// elite known boosters (your proven wins pattern)
-if(n.includes("stephen fry") || n.includes("paul merson") || n.includes("tony adams")) score += 25;
-
-return score;
+return s;
 }
 
 /* =========================
-PLAN GENERATOR
+TAB SWITCH
 ========================= */
 
-function generatePlan(){
-
-let ranked = [...DB].map(r => ({
-...r,
-Score: score(r.Name, r.Status)
-}));
-
-ranked.sort((a,b)=>b.Score-a.Score);
-
-let top = ranked.filter(r => r.Status === "PENDING").slice(0, remaining);
-
-let html = `<div class="card p-3 mb-3">
-<div class="text-sm font-bold mb-2">🔥 RECOMMENDED SEND PLAN</div>
-<div class="small">Based on category strength + RTS history + success reinforcement</div>
-</div>`;
-
-top.forEach(r=>{
-html += `
-<div class="card p-3 mb-2 good flex justify-between">
-<div>
-<div class="text-xs font-bold">${r.Name}</div>
-<div class="small">Score: ${r.Score}</div>
-</div>
-<div class="text-xs text-green-400">PRIORITY</div>
-</div>`;
+function switchTab(t){
+["vault","opt","stats"].forEach(x=>{
+document.getElementById(x).style.display = x===t?"block":"none";
 });
-
-document.getElementById("plan").innerHTML = html;
 }
 
 /* =========================
-STAMP CONTROL
+UPDATE
 ========================= */
 
-function useStamp(){
-if(remaining > 0) remaining--;
-updateBudget();
-}
-
-function resetBudget(){
-remaining = budget;
-updateBudget();
-}
-
-function updateBudget(){
-document.getElementById("remaining").innerText = remaining;
-document.getElementById("budget").innerText = budget;
+function update(id,val){
+const r = DB.find(x=>x.ID===id);
+if(r){ r.Status = val; save(); render(); }
 }
 
 /* =========================
-BACKUP
-========================= */
-
-function download(){
-const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-const a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="vault_v4_backup.json";
-a.click();
-}
-
-/* =========================
-RENDER LIST
+RENDER VAULT
 ========================= */
 
 function render(){
 
 const q=document.getElementById("search").value?.toLowerCase()||"";
-const list=document.getElementById("list");
-list.innerHTML="";
+const vault=document.getElementById("vault");
+vault.innerHTML="";
 
 DB.filter(r=>r.Name.toLowerCase().includes(q))
-.sort((a,b)=>score(b.Name,b.Status)-score(a.Name,a.Status))
+.sort((a,b)=>score(b)-score(a))
 .forEach(r=>{
 
-const sc = score(r.Name,r.Status);
-let cls = sc > 80 ? "good" : sc > 55 ? "mid" : "low";
+let sc = score(r);
+let cls = sc>80?"good":sc>55?"mid":"low";
 
 const div=document.createElement("div");
-div.className=`card p-3 flex justify-between items-center ${cls}`;
+div.className="card p-3 flex justify-between items-center "+cls;
 
 div.innerHTML=`
 <div>
 <div class="text-xs font-bold">${r.Name}</div>
-<div class="small">Score: ${sc} • ${r.Status}</div>
+<div class="small">Score: ${sc}</div>
 </div>
 
-<select onchange="r.Status=this.value;render()">
+<select onchange="update(${r.ID},this.value)">
 <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
 <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
 <option ${r.Status==="Sent"?"selected":""}>Sent</option>
@@ -200,12 +147,67 @@ div.innerHTML=`
 </select>
 `;
 
-list.appendChild(div);
+vault.appendChild(div);
 });
 
+renderOpt();
+renderStats();
 }
 
-updateBudget();
+/* =========================
+OPTIMISER (15–20 STAMPS)
+========================= */
+
+function renderOpt(){
+
+let remaining = 20;
+
+let ranked = [...DB]
+.filter(r=>r.Status==="PENDING")
+.sort((a,b)=>score(b)-score(a))
+.slice(0,remaining);
+
+let html = `<div class="card p-3 mb-3">
+<div class="text-sm font-bold">🔥 SEND PLAN (20 STAMPS)</div>
+<div class="small">Ranked by success probability scoring system</div>
+</div>`;
+
+ranked.forEach(r=>{
+html += `
+<div class="card p-3 mb-2 good">
+<div class="text-xs font-bold">${r.Name}</div>
+<div class="small">Score: ${score(r)}</div>
+</div>`;
+});
+
+document.getElementById("opt").innerHTML = html;
+}
+
+/* =========================
+ANALYTICS
+========================= */
+
+function renderStats(){
+
+const total = DB.length;
+const s = DB.filter(x=>x.Status==="SUCCESS").length;
+const p = DB.filter(x=>x.Status==="PENDING").length;
+const r = DB.filter(x=>x.Status==="RTS").length;
+const se = DB.filter(x=>x.Status==="Sent").length;
+
+document.getElementById("stats").innerHTML = `
+<div class="card p-3">
+<div class="text-sm font-bold mb-2">📊 ANALYTICS</div>
+<div class="text-xs">Total: ${total}</div>
+<div class="text-xs text-green-400">Success: ${s}</div>
+<div class="text-xs text-amber-400">Pending: ${p}</div>
+<div class="text-xs text-blue-400">Sent: ${se}</div>
+<div class="text-xs text-red-400">RTS: ${r}</div>
+</div>
+`;
+}
+
+/* INIT */
 render();
 
 </script>
