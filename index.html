@@ -3,449 +3,246 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultPro v6 MASTER</title>
-
-<script src="https://cdn.tailwindcss.com"></script>
+<title>VaultPro v8.1 Editable System</title>
 
 <style>
 body{
+    margin:0;
+    font-family:Arial;
     background:#050505;
-    color:#e5e7eb;
-    font-family:Arial,sans-serif;
+    color:#eee;
 }
 
-.card{
-    background:#111113;
-    border:1px solid #27272a;
-    border-radius:14px;
-}
-
-.good{border-left:4px solid #22c55e;}
-.mid{border-left:4px solid #f59e0b;}
-.low{border-left:4px solid #ef4444;}
-
-.small{
-    font-size:11px;
-    opacity:.7;
-}
-
-.stickyTop{
+header{
     position:sticky;
     top:0;
-    z-index:100;
-    backdrop-filter:blur(10px);
-    background:rgba(5,5,5,.92);
+    background:#111;
+    padding:10px;
+    border-bottom:1px solid #222;
 }
+
+input, select{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    background:#000;
+    color:#fff;
+    border:1px solid #333;
+    border-radius:6px;
+}
+
+.stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:6px;
+    padding:10px;
+}
+
+.box{
+    background:#111;
+    padding:8px;
+    border-radius:8px;
+    text-align:center;
+    font-size:12px;
+}
+
+.list{padding:10px;}
+
+.card{
+    background:#111;
+    border:1px solid #222;
+    padding:10px;
+    margin-bottom:8px;
+    border-radius:8px;
+}
+
+button{
+    background:#222;
+    border:1px solid #333;
+    color:white;
+    padding:6px;
+    font-size:11px;
+    border-radius:6px;
+    margin-top:5px;
+    margin-right:5px;
+}
+
+.small{font-size:11px;color:#aaa;}
 </style>
 </head>
 
-<body class="min-h-screen pb-24">
+<body>
 
-<div class="bg-red-600 text-white text-center text-[11px] py-2 font-bold tracking-wide">
-VAULTPRO v6 MASTER • FULL SEARCH ENABLED • OFFLINE READY
+<header>
+<input id="search" placeholder="Search all records..." oninput="render()">
+</header>
+
+<div class="stats">
+<div class="box">TOTAL<br><b id="t"></b></div>
+<div class="box">SUCCESS<br><b id="s"></b></div>
+<div class="box">PENDING<br><b id="p"></b></div>
+<div class="box">RTS<br><b id="r"></b></div>
 </div>
 
-<div class="max-w-6xl mx-auto p-3">
-
-<div class="stickyTop py-3 mb-3">
-
-<div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-
-<h1 class="text-3xl font-black">
-VAULT<span class="text-red-600">PRO</span>
-</h1>
-
-<div class="flex gap-2 flex-wrap">
-
-<button onclick="runAudit()" class="bg-blue-600 px-3 py-2 rounded text-xs font-bold">
-AUDIT
-</button>
-
-<button onclick="resetMaster()" class="bg-green-600 px-3 py-2 rounded text-xs font-bold">
-RESET
-</button>
-
-<button onclick="exportDB()" class="bg-zinc-700 px-3 py-2 rounded text-xs font-bold">
-EXPORT
-</button>
-
-</div>
+<div style="padding:10px">
+<button onclick="addRecord()">+ ADD</button>
+<button onclick="exportDB()">EXPORT</button>
+<button onclick="importDB()">IMPORT</button>
 </div>
 
-<div class="card p-3 mt-3">
-
-<div class="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-
-<input
-id="search"
-oninput="render()"
-placeholder="Search ALL records..."
-class="w-full bg-zinc-900 border border-zinc-800 rounded p-3 text-sm text-white"
->
-
-<div class="flex gap-2 items-center whitespace-nowrap">
-
-<div class="text-sm">📮 Stamps:</div>
-
-<div id="stampCount" class="font-black text-green-400">
-20
-</div>
-
-<button onclick="useStamp()" class="bg-red-600 px-2 py-1 rounded text-xs">
-USE
-</button>
-
-<button onclick="resetStamps()" class="bg-zinc-700 px-2 py-1 rounded text-xs">
-RESET
-</button>
-
-</div>
-</div>
-</div>
-</div>
-
-<div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4"></div>
-
-<div id="audit" class="mb-4"></div>
-
-<div id="list" class="space-y-2"></div>
-
-</div>
+<div id="list" class="list"></div>
 
 <script>
 
-/* =========================================================
-FULL DATABASE
-========================================================= */
+// =======================
+// LOAD DATABASE
+// =======================
 
-const MASTER_DB = [
+let DB = JSON.parse(localStorage.getItem("vault_db_v81")) || [];
 
-{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
-{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
-{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
-{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
-{"ID":1779457496694,"Name":"George Graham - Home","Status":"PENDING"},
-{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},
-{"ID":1779457437040,"Name":"Gosh4 Goals","Status":"PENDING"},
-{"ID":1779457382999,"Name":"San Antonio Training Centre","Status":"PENDING"},
-{"ID":1779457367391,"Name":"OKC training centre","Status":"PENDING"},
-{"ID":1779457333472,"Name":"FC Barcelona - Training ground","Status":"PENDING"},
-{"ID":1779457307017,"Name":"Gary Oldman","Status":"SUCCESS"},
-{"ID":1779457276281,"Name":"Arsenal womens team","Status":"PENDING"},
-{"ID":1779457232607,"Name":"Park theatre x 2","Status":"PENDING"},
-{"ID":1779457195881,"Name":"Jeremy Sochan","Status":"PENDING"},
-{"ID":1779369334553,"Name":"Geoff Hurst","Status":"LOGGED"},
-{"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},
+// =======================
+// SAVE
+// =======================
 
-{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
-{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
-{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
-{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},
-{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},
-{"ID":6,"Name":"Paul Merson (Original)","Status":"SUCCESS"},
-{"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},
-{"ID":8,"Name":"Joshua Kimmich","Status":"SUCCESS"},
-{"ID":9,"Name":"Ron Ferdinand","Status":"SUCCESS"},
-{"ID":10,"Name":"Erling Haaland (City)","Status":"SUCCESS"},
-{"ID":11,"Name":"Lamine Yamal (Home)","Status":"RTS"},
-{"ID":12,"Name":"Rosie Jones","Status":"SUCCESS"},
-{"ID":13,"Name":"Kevin Bridges","Status":"SUCCESS"},
-{"ID":14,"Name":"Lee Mack","Status":"SUCCESS"},
-{"ID":15,"Name":"Chris Waddle","Status":"SUCCESS"},
-{"ID":16,"Name":"Ivo Graham","Status":"SUCCESS"},
-{"ID":17,"Name":"Josh Widdicombe","Status":"SUCCESS"},
-{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},
-{"ID":19,"Name":"Rob Beckett","Status":"SUCCESS"},
-{"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"},
-{"ID":21,"Name":"Tommy Fleetwood","Status":"SUCCESS"},
-{"ID":22,"Name":"Lamine Yamal (Club)","Status":"SUCCESS"},
-{"ID":23,"Name":"Sebastian Coe","Status":"RTS"},
-{"ID":24,"Name":"Hugh Bonneville","Status":"SUCCESS"},
-{"ID":25,"Name":"Erling Haaland (Academy)","Status":"SUCCESS"},
-{"ID":26,"Name":"Mark Addy","Status":"SUCCESS"},
-{"ID":27,"Name":"Mikel Arteta","Status":"Sent"},
-{"ID":28,"Name":"Billy Crudup","Status":"SUCCESS"},
-{"ID":29,"Name":"Cole Palmer","Status":"RTS"},
-{"ID":30,"Name":"Dougray Scott","Status":"PENDING"},
-{"ID":31,"Name":"Jude Bellingham","Status":"PENDING"},
-{"ID":32,"Name":"Kylian Mbappé","Status":"PENDING"},
-{"ID":33,"Name":"Kevin De Bruyne","Status":"PENDING"},
-{"ID":34,"Name":"Jack Wilshere","Status":"PENDING"},
-{"ID":35,"Name":"Usain Bolt","Status":"PENDING"},
-{"ID":36,"Name":"Dirk Nowitzki","Status":"PENDING"},
-{"ID":37,"Name":"Harry Kane (CK66)","Status":"PENDING"},
-{"ID":38,"Name":"Grant Hill","Status":"PENDING"},
-{"ID":39,"Name":"Paolo Banchero","Status":"PENDING"},
-{"ID":40,"Name":"Rik Smits","Status":"SUCCESS"},
-{"ID":41,"Name":"Robert Parish","Status":"SUCCESS"},
-{"ID":42,"Name":"John McEnroe","Status":"PENDING"},
-{"ID":43,"Name":"Matas Buzelis","Status":"PENDING"},
-{"ID":44,"Name":"Lee Evans","Status":"PENDING"},
-{"ID":45,"Name":"Joe Marler","Status":"PENDING"},
-{"ID":46,"Name":"Celia Imrie","Status":"PENDING"},
-{"ID":47,"Name":"Diane Morgan","Status":"PENDING"},
-{"ID":48,"Name":"Lauren Daigle","Status":"PENDING"},
-{"ID":49,"Name":"Anna Maxwell Martin","Status":"PENDING"},
-{"ID":50,"Name":"Alex Ferguson (2)","Status":"PENDING"}
-
-];
-
-/* =========================================================
-LIVE DB
-========================================================= */
-
-let DB = structuredClone(MASTER_DB);
-
-/* =========================================================
-STAMPS
-========================================================= */
-
-let stamps = 20;
-
-function useStamp(){
-    if(stamps > 0){
-        stamps--;
-        updateStampUI();
-        runAudit();
-    }
+function save(){
+    localStorage.setItem("vault_db_v81", JSON.stringify(DB));
 }
 
-function resetStamps(){
-    stamps = 20;
-    updateStampUI();
-    runAudit();
-}
-
-function updateStampUI(){
-    document.getElementById("stampCount").innerText = stamps;
-}
-
-/* =========================================================
-SCORING
-========================================================= */
+// =======================
+// CORE FUNCTIONS
+// =======================
 
 function score(r){
-
-    let s = 50;
-
-    if(r.Status === "SUCCESS") s += 30;
-    if(r.Status === "PENDING") s += 10;
-    if(r.Status === "RTS") s -= 30;
-    if(r.Status === "Sent") s -= 5;
-    if(r.Status === "LOGGED") s -= 2;
-
-    let n = r.Name.toLowerCase();
-
-    if(n.includes("theatre")) s += 15;
-    if(n.includes("training")) s += 12;
-    if(n.includes("cast")) s += 10;
-    if(n.includes("home")) s += 8;
-    if(n.includes("podcast")) s += 6;
-
-    return s;
+    if(r.Status==="SUCCESS") return 100;
+    if(r.Status==="Sent") return 70;
+    if(r.Status==="RTS") return 40;
+    if(r.Status==="PENDING") return 20;
+    return 10;
 }
-
-/* =========================================================
-RENDER
-========================================================= */
 
 function render(){
 
     let q = document.getElementById("search").value.toLowerCase();
 
-    let filtered;
+    let filtered = DB;
 
-    if(q.length > 0){
-
+    if(q){
         filtered = DB.filter(r =>
             r.Name.toLowerCase().includes(q)
         );
-
-    } else {
-
-        filtered = [...DB]
-            .sort((a,b)=>score(b)-score(a))
-            .slice(0,50);
     }
 
     filtered.sort((a,b)=>score(b)-score(a));
 
     let list = document.getElementById("list");
+    list.innerHTML="";
 
-    list.innerHTML = "";
-
-    filtered.forEach(r=>{
-
-        let sc = score(r);
-
-        let cls = "low";
-
-        if(sc >= 80) cls = "good";
-        else if(sc >= 55) cls = "mid";
+    filtered.forEach((r,i)=>{
 
         let div = document.createElement("div");
-
-        div.className = `card p-3 ${cls}`;
+        div.className="card";
 
         div.innerHTML = `
 
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <input value="${r.Name}"
+                onchange="editName(${r.ID},this.value)">
 
-            <div>
-                <div class="font-bold text-sm">${r.Name}</div>
-                <div class="small">${r.Status} • Score ${sc}</div>
-            </div>
-
-            <select
-            class="bg-black border border-zinc-700 rounded p-2 text-xs"
-            onchange="updateStatus(${r.ID},this.value)">
-
-                <option ${r.Status==='SUCCESS'?'selected':''}>SUCCESS</option>
-                <option ${r.Status==='PENDING'?'selected':''}>PENDING</option>
-                <option ${r.Status==='Sent'?'selected':''}>Sent</option>
-                <option ${r.Status==='RTS'?'selected':''}>RTS</option>
-                <option ${r.Status==='LOGGED'?'selected':''}>LOGGED</option>
-
+            <select onchange="editStatus(${r.ID},this.value)">
+                <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
+                <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
+                <option ${r.Status==="Sent"?"selected":""}>Sent</option>
+                <option ${r.Status==="RTS"?"selected":""}>RTS</option>
+                <option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
             </select>
 
-        </div>
+            <div class="small">Score: ${score(r)}</div>
+
+            <button onclick="del(${r.ID})">DELETE</button>
+
         `;
 
         list.appendChild(div);
-
     });
 
-    updateStats();
+    stats();
 }
 
-/* =========================================================
-UPDATE STATUS
-========================================================= */
+function stats(){
 
-function updateStatus(id,val){
+    document.getElementById("t").innerText = DB.length;
+    document.getElementById("s").innerText = DB.filter(x=>x.Status==="SUCCESS").length;
+    document.getElementById("p").innerText = DB.filter(x=>x.Status==="PENDING").length;
+    document.getElementById("r").innerText = DB.filter(x=>x.Status==="RTS").length;
+}
 
-    let target = DB.find(x=>x.ID===id);
+// =======================
+// EDIT SYSTEM
+// =======================
 
-    if(target){
-        target.Status = val;
-    }
+function editName(id,val){
+    DB.find(x=>x.ID===id).Name = val;
+    save();
+}
 
+function editStatus(id,val){
+    DB.find(x=>x.ID===id).Status = val;
+    save();
+}
+
+// =======================
+// ADD / DELETE
+// =======================
+
+function addRecord(){
+
+    let name = prompt("Enter name:");
+    if(!name) return;
+
+    DB.unshift({
+        ID:Date.now(),
+        Name:name,
+        Status:"PENDING"
+    });
+
+    save();
     render();
 }
 
-/* =========================================================
-STATS
-========================================================= */
-
-function updateStats(){
-
-    document.getElementById("stats").innerHTML = `
-
-    <div class="card p-3">
-        <div class="small">TOTAL</div>
-        <div class="text-2xl font-black">${DB.length}</div>
-    </div>
-
-    <div class="card p-3">
-        <div class="small">SUCCESS</div>
-        <div class="text-2xl font-black text-green-400">
-            ${DB.filter(x=>x.Status==="SUCCESS").length}
-        </div>
-    </div>
-
-    <div class="card p-3">
-        <div class="small">PENDING</div>
-        <div class="text-2xl font-black text-yellow-400">
-            ${DB.filter(x=>x.Status==="PENDING").length}
-        </div>
-    </div>
-
-    <div class="card p-3">
-        <div class="small">RTS</div>
-        <div class="text-2xl font-black text-red-400">
-            ${DB.filter(x=>x.Status==="RTS").length}
-        </div>
-    </div>
-
-    `;
-}
-
-/* =========================================================
-AUDIT
-========================================================= */
-
-function runAudit(){
-
-    let top = DB
-    .filter(x=>x.Status==="PENDING")
-    .sort((a,b)=>score(b)-score(a))
-    .slice(0,stamps);
-
-    let html = `
-
-    <div class="card p-3">
-
-        <div class="font-bold mb-2">
-            🧠 Optimised Monthly Sends
-        </div>
-
-    `;
-
-    top.forEach(t=>{
-
-        html += `
-        <div class="text-sm mb-1">
-            • ${t.Name}
-            <span class="small">(Score ${score(t)})</span>
-        </div>
-        `;
-
-    });
-
-    html += `</div>`;
-
-    document.getElementById("audit").innerHTML = html;
-}
-
-/* =========================================================
-RESET
-========================================================= */
-
-function resetMaster(){
-
-    DB = structuredClone(MASTER_DB);
-
+function del(id){
+    DB = DB.filter(x=>x.ID!==id);
+    save();
     render();
-    runAudit();
 }
 
-/* =========================================================
-EXPORT
-========================================================= */
+// =======================
+// IMPORT / EXPORT
+// =======================
 
 function exportDB(){
-
-    const blob = new Blob(
-        [JSON.stringify(DB)],
-        {type:'application/json'}
-    );
-
-    const a = document.createElement('a');
-
-    a.href = URL.createObjectURL(blob);
-
-    a.download = 'vaultpro_backup.json';
-
+    let blob = new Blob([JSON.stringify(DB)],{type:"application/json"});
+    let a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="vault.json";
     a.click();
 }
 
-/* =========================================================
-INIT
-========================================================= */
+function importDB(){
+    let i=document.createElement("input");
+    i.type="file";
+    i.onchange=e=>{
+        let f=e.target.files[0];
+        let r=new FileReader();
+        r.onload=ev=>{
+            DB=JSON.parse(ev.target.result);
+            save();
+            render();
+        };
+        r.readAsText(f);
+    };
+    i.click();
+}
 
 render();
-runAudit();
-updateStampUI();
 
 </script>
 
