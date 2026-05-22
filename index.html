@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultPro v5 | Single Source Engine</title>
+<title>VaultPro v7 | Single File Portable</title>
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
@@ -13,33 +13,31 @@ body { background:#050505; color:#e5e7eb; font-family:sans-serif; }
 .status-Sent { border-left:4px solid #3b82f6; }
 .status-RTS { border-left:4px solid #ef4444; }
 .small { font-size:10px; opacity:0.7; }
-.tag { font-size:10px; background:#1f2937; padding:2px 6px; border-radius:6px; }
+select { background:#000; color:#fff; font-size:10px; }
 </style>
 </head>
 
 <body class="pb-24">
 
 <div class="bg-red-600 text-white text-[10px] font-bold text-center py-1">
-VAULTPRO v5 • SINGLE SOURCE OF TRUTH ACTIVE
+VAULTPRO v7 • SINGLE FILE • FULL PORTABLE SYSTEM
 </div>
 
 <div class="max-w-3xl mx-auto p-4">
 
-<h1 class="text-3xl font-black mb-4">VAULT<span class="text-red-600">PRO</span> v5</h1>
+<h1 class="text-3xl font-black mb-4">VAULT<span class="text-red-600">PRO</span></h1>
 
-<div class="grid grid-cols-4 gap-2 mb-4">
-  <div class="card p-3 text-center"><div class="small">TOTAL</div><div id="t"></div></div>
-  <div class="card p-3 text-center"><div class="small text-green-400">SUCCESS</div><div id="s"></div></div>
-  <div class="card p-3 text-center"><div class="small text-amber-400">PENDING</div><div id="p"></div></div>
-  <div class="card p-3 text-center"><div class="small text-blue-400">SENT</div><div id="se"></div></div>
+<!-- STATS -->
+<div class="grid grid-cols-4 gap-2 mb-4 text-center text-xs">
+<div class="card p-2">TOTAL<br><span id="t"></span></div>
+<div class="card p-2 text-green-400">SUCCESS<br><span id="s"></span></div>
+<div class="card p-2 text-amber-400">PENDING<br><span id="p"></span></div>
+<div class="card p-2 text-blue-400">SENT<br><span id="se"></span></div>
 </div>
 
-<div class="flex gap-2 mb-3">
-<input id="search" oninput="render()" class="w-full bg-zinc-900 p-2 text-xs rounded border border-zinc-800" placeholder="Search...">
-
-<button onclick="saveDB()" class="bg-green-600 px-2 text-xs rounded">SAVE</button>
-<button onclick="loadDB()" class="bg-blue-600 px-2 text-xs rounded">LOAD</button>
-<button onclick="resetDB()" class="bg-red-600 px-2 text-xs rounded">RESET</button>
+<!-- SEARCH -->
+<div class="mb-3">
+<input id="search" oninput="render()" placeholder="Search..." class="w-full bg-zinc-900 p-2 text-xs rounded border border-zinc-800">
 </div>
 
 <div id="list" class="space-y-2"></div>
@@ -49,14 +47,14 @@ VAULTPRO v5 • SINGLE SOURCE OF TRUTH ACTIVE
 <script>
 
 /* =========================
-FULL DATASET (SOURCE OF TRUTH)
+FULL DATASET (YOUR MASTER VAULT)
 ========================= */
 
-const MASTER_DATA = [
+let DB = [
 {ID:1,Name:"Jannik Sinner",Status:"SUCCESS"},
 {ID:2,Name:"Keanu Reeves",Status:"RTS"},
 {ID:3,Name:"Alan Carr",Status:"SUCCESS"},
-{ID:4,Name:"Harry Kane (Bayern)",Status:"RTS"},
+{ID:4,Name:"Harry Kane",Status:"RTS"},
 {ID:5,Name:"David Attenborough",Status:"SUCCESS"},
 {ID:6,Name:"Mohamed Salah",Status:"SUCCESS"},
 {ID:7,Name:"Jude Bellingham",Status:"PENDING"},
@@ -64,59 +62,23 @@ const MASTER_DATA = [
 {ID:9,Name:"Usain Bolt",Status:"PENDING"},
 {ID:10,Name:"Ralph Fiennes",Status:"PENDING"},
 {ID:11,Name:"Rosamund Pike",Status:"SUCCESS"},
-{ID:12,Name:"Stuart Pearce",Status:"SUCCESS"},
-{ID:13,Name:"Ray Parlour",Status:"SUCCESS"}
+{ID:12,Name:"Pierce Brosnan",Status:"PENDING"},
+{ID:13,Name:"Jodie Comer",Status:"PENDING"},
+{ID:14,Name:"Stuart Pearce",Status:"SUCCESS"},
+{ID:15,Name:"Ray Parlour",Status:"SUCCESS"},
+{ID:16,Name:"Cole Palmer",Status:"PENDING"},
+{ID:17,Name:"Phil Foden",Status:"PENDING"},
+{ID:18,Name:"Erling Haaland",Status:"SUCCESS"},
+{ID:19,Name:"Lamine Yamal",Status:"SUCCESS"},
+{ID:20,Name:"Tom Hiddleston",Status:"PENDING"}
 ];
 
 /* =========================
-SINGLE SOURCE OF TRUTH
-========================= */
-
-let VAULT_DB = [];
-
-/* =========================
-BOOT SYSTEM (NO FALLBACK CONFUSION)
-========================= */
-
-function boot(){
-  let saved = localStorage.getItem("vault_v5");
-
-  if(saved){
-    VAULT_DB = JSON.parse(saved);
-  } else {
-    VAULT_DB = structuredClone(MASTER_DATA);
-  }
-}
-
-/* =========================
-SAVE / LOAD (EXPLICIT ONLY)
-========================= */
-
-function saveDB(){
-  localStorage.setItem("vault_v5", JSON.stringify(VAULT_DB));
-  alert("Saved to backup storage");
-}
-
-function loadDB(){
-  let saved = localStorage.getItem("vault_v5");
-  if(saved){
-    VAULT_DB = JSON.parse(saved);
-    render();
-  }
-}
-
-function resetDB(){
-  localStorage.removeItem("vault_v5");
-  VAULT_DB = structuredClone(MASTER_DATA);
-  render();
-}
-
-/* =========================
-UPDATE (ONLY ONE TRUE SOURCE)
+UPDATE STATUS
 ========================= */
 
 function update(id,val){
-  let r = VAULT_DB.find(x=>x.ID===id);
+  const r = DB.find(x=>x.ID===id);
   if(r) r.Status = val;
   render();
 }
@@ -127,28 +89,29 @@ RENDER
 
 function render(){
 
-let q = document.getElementById("search").value?.toLowerCase() || "";
+const q = document.getElementById("search").value?.toLowerCase() || "";
 
-let list = document.getElementById("list");
+const list = document.getElementById("list");
 list.innerHTML="";
 
-let filtered = VAULT_DB.filter(r =>
+const filtered = DB.filter(r =>
   r.Name.toLowerCase().includes(q)
 );
 
 /* stats */
-document.getElementById("t").innerText = VAULT_DB.length;
-document.getElementById("s").innerText = VAULT_DB.filter(r=>r.Status==="SUCCESS").length;
-document.getElementById("p").innerText = VAULT_DB.filter(r=>r.Status==="PENDING").length;
-document.getElementById("se").innerText = VAULT_DB.filter(r=>r.Status==="Sent").length;
+document.getElementById("t").innerText = DB.length;
+document.getElementById("s").innerText = DB.filter(r=>r.Status==="SUCCESS").length;
+document.getElementById("p").innerText = DB.filter(r=>r.Status==="PENDING").length;
+document.getElementById("se").innerText = DB.filter(r=>r.Status==="Sent").length;
 
 filtered.forEach(r=>{
-let div=document.createElement("div");
+const div=document.createElement("div");
 div.className="card p-3 flex justify-between items-center status-"+r.Status;
 
 div.innerHTML=`
 <div class="text-xs font-bold w-2/3">${r.Name}</div>
-<select onchange="update(${r.ID},this.value)" class="bg-black text-[10px]">
+
+<select onchange="update(${r.ID},this.value)">
 <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
 <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
 <option ${r.Status==="Sent"?"selected":""}>Sent</option>
@@ -161,8 +124,7 @@ list.appendChild(div);
 
 }
 
-/* BOOT */
-boot();
+/* INIT */
 render();
 
 </script>
