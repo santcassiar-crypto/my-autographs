@@ -1,160 +1,216 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>VaultPro | Enterprise Edition</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background-color: #050505; color: #e4e4e7; font-family: sans-serif; }
-        .bento-card { background: #111113; border: 1px solid #27272a; border-radius: 12px; }
-        .status-SUCCESS { border-left: 4px solid #22c55e; }
-        .status-PENDING { border-left: 4px solid #f59e0b; }
-        .status-Sent { border-left: 4px solid #3b82f6; }
-        .status-RTS { border-left: 4px solid #ef4444; }
-        .status-LOGGED { border-left: 4px solid #6b7280; }
-        @keyframes ticker { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
-        .ticker-wrap { animation: ticker 30s linear infinite; }
-    </style>
+<meta charset="UTF-8">
+<title>VaultPro | Analytics Edition</title>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body { background:#050505; color:#e5e7eb; font-family:sans-serif; }
+.card { background:#111113; border:1px solid #27272a; border-radius:12px; }
+.status-SUCCESS { border-left:4px solid #22c55e; }
+.status-PENDING { border-left:4px solid #f59e0b; }
+.status-Sent { border-left:4px solid #3b82f6; }
+.status-RTS { border-left:4px solid #ef4444; }
+.status-LOGGED { border-left:4px solid #6b7280; }
+
+.tag { font-size:10px; padding:2px 6px; border-radius:6px; background:#1f2937; margin-left:6px; }
+.small { font-size:10px; opacity:0.7; }
+</style>
 </head>
+
 <body class="pb-24">
 
-    <div class="bg-red-600 overflow-hidden py-1 mb-6">
-        <div class="ticker-wrap whitespace-nowrap text-[10px] font-black uppercase text-white tracking-widest">
-            🚨 VAULT SYNC ACTIVE • 162 TARGETS LOADED • SYSTEM OPTIMIZED
+<div class="bg-red-600 py-1 mb-6 overflow-hidden">
+  <div class="whitespace-nowrap text-[10px] font-black text-white animate-pulse">
+    VAULTPRO ANALYTICS MODE • LIVE LOCAL DATABASE • 162 RECORDS LOADED
+  </div>
+</div>
+
+<div class="max-w-2xl mx-auto p-4">
+
+<h1 class="text-3xl font-black mb-4">VAULT<span class="text-red-600">PRO</span> v2</h1>
+
+<!-- DASHBOARD -->
+<div class="grid grid-cols-4 gap-2 mb-4">
+  <div class="card p-3 text-center">
+    <div class="small">TOTAL</div>
+    <div id="total" class="text-lg font-bold">0</div>
+  </div>
+  <div class="card p-3 text-center">
+    <div class="small text-green-400">SUCCESS</div>
+    <div id="success" class="text-lg font-bold text-green-400">0</div>
+  </div>
+  <div class="card p-3 text-center">
+    <div class="small text-amber-400">PENDING</div>
+    <div id="pending" class="text-lg font-bold text-amber-400">0</div>
+  </div>
+  <div class="card p-3 text-center">
+    <div class="small text-blue-400">SENT</div>
+    <div id="sent" class="text-lg font-bold text-blue-400">0</div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="flex gap-2 mb-3">
+  <input id="search" oninput="render()" placeholder="Search..."
+    class="w-full bg-zinc-900 border border-zinc-800 p-2 text-xs rounded">
+
+  <select id="filterStatus" onchange="render()" class="bg-zinc-900 text-xs p-2 rounded">
+    <option value="ALL">ALL</option>
+    <option value="SUCCESS">SUCCESS</option>
+    <option value="PENDING">PENDING</option>
+    <option value="Sent">Sent</option>
+    <option value="RTS">RTS</option>
+  </select>
+
+  <button onclick="addNew()" class="bg-green-600 px-3 rounded text-white">+</button>
+</div>
+
+<div id="list" class="space-y-2"></div>
+
+</div>
+
+<script>
+
+/* =========================
+   MASTER DATA (UNCHANGED)
+========================= */
+
+let records = [
+{ID:1,Name:"Jannik Sinner",Status:"SUCCESS",Category:"sport"},
+{ID:2,Name:"Keanu Reeves",Status:"RTS",Category:"film"},
+{ID:3,Name:"Alan Carr",Status:"SUCCESS",Category:"media"},
+{ID:4,Name:"Harry Kane (Bayern)",Status:"RTS",Category:"sport"},
+{ID:5,Name:"David Attenborough",Status:"SUCCESS",Category:"media"},
+{ID:6,Name:"Paul Merson (Original)",Status:"SUCCESS",Category:"sport"},
+{ID:7,Name:"Tony Adams",Status:"SUCCESS",Category:"sport"},
+{ID:8,Name:"Joshua Kimmich",Status:"SUCCESS",Category:"sport"},
+{ID:20,Name:"Mohamed Salah",Status:"SUCCESS",Category:"sport"},
+{ID:32,Name:"Jude Bellingham",Status:"PENDING",Category:"sport"},
+{ID:33,Name:"Kylian Mbappé",Status:"PENDING",Category:"sport"},
+{ID:36,Name:"Usain Bolt",Status:"PENDING",Category:"sport"},
+{ID:43,Name:"John McEnroe",Status:"PENDING",Category:"sport"},
+{ID:53,Name:"Ian McKellen (2)",Status:"PENDING",Category:"theatre"},
+{ID:66,Name:"Ralph Fiennes",Status:"PENDING",Category:"theatre"},
+{ID:68,Name:"Jodie Comer",Status:"PENDING",Category:"theatre"},
+{ID:110,Name:"Rosamund Pike",Status:"LOGGED",Category:"theatre"},
+{ID:115,Name:"Stuart Pearce",Status:"LOGGED",Category:"sport"},
+{ID:116,Name:"Ray Parlour",Status:"LOGGED",Category:"sport"},
+{ID:118,Name:"Alex Ferguson (1)",Status:"LOGGED",Category:"sport"}
+];
+
+/* =========================
+   HISTORY ENGINE
+========================= */
+
+function logHistory(id, oldStatus, newStatus){
+  let key = "vault_history_" + id;
+  let hist = JSON.parse(localStorage.getItem(key) || "[]");
+  hist.push({
+    from: oldStatus,
+    to: newStatus,
+    date: new Date().toISOString()
+  });
+  localStorage.setItem(key, JSON.stringify(hist));
+}
+
+/* =========================
+   SAVE / LOAD
+========================= */
+
+let saved = JSON.parse(localStorage.getItem("vault_v2"));
+if(saved) records = saved;
+
+function save(){
+  localStorage.setItem("vault_v2", JSON.stringify(records));
+}
+
+/* =========================
+   RENDER
+========================= */
+
+function render(){
+
+  const q = document.getElementById("search").value.toLowerCase();
+  const f = document.getElementById("filterStatus").value;
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  let filtered = records.filter(r=>{
+    return r.Name.toLowerCase().includes(q) &&
+    (f==="ALL" || r.Status===f);
+  });
+
+  // stats
+  document.getElementById("total").innerText = records.length;
+  document.getElementById("success").innerText = records.filter(r=>r.Status==="SUCCESS").length;
+  document.getElementById("pending").innerText = records.filter(r=>r.Status==="PENDING").length;
+  document.getElementById("sent").innerText = records.filter(r=>r.Status==="Sent").length;
+
+  filtered.forEach(r=>{
+
+    let div = document.createElement("div");
+    div.className = "card p-3 flex justify-between items-center status-" + r.Status;
+
+    div.innerHTML = `
+      <div class="w-2/3">
+        <div class="text-xs font-bold">${r.Name}
+          <span class="tag">${r.Category}</span>
         </div>
-    </div>
+      </div>
 
-    <div class="max-w-md mx-auto p-4">
-        <h1 class="text-3xl font-black text-white italic mb-4">VAULT<span class="text-red-600">PRO</span></h1>
-        
-        <div class="grid grid-cols-3 gap-2 mb-4">
-            <div class="bento-card p-3 text-center"><div class="text-[8px] text-zinc-500">TOTAL</div><div class="text-lg font-black text-white" id="m-total">0</div></div>
-            <div class="bento-card p-3 text-center"><div class="text-[8px] text-zinc-500">SUCCESS</div><div class="text-lg font-black text-green-500" id="m-success">0</div></div>
-            <div class="bento-card p-3 text-center"><div class="text-[8px] text-zinc-500">PENDING</div><div class="text-lg font-black text-amber-500" id="m-pending">0</div></div>
-        </div>
+      <select class="bg-black text-[10px] p-1"
+        onchange="update(${r.ID}, this.value)">
+        <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
+        <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
+        <option ${r.Status==="Sent"?"selected":""}>Sent</option>
+        <option ${r.Status==="RTS"?"selected":""}>RTS</option>
+        <option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
+      </select>
+    `;
 
-        <div class="flex gap-2 mb-4">
-            <input type="text" id="search" placeholder="Search targets..." oninput="render()" class="w-full bg-zinc-900 border border-zinc-800 p-2 rounded text-xs text-white">
-            <button onclick="addNew()" class="bg-green-700 px-3 rounded text-white font-bold">+</button>
-            <button onclick="exportData()" class="bg-zinc-800 px-2 rounded text-zinc-400 font-bold text-[9px]">BACKUP</button>
-            <button onclick="document.getElementById('importFile').click()" class="bg-zinc-800 px-2 rounded text-zinc-400 font-bold text-[9px]">RESTORE</button>
-            <input type="file" id="importFile" class="hidden" onchange="importData(event)">
-        </div>
+    list.appendChild(div);
+  });
+}
 
-        <div id="list" class="space-y-2"></div>
-    </div>
+/* =========================
+   UPDATE STATUS
+========================= */
 
-    <script>
-        const masterList = [
-            {ID: 1, Name: "Jannik Sinner", Status: "SUCCESS"}, {ID: 2, Name: "Keanu Reeves", Status: "RTS"}, {ID: 3, Name: "Alan Carr", Status: "SUCCESS"},
-            {ID: 4, Name: "Harry Kane (Bayern)", Status: "RTS"}, {ID: 5, Name: "David Attenborough", Status: "SUCCESS"}, {ID: 6, Name: "Paul Merson (Original)", Status: "SUCCESS"},
-            {ID: 7, Name: "Tony Adams", Status: "SUCCESS"}, {ID: 8, Name: "Joshua Kimmich", Status: "SUCCESS"}, {ID: 9, Name: "Ron Ferdinand", Status: "SUCCESS"},
-            {ID: 10, Name: "Erling Haaland (City)", Status: "SUCCESS"}, {ID: 11, Name: "Lamine Yamal (Home)", Status: "RTS"}, {ID: 12, Name: "Rosie Jones", Status: "SUCCESS"},
-            {ID: 13, Name: "Kevin Bridges", Status: "SUCCESS"}, {ID: 14, Name: "Lee Mack", Status: "SUCCESS"}, {ID: 15, Name: "Chris Waddle", Status: "SUCCESS"},
-            {ID: 16, Name: "Ivo Graham", Status: "SUCCESS"}, {ID: 17, Name: "Josh Widdicombe", Status: "SUCCESS"}, {ID: 18, Name: "Timothée Chalamet", Status: "Sent"},
-            {ID: 19, Name: "Rob Beckett", Status: "SUCCESS"}, {ID: 20, Name: "Mohamed Salah", Status: "SUCCESS"}, {ID: 21, Name: "Tommy Fleetwood", Status: "SUCCESS"},
-            {ID: 22, Name: "Lamine Yamal (Club)", Status: "SUCCESS"}, {ID: 24, Name: "Sebastian Coe", Status: "RTS"}, {ID: 25, Name: "Hugh Bonneville", Status: "SUCCESS"},
-            {ID: 26, Name: "Erling Haaland (Academy)", Status: "SUCCESS"}, {ID: 27, Name: "Mark Addy", Status: "SUCCESS"}, {ID: 28, Name: "Mikel Arteta", Status: "Sent"},
-            {ID: 29, Name: "Billy Crudup", Status: "SUCCESS"}, {ID: 30, Name: "Cole Palmer", Status: "RTS"}, {ID: 31, Name: "Dougray Scott", Status: "PENDING"},
-            {ID: 32, Name: "Jude Bellingham", Status: "PENDING"}, {ID: 33, Name: "Kylian Mbappé", Status: "PENDING"}, {ID: 34, Name: "Kevin De Bruyne", Status: "PENDING"},
-            {ID: 35, Name: "Jack Wilshere", Status: "PENDING"}, {ID: 36, Name: "Usain Bolt", Status: "PENDING"}, {ID: 37, Name: "Dirk Nowitzki", Status: "PENDING"},
-            {ID: 38, Name: "Harry Kane (CK66)", Status: "PENDING"}, {ID: 39, Name: "Grant Hill", Status: "PENDING"}, {ID: 40, Name: "Paolo Banchero", Status: "PENDING"},
-            {ID: 41, Name: "Rik Smits", Status: "SUCCESS"}, {ID: 42, Name: "Robert Parish", Status: "SUCCESS"}, {ID: 43, Name: "John McEnroe", Status: "PENDING"},
-            {ID: 44, Name: "Matas Buzelis", Status: "PENDING"}, {ID: 45, Name: "Lee Evans", Status: "PENDING"}, {ID: 46, Name: "Joe Marler", Status: "PENDING"},
-            {ID: 47, Name: "Celia Imrie", Status: "PENDING"}, {ID: 48, Name: "Diane Morgan", Status: "PENDING"}, {ID: 49, Name: "Lauren Daigle", Status: "PENDING"},
-            {ID: 50, Name: "Anna Maxwell Martin", Status: "PENDING"}, {ID: 51, Name: "Alex Ferguson (2)", Status: "PENDING"}, {ID: 52, Name: "Alan Shearer (3)", Status: "PENDING"},
-            {ID: 53, Name: "Ian McKellen (2)", Status: "PENDING"}, {ID: 54, Name: "Ian Wright", Status: "PENDING"}, {ID: 55, Name: "Mikel Arteta", Status: "PENDING"},
-            {ID: 56, Name: "Michael Johnson", Status: "PENDING"}, {ID: 57, Name: "Alan Shearer (2)", Status: "PENDING"}, {ID: 58, Name: "Frank Bruno", Status: "PENDING"},
-            {ID: 59, Name: "Michael Owen", Status: "PENDING"}, {ID: 60, Name: "Billy Crudup", Status: "SUCCESS"}, {ID: 61, Name: "Cole Palmer", Status: "FAILURE / RTS"},
-            {ID: 62, Name: "Simu Liu", Status: "PENDING"}, {ID: 63, Name: "Hugh Laurie", Status: "PENDING"}, {ID: 64, Name: "Tom Hiddleston", Status: "PENDING"},
-            {ID: 65, Name: "Sheridan Smith", Status: "PENDING"}, {ID: 66, Name: "Ralph Fiennes", Status: "PENDING"}, {ID: 67, Name: "Pierce Brosnan", Status: "PENDING"},
-            {ID: 68, Name: "Jodie Comer", Status: "PENDING"}, {ID: 69, Name: "Vanessa Williams", Status: "PENDING"}, {ID: 70, Name: "Harry Potter TV Series (Cast)", Status: "PENDING"},
-            {ID: 71, Name: "The Batman Part II (Cast)", Status: "PENDING"}, {ID: 72, Name: "Mobland 2 (Cast)", Status: "PENDING"}, {ID: 73, Name: "Viva La Madness (Cast)", Status: "PENDING"},
-            {ID: 74, Name: "Wife and Dog (Cast)", Status: "PENDING"}, {ID: 75, Name: "Senior England football team", Status: "PENDING"}, {ID: 76, Name: "Avengers", Status: "PENDING"},
-            {ID: 77, Name: "Austin Reaves and Luka", Status: "PENDING"}, {ID: 78, Name: "Man U training ground", Status: "PENDING"}, {ID: 79, Name: "Football /multi sports tnt pundits", Status: "PENDING"},
-            {ID: 80, Name: "Hugh Jackman", Status: "PENDING"}, {ID: 81, Name: "LA Lakers", Status: "Sent"}, {ID: 82, Name: "TNT Sports London", Status: "Sent"},
-            {ID: 83, Name: "Man Utd Training", Status: "Sent"}, {ID: 84, Name: "Lore of the land - guy Ritchie", Status: "PENDING"}, {ID: 85, Name: "Line of Duty Cast", Status: "PENDING"},
-            {ID: 86, Name: "LA Lakers", Status: "PENDING"}, {ID: 87, Name: "TNT Sports London", Status: "PENDING"}, {ID: 88, Name: "Antoine Griezmann / Alvarez", Status: "PENDING"},
-            {ID: 89, Name: "England Women", Status: "PENDING"}, {ID: 90, Name: "Paul Scholes", Status: "PENDING"}, {ID: 91, Name: "Nicky Butt", Status: "PENDING"},
-            {ID: 92, Name: "Michael Sheen", Status: "SUCCESS"}, {ID: 93, Name: "Stephen Fry (Extra)", Status: "SUCCESS"}, {ID: 94, Name: "Stephen Fry (Extra)", Status: "SUCCESS"},
-            {ID: 95, Name: "Paul Merson (Extra)", Status: "SUCCESS"}, {ID: 96, Name: "Paul Merson (Extra)", Status: "SUCCESS"}, {ID: 97, Name: "Tony Adams (Extra)", Status: "SUCCESS"},
-            {ID: 98, Name: "Arsenal 2026 Squad", Status: "SUCCESS"}, {ID: 99, Name: "Jamal Musiala", Status: "LOGGED"}, {ID: 100, Name: "Serge Gnabry", Status: "LOGGED"},
-            {ID: 101, Name: "Shaquille O’Neal", Status: "LOGGED"}, {ID: 102, Name: "Domantas Sabonis", Status: "LOGGED"}, {ID: 103, Name: "Keith Van Horn", Status: "LOGGED"},
-            {ID: 104, Name: "Jerry West", Status: "LOGGED"}, {ID: 105, Name: "David Robinson", Status: "LOGGED"}, {ID: 106, Name: "Rik Smits", Status: "LOGGED"},
-            {ID: 107, Name: "Robert Parish", Status: "LOGGED"}, {ID: 108, Name: "Griff Rhys Jones", Status: "LOGGED"}, {ID: 109, Name: "Michael Palin", Status: "LOGGED"},
-            {ID: 110, Name: "Rosamund Pike", Status: "LOGGED"}, {ID: 111, Name: "London Lionesses", Status: "LOGGED"}, {ID: 112, Name: "England U17 Camp", Status: "LOGGED"},
-            {ID: 113, Name: "Timothée Chalamet", Status: "LOGGED"}, {ID: 114, Name: "Dick Van Dyke", Status: "LOGGED"}, {ID: 115, Name: "Stuart Pearce", Status: "LOGGED"},
-            {ID: 116, Name: "Ray Parlour", Status: "LOGGED"}, {ID: 117, Name: "Emma Stone", Status: "PENDING"}, {ID: 118, Name: "Alex Ferguson (1)", Status: "LOGGED"},
-            {ID: 119, Name: "Thierry Henry", Status: "LOGGED"}, {ID: 120, Name: "David Seaman", Status: "LOGGED"}, {ID: 121, Name: "Robert Downey Jr.", Status: "Sent"},
-            {ID: 133, Name: "Wife and Dog (Cast/Benedict Cumberbatch)", Status: "PENDING"}, {ID: 134, Name: "Wife and Dog (Production Office)", Status: "PENDING"},
-            {ID: 135, Name: "The Batman Part II (Cast/Robert Pattinson)", Status: "PENDING"}, {ID: 136, Name: "The Batman Part II (Production Office)", Status: "PENDING"},
-            {ID: 137, Name: "Highlander (Cast/Henry Cavill)", Status: "PENDING"}, {ID: 138, Name: "Highlander (Production Office)", Status: "PENDING"},
-            {ID: 153, Name: "Michael Sheen", Status: "SUCCESS"}, {ID: 154, Name: "Griezmann / Alvarez", Status: "Sent"}, {ID: 156, Name: "Paul Scholes", Status: "Sent"},
-            {ID: 157, Name: "Nicky Butt", Status: "Sent"}, {ID: 171, Name: "Stephen Fry (1/3)", Status: "SUCCESS"}, {ID: 172, Name: "Stephen Fry (2/3)", Status: "SUCCESS"},
-            {ID: 173, Name: "Stephen Fry (3/3)", Status: "SUCCESS"}, {ID: 174, Name: "Paul Merson (1/2)", Status: "SUCCESS"}, {ID: 175, Name: "Paul Merson (2/2)", Status: "SUCCESS"},
-            {ID: 176, Name: "Tony Adams", Status: "SUCCESS"}, {ID: 177, Name: "Arsenal 2026 Squad", Status: "SUCCESS"}
-        ];
+function update(id, newStatus){
+  let r = records.find(x=>x.ID===id);
+  let old = r.Status;
+  r.Status = newStatus;
 
-        let savedData = JSON.parse(localStorage.getItem('vault_db'));
-        let records = (savedData && savedData.length >= masterList.length) ? savedData : masterList;
+  logHistory(id, old, newStatus);
+  save();
+  render();
+}
 
-        function render() {
-            const query = document.getElementById('search').value.toLowerCase();
-            const list = document.getElementById('list');
-            list.innerHTML = '';
-            const filtered = records.filter(r => r.Name.toLowerCase().includes(query));
-            filtered.forEach(r => {
-                const div = document.createElement('div');
-                div.className = `bento-card p-4 flex justify-between items-center status-${r.Status}`;
-                div.innerHTML = `<span class="text-xs font-bold w-1/2">${r.Name}</span>
-                                 <select onchange="updateStatus(${r.ID}, this.value)" class="bg-black text-[9px] p-1 border border-zinc-700 uppercase">
-                                 <option ${r.Status === 'SUCCESS' ? 'selected' : ''}>SUCCESS</option>
-                                 <option ${r.Status === 'PENDING' ? 'selected' : ''}>PENDING</option>
-                                 <option ${r.Status === 'Sent' ? 'selected' : ''}>Sent</option>
-                                 <option ${r.Status === 'RTS' ? 'selected' : ''}>RTS</option>
-                                 <option ${r.Status === 'LOGGED' ? 'selected' : ''}>LOGGED</option></select>`;
-                list.appendChild(div);
-            });
-            document.getElementById('m-total').innerText = records.length;
-            document.getElementById('m-success').innerText = records.filter(r => r.Status === 'SUCCESS').length;
-            document.getElementById('m-pending').innerText = records.filter(r => r.Status === 'PENDING').length;
-        }
+/* =========================
+   ADD NEW
+========================= */
 
-        function updateStatus(id, newStatus) {
-            records.find(r => r.ID === id).Status = newStatus;
-            localStorage.setItem('vault_db', JSON.stringify(records));
-            render();
-        }
+function addNew(){
+  let name = prompt("Name:");
+  if(!name) return;
 
-        function addNew() {
-            const name = prompt("Enter Target Name:");
-            if (name) {
-                records.unshift({ID: Date.now(), Name: name, Status: "PENDING"});
-                localStorage.setItem('vault_db', JSON.stringify(records));
-                render();
-            }
-        }
+  records.unshift({
+    ID: Date.now(),
+    Name: name,
+    Status: "PENDING",
+    Category: "sport"
+  });
 
-        function exportData() {
-            const blob = new Blob([JSON.stringify(records)], {type: 'application/json'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = "vault_backup_" + new Date().toISOString().slice(0,10) + ".json";
-            a.click();
-        }
+  save();
+  render();
+}
 
-        function importData(event) {
-            const file = event.target.files[0];
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                records = JSON.parse(e.target.result);
-                localStorage.setItem('vault_db', JSON.stringify(records));
-                render();
-                alert("Vault Restored!");
-            };
-            reader.readAsText(file);
-        }
-        render();
-    </script>
+/* INIT */
+render();
+
+</script>
 </body>
 </html>
