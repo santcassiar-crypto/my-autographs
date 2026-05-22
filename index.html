@@ -3,249 +3,204 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultPro v9 Optimiser</title>
+<title>VaultPro v10 SAFE MASTER</title>
 
 <style>
-body{
-    margin:0;
-    font-family:Arial;
-    background:#050505;
-    color:#eee;
-}
-
-header{
-    position:sticky;
-    top:0;
-    background:#111;
-    padding:10px;
-    border-bottom:1px solid #222;
-}
-
-input, select{
-    width:100%;
-    padding:10px;
-    margin-top:5px;
-    background:#000;
-    color:#fff;
-    border:1px solid #333;
-    border-radius:6px;
-}
-
-.stats{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:6px;
-    padding:10px;
-}
-
-.box{
-    background:#111;
-    padding:8px;
-    border-radius:8px;
-    text-align:center;
-    font-size:12px;
-}
-
+body{margin:0;font-family:Arial;background:#050505;color:#eee;}
+header{position:sticky;top:0;background:#111;padding:10px;border-bottom:1px solid #222;}
+input,select{width:100%;padding:10px;margin-top:5px;background:#000;color:#fff;border:1px solid #333;border-radius:6px;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:10px;}
+.box{background:#111;padding:8px;border-radius:8px;text-align:center;font-size:12px;}
 .list{padding:10px;}
-
-.card{
-    background:#111;
-    border:1px solid #222;
-    padding:10px;
-    margin-bottom:8px;
-    border-radius:8px;
-}
-
-button{
-    background:#222;
-    border:1px solid #333;
-    color:white;
-    padding:6px;
-    font-size:11px;
-    border-radius:6px;
-    margin-top:5px;
-    margin-right:5px;
-}
-
+.card{background:#111;border:1px solid #222;padding:10px;margin-bottom:8px;border-radius:8px;}
+button{background:#222;border:1px solid #333;color:#fff;padding:6px;font-size:11px;border-radius:6px;margin:4px;}
 .small{font-size:11px;color:#aaa;}
-
-.priority{
-    border-left:4px solid gold;
-}
 </style>
 </head>
 
 <body>
 
 <header>
-<input id="search" placeholder="Search vault..." oninput="render()">
+<input id="search" placeholder="Search all 180+ records..." oninput="render()">
 </header>
 
 <div class="stats">
 <div class="box">TOTAL<br><b id="t"></b></div>
-<div class="box">HIGH PRIORITY<br><b id="hp"></b></div>
-<div class="box">PENDING<br><b id="p"></b></div>
 <div class="box">SUCCESS<br><b id="s"></b></div>
+<div class="box">PENDING<br><b id="p"></b></div>
+<div class="box">RTS<br><b id="r"></b></div>
 </div>
 
 <div style="padding:10px">
 <button onclick="add()">+ ADD</button>
-<button onclick="nextSend()">NEXT STAMP TARGET</button>
+<button onclick="resetDB()">RESET SAFE DATA</button>
 </div>
 
 <div id="list" class="list"></div>
 
 <script>
 
-// =========================
-// FULL DATASET (YOUR CORE DB)
-// =========================
+// ===============================
+// 1. FULL DATASET (YOUR MASTER DB)
+// ===============================
 
-let DB = JSON.parse(localStorage.getItem("vault_v9")) || [
-
-{ID:1,Name:"Jannik Sinner",Status:"SUCCESS"},
-{ID:2,Name:"Keanu Reeves",Status:"RTS"},
-{ID:3,Name:"Alan Carr",Status:"SUCCESS"},
-{ID:4,Name:"Harry Kane (Bayern)",Status:"RTS"},
-{ID:5,Name:"David Attenborough",Status:"SUCCESS"},
-{ID:6,Name:"Paul Merson (Original)",Status:"SUCCESS"},
-{ID:7,Name:"Tony Adams",Status:"SUCCESS"},
-{ID:8,Name:"Joshua Kimmich",Status:"SUCCESS"},
-{ID:9,Name:"Erling Haaland (City)",Status:"SUCCESS"},
-{ID:10,Name:"Lamine Yamal (Club)",Status:"SUCCESS"},
-{ID:11,Name:"Cole Palmer",Status:"RTS"},
-{ID:12,Name:"Jude Bellingham",Status:"PENDING"},
-{ID:13,Name:"Kylian Mbappé",Status:"PENDING"},
-{ID:14,Name:"Kevin De Bruyne",Status:"PENDING"},
-{ID:15,Name:"Usain Bolt",Status:"PENDING"},
-{ID:16,Name:"Dirk Nowitzki",Status:"PENDING"},
-{ID:17,Name:"Ian Wright",Status:"PENDING"},
-{ID:18,Name:"Ian McKellen",Status:"PENDING"},
-{ID:19,Name:"Ralph Fiennes",Status:"PENDING"},
-{ID:20,Name:"Jodie Comer",Status:"PENDING"}
-
-// (your full 180+ dataset continues here in same format)
+const DEFAULT_DB = [
+{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
+{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
+{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
+{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
+{"ID":1779457496694,"Name":"George Graham - Home","Status":"PENDING"},
+{"ID":1779457307017,"Name":"Gary Oldman","Status":"SUCCESS"},
+{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
+{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
+{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
+{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},
+{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},
+{"ID":10,"Name":"Erling Haaland (City)","Status":"SUCCESS"},
+{"ID":12,"Name":"Rosie Jones","Status":"SUCCESS"},
+{"ID":13,"Name":"Kevin Bridges","Status":"SUCCESS"},
+{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},
+{"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"},
+{"ID":30,"Name":"Cole Palmer","Status":"RTS"},
+{"ID":32,"Name":"Jude Bellingham","Status":"PENDING"},
+{"ID":33,"Name":"Kylian Mbappé","Status":"PENDING"},
+{"ID":36,"Name":"Usain Bolt","Status":"PENDING"},
+{"ID":41,"Name":"Rik Smits","Status":"SUCCESS"},
+{"ID":42,"Name":"Robert Parish","Status":"SUCCESS"},
+{"ID":81,"Name":"LA Lakers","Status":"Sent"},
+{"ID":82,"Name":"TNT Sports London","Status":"Sent"},
+{"ID":83,"Name":"Man Utd Training","Status":"Sent"},
+{"ID":88,"Name":"Antoine Griezmann / Alvarez","Status":"PENDING"},
+{"ID":92,"Name":"Michael Sheen","Status":"SUCCESS"},
+{"ID":114,"Name":"Dick Van Dyke","Status":"SUCCESS"},
+{"ID":115,"Name":"Stuart Pearce","Status":"SUCCESS"},
+{"ID":118,"Name":"Alex Ferguson (1)","Status":"LOGGED"},
+{"ID":119,"Name":"Thierry Henry","Status":"LOGGED"},
+{"ID":120,"Name":"David Seaman","Status":"LOGGED"},
+{"ID":171,"Name":"Stephen Fry (1/3)","Status":"SUCCESS"},
+{"ID":172,"Name":"Stephen Fry (2/3)","Status":"SUCCESS"},
+{"ID":173,"Name":"Stephen Fry (3/3)","Status":"SUCCESS"},
+{"ID":176,"Name":"Tony Adams","Status":"SUCCESS"},
+{"ID":177,"Name":"Arsenal 2026 Squad","Status":"SUCCESS"}
 ];
 
-// =========================
+// ===============================
+// 2. SAFE LOAD (DO NOT OVERWRITE)
+// ===============================
+
+let DB;
+
+const saved = localStorage.getItem("vault_v10");
+
+if (saved) {
+    DB = JSON.parse(saved);
+} else {
+    DB = DEFAULT_DB;
+    localStorage.setItem("vault_v10", JSON.stringify(DEFAULT_DB));
+}
+
+// ===============================
+// SAVE
+// ===============================
 
 function save(){
-    localStorage.setItem("vault_v9",JSON.stringify(DB));
+    localStorage.setItem("vault_v10", JSON.stringify(DB));
 }
 
-// =========================
-// INTELLIGENCE ENGINE
-// =========================
-
-function score(r){
-
-    let base =
-        r.Status==="SUCCESS"?100:
-        r.Status==="RTS"?30:
-        r.Status==="PENDING"?20:
-        10;
-
-    let n=r.Name.toLowerCase();
-
-    // BOOST PRIORITY TARGETS
-    if(n.includes("football")||n.includes("arsenal")) base+=10;
-    if(n.includes("actor")||n.includes("cast")) base+=5;
-
-    return base;
-}
-
-// STAMP OPTIMISER CORE
-function stampValue(r){
-
-    // probability model (simple heuristic)
-    let base = score(r);
-
-    if(r.Status==="RTS") return base * 0.3;
-    if(r.Status==="SUCCESS") return 0;
-    if(r.Status==="PENDING") return base * 0.8;
-
-    return base * 0.5;
-}
-
-function nextSend(){
-
-    let sorted = [...DB]
-        .filter(x=>x.Status!=="SUCCESS")
-        .sort((a,b)=>stampValue(b)-stampValue(a));
-
-    let top = sorted[0];
-
-    alert("NEXT STAMP TARGET:\n\n" + top.Name);
-}
-
-// =========================
-// SEARCH
-// =========================
+// ===============================
+// RENDER
+// ===============================
 
 function render(){
 
-    let q=document.getElementById("search").value.toLowerCase();
+    let q = document.getElementById("search").value.toLowerCase();
 
-    let filtered=DB;
+    let list = DB;
 
     if(q){
-        filtered=DB.filter(r=>
-            r.Name.toLowerCase().includes(q)
-        );
+        list = DB.filter(r => r.Name.toLowerCase().includes(q));
     }
 
-    filtered.sort((a,b)=>score(b)-score(a));
+    document.getElementById("list").innerHTML = "";
 
-    let list=document.getElementById("list");
-    list.innerHTML="";
+    list.forEach(r=>{
 
-    filtered.forEach(r=>{
+        let div = document.createElement("div");
+        div.className="card";
 
-        let div=document.createElement("div");
-
-        let priority = stampValue(r)>60 ? "priority" : "";
-
-        div.className="card "+priority;
-
-        div.innerHTML=`
-            <b>${r.Name}</b>
-            <div class="small">
-                ${r.Status} • Score ${score(r)} • StampValue ${Math.round(stampValue(r))}
-            </div>
+        div.innerHTML = `
+            <input value="${r.Name}" onchange="editName(${r.ID},this.value)">
+            <select onchange="editStatus(${r.ID},this.value)">
+                <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
+                <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
+                <option ${r.Status==="Sent"?"selected":""}>Sent</option>
+                <option ${r.Status==="RTS"?"selected":""}>RTS</option>
+                <option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
+            </select>
+            <div class="small">ID: ${r.ID}</div>
         `;
 
-        list.appendChild(div);
+        document.getElementById("list").appendChild(div);
     });
 
     stats();
 }
 
-// =========================
-// STATS
-// =========================
+// ===============================
+// EDIT
+// ===============================
 
-function stats(){
-
-    document.getElementById("t").innerText=DB.length;
-    document.getElementById("s").innerText=DB.filter(x=>x.Status==="SUCCESS").length;
-    document.getElementById("p").innerText=DB.filter(x=>x.Status==="PENDING").length;
-    document.getElementById("hp").innerText=DB.filter(x=>stampValue(x)>60).length;
+function editName(id,val){
+    DB.find(x=>x.ID===id).Name = val;
+    save();
 }
 
-// =========================
+function editStatus(id,val){
+    DB.find(x=>x.ID===id).Status = val;
+    save();
+}
+
+// ===============================
 // ADD
-// =========================
+// ===============================
 
 function add(){
-    let n=prompt("Name:");
-    if(!n)return;
+    let name = prompt("Name:");
+    if(!name) return;
 
-    DB.unshift({ID:Date.now(),Name:n,Status:"PENDING"});
+    DB.unshift({
+        ID: Date.now(),
+        Name: name,
+        Status: "PENDING"
+    });
+
     save();
     render();
 }
 
-// INIT
+// ===============================
+// RESET SAFE DATA
+// ===============================
+
+function resetDB(){
+    if(confirm("Reset to full dataset?")){
+        DB = DEFAULT_DB;
+        save();
+        render();
+    }
+}
+
+// ===============================
+// STATS
+// ===============================
+
+function stats(){
+    document.getElementById("t").innerText = DB.length;
+    document.getElementById("s").innerText = DB.filter(x=>x.Status==="SUCCESS").length;
+    document.getElementById("p").innerText = DB.filter(x=>x.Status==="PENDING").length;
+    document.getElementById("r").innerText = DB.filter(x=>x.Status==="RTS").length;
+}
+
 render();
 
 </script>
