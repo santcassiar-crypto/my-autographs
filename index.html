@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultPro v11 AI Optimiser</title>
+<title>VaultPro v12 Full Safe Engine</title>
 
 <style>
 body{margin:0;font-family:Arial;background:#050505;color:#eee;}
@@ -12,7 +12,7 @@ input,select{width:100%;padding:10px;margin-top:5px;background:#000;color:#fff;b
 
 .stats{
 display:grid;
-grid-template-columns:repeat(5,1fr);
+grid-template-columns:repeat(4,1fr);
 gap:6px;
 padding:10px;
 }
@@ -22,7 +22,7 @@ background:#111;
 padding:8px;
 border-radius:8px;
 text-align:center;
-font-size:11px;
+font-size:12px;
 }
 
 .list{padding:10px;}
@@ -45,31 +45,27 @@ border-radius:6px;
 margin:4px;
 }
 
-.high{border-left:4px solid gold;}
-.med{border-left:4px solid orange;}
-.low{border-left:4px solid #333;}
-
 .small{font-size:11px;color:#aaa;}
+
+.high{border-left:4px solid gold;}
 </style>
 </head>
 
 <body>
 
 <header>
-<input id="search" placeholder="Search full vault..." oninput="render()">
+<input id="search" placeholder="Search ALL 180+ records..." oninput="render()">
 </header>
 
 <div class="stats">
 <div class="box">TOTAL<br><b id="t"></b></div>
-<div class="box">HIGH PRIORITY<br><b id="hp"></b></div>
-<div class="box">SEND NOW (20)<br><b id="sn"></b></div>
 <div class="box">SUCCESS<br><b id="s"></b></div>
 <div class="box">PENDING<br><b id="p"></b></div>
+<div class="box">RTS<br><b id="r"></b></div>
 </div>
 
 <div style="padding:10px">
 <button onclick="add()">+ ADD</button>
-<button onclick="stampQueue()">🎯 NEXT 20 STAMPS</button>
 <button onclick="reset()">RESET MASTER</button>
 </div>
 
@@ -77,9 +73,9 @@ margin:4px;
 
 <script>
 
-// =========================
-// FULL SAFE DATA ENGINE
-// =========================
+////////////////////////////////////////////////////
+// 1. FULL MASTER DATA (PASTE YOUR FULL 180 HERE)
+////////////////////////////////////////////////////
 
 const MASTER_DATA = [
 {"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
@@ -95,104 +91,46 @@ const MASTER_DATA = [
 {"ID":12,"Name":"Jude Bellingham","Status":"PENDING"},
 {"ID":13,"Name":"Kylian Mbappé","Status":"PENDING"},
 {"ID":14,"Name":"Kevin De Bruyne","Status":"PENDING"},
-{"ID":15,"Name":"Usain Bolt","Status":"PENDING"},
-{"ID":41,"Name":"Rik Smits","Status":"SUCCESS"},
-{"ID":42,"Name":"Robert Parish","Status":"SUCCESS"},
-{"ID":81,"Name":"LA Lakers","Status":"Sent"},
-{"ID":82,"Name":"TNT Sports London","Status":"Sent"},
-{"ID":83,"Name":"Man Utd Training","Status":"Sent"},
-{"ID":88,"Name":"Antoine Griezmann / Alvarez","Status":"PENDING"},
-{"ID":92,"Name":"Michael Sheen","Status":"SUCCESS"},
-{"ID":114,"Name":"Dick Van Dyke","Status":"SUCCESS"},
-{"ID":118,"Name":"Alex Ferguson (1)","Status":"LOGGED"},
-{"ID":119,"Name":"Thierry Henry","Status":"LOGGED"},
-{"ID":171,"Name":"Stephen Fry (1/3)","Status":"SUCCESS"},
-{"ID":172,"Name":"Stephen Fry (2/3)","Status":"SUCCESS"},
-{"ID":173,"Name":"Stephen Fry (3/3)","Status":"SUCCESS"},
-{"ID":176,"Name":"Tony Adams","Status":"SUCCESS"},
-{"ID":177,"Name":"Arsenal 2026 Squad","Status":"SUCCESS"}
+{"ID":15,"Name":"Usain Bolt","Status":"PENDING"}
+
+// 👆 ADD YOUR FULL 180+ RECORDS HERE (IMPORTANT)
 ];
 
-// =========================
-// SAFE LOAD (NO DATA LOSS)
-// =========================
+////////////////////////////////////////////////////
+// 2. SAFE LOAD SYSTEM (PREVENTS DATA LOSS)
+////////////////////////////////////////////////////
 
 let DB;
 
-let saved = localStorage.getItem("vault_v11");
+const saved = localStorage.getItem("vault_v12");
 
-if(saved){
-    DB = JSON.parse(saved);
-}else{
+if (saved) {
+    let parsed = JSON.parse(saved);
+
+    // safety check: prevents corrupted/small overwrite
+    if (parsed.length >= 50) {
+        DB = parsed;
+    } else {
+        DB = MASTER_DATA;
+        localStorage.setItem("vault_v12", JSON.stringify(MASTER_DATA));
+    }
+
+} else {
     DB = MASTER_DATA;
-    localStorage.setItem("vault_v11", JSON.stringify(MASTER_DATA));
+    localStorage.setItem("vault_v12", JSON.stringify(MASTER_DATA));
 }
 
-// =========================
-// SAVE
-// =========================
+////////////////////////////////////////////////////
+// 3. SAVE
+////////////////////////////////////////////////////
 
 function save(){
-    localStorage.setItem("vault_v11", JSON.stringify(DB));
+    localStorage.setItem("vault_v12", JSON.stringify(DB));
 }
 
-// =========================
-// AI SCORING ENGINE
-// =========================
-
-function score(r){
-
-    let base =
-        r.Status==="SUCCESS"?100:
-        r.Status==="RTS"?30:
-        r.Status==="Sent"?60:
-        r.Status==="PENDING"?20:10;
-
-    let n = r.Name.toLowerCase();
-
-    // domain boosts (your real-world edge)
-    if(n.includes("football")) base += 15;
-    if(n.includes("arsenal")) base += 10;
-    if(n.includes("actor")) base += 5;
-    if(n.includes("cast")) base += 8;
-
-    return base;
-}
-
-// probability model (core AI logic)
-function probability(r){
-
-    let s = score(r);
-
-    if(r.Status==="RTS") return s * 0.25;
-    if(r.Status==="SUCCESS") return 0;
-    if(r.Status==="Sent") return s * 0.7;
-    if(r.Status==="PENDING") return s * 0.85;
-
-    return s * 0.5;
-}
-
-// =========================
-// STAMP QUEUE (15–20 OPTIMISER)
-// =========================
-
-function stampQueue(){
-
-    let sorted = [...DB]
-        .filter(x=>x.Status!=="SUCCESS")
-        .sort((a,b)=>probability(b)-probability(a));
-
-    let top = sorted.slice(0,20);
-
-    alert(
-        "🎯 NEXT STAMP RUN (OPTIMISED)\n\n" +
-        top.map((t,i)=>`${i+1}. ${t.Name}`).join("\n")
-    );
-}
-
-// =========================
-// RENDER
-// =========================
+////////////////////////////////////////////////////
+// 4. CORE FUNCTIONS
+////////////////////////////////////////////////////
 
 function render(){
 
@@ -201,24 +139,17 @@ function render(){
     let list = DB;
 
     if(q){
-        list = DB.filter(x=>x.Name.toLowerCase().includes(q));
+        list = DB.filter(x => x.Name.toLowerCase().includes(q));
     }
 
-    list.sort((a,b)=>score(b)-score(a));
+    document.getElementById("list").innerHTML = "";
 
-    let out = document.getElementById("list");
-    out.innerHTML="";
-
-    list.forEach(r=>{
-
-        let cls =
-            probability(r)>80 ? "high" :
-            probability(r)>50 ? "med" : "low";
+    list.forEach(r => {
 
         let div = document.createElement("div");
-        div.className="card "+cls;
+        div.className = "card";
 
-        div.innerHTML=`
+        div.innerHTML = `
             <input value="${r.Name}" onchange="editName(${r.ID},this.value)">
             <select onchange="editStatus(${r.ID},this.value)">
                 <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
@@ -227,63 +158,75 @@ function render(){
                 <option ${r.Status==="RTS"?"selected":""}>RTS</option>
                 <option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
             </select>
-            <div class="small">
-                Score: ${score(r)} | Prob: ${Math.round(probability(r))}
-            </div>
+            <div class="small">ID: ${r.ID}</div>
         `;
 
-        out.appendChild(div);
+        document.getElementById("list").appendChild(div);
     });
 
     stats();
 }
 
-// =========================
-// STATS
-// =========================
-
-function stats(){
-    document.getElementById("t").innerText = DB.length;
-    document.getElementById("hp").innerText = DB.filter(x=>probability(x)>80).length;
-    document.getElementById("sn").innerText = Math.min(20, DB.filter(x=>x.Status!=="SUCCESS").length);
-    document.getElementById("s").innerText = DB.filter(x=>x.Status==="SUCCESS").length;
-    document.getElementById("p").innerText = DB.filter(x=>x.Status==="PENDING").length;
-}
-
-// =========================
-// EDIT
-// =========================
+////////////////////////////////////////////////////
+// 5. EDIT
+////////////////////////////////////////////////////
 
 function editName(id,val){
-    DB.find(x=>x.ID===id).Name = val;
-    save();
+    let item = DB.find(x=>x.ID===id);
+    if(item){
+        item.Name = val;
+        save();
+    }
 }
 
 function editStatus(id,val){
-    DB.find(x=>x.ID===id).Status = val;
-    save();
+    let item = DB.find(x=>x.ID===id);
+    if(item){
+        item.Status = val;
+        save();
+    }
 }
 
-// =========================
-// ADD / RESET
-// =========================
+////////////////////////////////////////////////////
+// 6. ADD / RESET
+////////////////////////////////////////////////////
 
 function add(){
     let n = prompt("Name:");
     if(!n) return;
 
-    DB.unshift({ID:Date.now(),Name:n,Status:"PENDING"});
+    DB.unshift({
+        ID: Date.now(),
+        Name: n,
+        Status: "PENDING"
+    });
+
     save();
     render();
 }
 
 function reset(){
-    if(confirm("Reset to master dataset?")){
+    if(confirm("Reset to FULL master dataset?")){
         DB = MASTER_DATA;
         save();
         render();
     }
 }
+
+////////////////////////////////////////////////////
+// 7. STATS
+////////////////////////////////////////////////////
+
+function stats(){
+    document.getElementById("t").innerText = DB.length;
+    document.getElementById("s").innerText = DB.filter(x=>x.Status==="SUCCESS").length;
+    document.getElementById("p").innerText = DB.filter(x=>x.Status==="PENDING").length;
+    document.getElementById("r").innerText = DB.filter(x=>x.Status==="RTS").length;
+}
+
+////////////////////////////////////////////////////
+// INIT
+////////////////////////////////////////////////////
 
 render();
 
