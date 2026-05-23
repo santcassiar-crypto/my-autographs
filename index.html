@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Industrial Ops OS</title>
+<title>VaultOS Industrial Dataset OS</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:Arial}
-header{position:sticky;top:0;background:#111;padding:10px;border-bottom:1px solid #222;z-index:10}
+header{position:sticky;top:0;background:#111;padding:10px;border-bottom:1px solid #222}
 
 input,select,textarea,button{
 width:100%;padding:10px;margin-top:6px;
@@ -31,13 +31,13 @@ button:hover{background:#1c1c1c}
 <body>
 
 <header>
-<input id="search" placeholder="Search 180+ records (instant indexed)">
+<input id="search" placeholder="Search dataset...">
 </header>
 
 <div class="grid" id="stats"></div>
 
 <div class="section">
-<h3>🧠 NEXT BATCH ENGINE</h3>
+<h3>🧠 NEXT TO SEND</h3>
 <div id="next"></div>
 </div>
 
@@ -47,10 +47,8 @@ button:hover{background:#1c1c1c}
 </div>
 
 <div class="section">
-<button onclick="seed180()">⚡ GENERATE 180 RECORDS</button>
-<button onclick="add()">+ ADD</button>
 <button onclick="exportDB()">EXPORT</button>
-<button onclick="wipe()">RESET SYSTEM</button>
+<button onclick="resetSystem()">RESET</button>
 </div>
 
 <div id="list"></div>
@@ -58,167 +56,98 @@ button:hover{background:#1c1c1c}
 <script>
 
 ////////////////////////////////////////////////////
-// INDEXEDDB (INDUSTRIAL GRADE STORAGE)
+// 📦 FULL DATASET (YOUR INPUT CLEANED INTO STRUCTURE)
 ////////////////////////////////////////////////////
-const DB_NAME="vaultos_industrial";
-const STORE="records";
-
-let db;
-
-function openDB(){
-return new Promise(res=>{
-let req=indexedDB.open(DB_NAME,1);
-
-req.onupgradeneeded=e=>{
-let db=e.target.result;
-let store=db.createObjectStore(STORE,{keyPath:"ID"});
-store.createIndex("status","Status",{unique:false});
-store.createIndex("name","Name",{unique:false});
-};
-
-req.onsuccess=e=>{
-db=e.target.result;
-res(db);
-};
-});
-}
-
-function tx(mode="readonly"){
-return db.transaction(STORE,mode).objectStore(STORE);
-}
-
-async function getAll(){
-return new Promise(res=>{
-tx().getAll().onsuccess=e=>res(e.target.result||[]);
-});
-}
-
-async function put(item){
-return new Promise(res=>{
-tx("readwrite").put(item).onsuccess=()=>res();
-});
-}
-
-async function del(id){
-return new Promise(res=>{
-tx("readwrite").delete(id).onsuccess=()=>res();
-});
-}
+const SEED_DATA = [
+{ID:1779457614274,Name:"Scott Melvin- Stick to football podcast",Status:"PENDING"},
+{ID:1779457583433,Name:"Jonathan ross tv show",Status:"PENDING"},
+{ID:1779457568898,Name:"Matchroom - Brentwood",Status:"PENDING"},
+{ID:1779457518143,Name:"Kevin Keegan- Home",Status:"SUCCESS"},
+{ID:1779457496694,Name:"George Graham - Home",Status:"PENDING"},
+{ID:1779457449900,Name:"LFC Gala Event",Status:"PENDING"},
+{ID:1779457437040,Name:"Gosh4 Goals",Status:"PENDING"},
+{ID:1779457382999,Name:"San Antonio Training Centre",Status:"PENDING"},
+{ID:1779457367391,Name:"OKC training centre",Status:"PENDING"},
+{ID:1779457333472,Name:"FC Barcelona - Training ground",Status:"PENDING"},
+{ID:1779457307017,Name:"Gary Oldman",Status:"SUCCESS"},
+{ID:1779457276281,Name:"Arsenal womens team",Status:"PENDING"},
+{ID:1779457232607,Name:"Park theatre x 2",Status:"PENDING"},
+{ID:1779457195881,Name:"Jermery Sochan",Status:"PENDING"},
+{ID:1779369334553,Name:"Geoff Hurst",Status:"PENDING"},
+{ID:1779362415139,Name:"Max Dowman - Dads London office",Status:"PENDING"}
+];
 
 ////////////////////////////////////////////////////
-// STATE
+// STORAGE
 ////////////////////////////////////////////////////
 let DB=[];
-let search="";
+
+function load(){
+
+let raw=localStorage.getItem("vault_dataset");
+
+if(raw){
+DB=JSON.parse(raw);
+return;
+}
+
+// first run → inject dataset
+DB = SEED_DATA.map(normalize);
+save();
+
+}
+
+function save(){
+localStorage.setItem("vault_dataset",JSON.stringify(DB));
+}
 
 ////////////////////////////////////////////////////
-// SEARCH (FAST)
+// NORMALISE (CRITICAL FIX)
 ////////////////////////////////////////////////////
+function normalize(r){
+
+let status = (r.Status||"PENDING").toUpperCase();
+
+if(status.includes("SUCCESS")) status="SUCCESS";
+else if(status.includes("RTS")||status.includes("FAIL")) status="RTS";
+else if(status.includes("SENT")) status="SENT";
+else status="PENDING";
+
+return {
+ID:r.ID,
+Name:(r.Name||"UNKNOWN").trim(),
+Status:status,
+CreatedAt:r.CreatedAt||Date.now(),
+UpdatedAt:Date.now()
+};
+
+}
+
+////////////////////////////////////////////////////
+// SEARCH
+////////////////////////////////////////////////////
+let search="";
 document.getElementById("search").addEventListener("input",e=>{
-search=e.target.value.toLowerCase().trim();
+search=e.target.value.toLowerCase();
 render();
 });
 
 function match(r,q){
 if(!q) return true;
-return (
-(r.Name||"").toLowerCase().includes(q) ||
-(r.Address||"").toLowerCase().includes(q) ||
-(r.Status||"").toLowerCase().includes(q)
-);
+return (r.Name+" "+r.Status).toLowerCase().includes(q);
 }
 
 ////////////////////////////////////////////////////
-// OPS ENGINE
+// ENGINE
 ////////////////////////////////////////////////////
 function next(){
-let pool=DB.filter(x=>x.Status==="PENDING"||x.Status==="RTS");
+
+let pool=DB.filter(x=>x.Status==="PENDING");
 if(!pool.length) return null;
 
-pool.sort((a,b)=>
-score(b)-score(a)
-);
-
-return pool[0];
-}
-
-function score(r){
-let age=Date.now()-(r.UpdatedAt||0);
-return (r.Status==="RTS"?100:50)+age/100000;
-}
-
-////////////////////////////////////////////////////
-// SEED 180 RECORDS (REALISTIC LOAD TEST)
-////////////////////////////////////////////////////
-function seed180(){
-
-let statuses=["PENDING","SENT","SUCCESS","RTS"];
-let names=["Smith","Johnson","Williams","Brown","Jones","Miller","Davis","Wilson","Taylor","Clark"];
-
-let batch=[];
-
-for(let i=0;i<180;i++){
-
-batch.push({
-ID:crypto.randomUUID(),
-Name:names[i%names.length]+" "+i,
-Address:"Street "+i+" London",
-Status:statuses[i%statuses.length],
-CreatedAt:Date.now()-i*100000,
-UpdatedAt:Date.now()-i*50000
-});
-
-}
-
-Promise.all(batch.map(put)).then(load);
-}
-
-////////////////////////////////////////////////////
-// CORE OPS
-////////////////////////////////////////////////////
-async function add(){
-let r={
-ID:crypto.randomUUID(),
-Name:"New Record",
-Address:"",
-Status:"PENDING",
-CreatedAt:Date.now(),
-UpdatedAt:Date.now()
-};
-
-await put(r);
-load();
-}
-
-async function setStatus(id,val){
-let r=DB.find(x=>x.ID===id);
-if(!r) return;
-
-r.Status=val;
-r.UpdatedAt=Date.now();
-
-await put(r);
-load();
-}
-
-async function remove(id){
-await del(id);
-load();
-}
-
-////////////////////////////////////////////////////
-// LOAD
-////////////////////////////////////////////////////
-async function load(){
-DB=await getAll();
-render();
-}
-
-////////////////////////////////////////////////////
-// OUTBOX
-////////////////////////////////////////////////////
-function outbox(){
-return DB.filter(x=>x.Status==="SENT"||x.Status==="SUCCESS");
+return pool.sort((a,b)=>
+(b.UpdatedAt||0)-(a.UpdatedAt||0)
+)[0];
 }
 
 ////////////////////////////////////////////////////
@@ -255,83 +184,75 @@ document.getElementById("next").innerHTML=
 n?
 `<div class="queue">
 <b>${n.Name}</b><br><br>
-<button onclick="setStatus('${n.ID}','SENT')">SEND NEXT</button>
+<button onclick="markSent(${n.ID})">MARK SENT</button>
 </div>`
-:"NO QUEUE";
+:"NO PENDING ITEMS";
 
 document.getElementById("outbox").innerHTML=
-outbox().slice(0,10).map(r=>`
+DB.filter(x=>x.Status==="SENT"||x.Status==="SUCCESS")
+.map(r=>`
 <div class="card">
-<b>${r.Name}</b><br>
-${r.Status}<br>
+<b>${r.Name}</b><br>${r.Status}
 </div>
 `).join("");
 
-let root=document.getElementById("list");
-root.innerHTML="";
-
+document.getElementById("list").innerHTML=
 DB.filter(r=>match(r,search))
-.forEach(r=>{
-
-let div=document.createElement("div");
-div.className="card";
-
-div.innerHTML=`
-<input value="${r.Name}" onchange="updateName('${r.ID}',this.value)">
-<textarea onchange="updateAddr('${r.ID}',this.value)">${r.Address||""}</textarea>
-
-<select onchange="setStatus('${r.ID}',this.value)">
+.map(r=>`
+<div class="card">
+<input value="${r.Name}" onchange="update(${r.ID},this.value)">
+<select onchange="setStatus(${r.ID},this.value)">
 <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
 <option ${r.Status==="SENT"?"selected":""}>SENT</option>
 <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
 <option ${r.Status==="RTS"?"selected":""}>RTS</option>
 </select>
+</div>
+`).join("");
 
-<button onclick="remove('${r.ID}')">DELETE</button>
-`;
-
-root.appendChild(div);
-
-});
+save();
 
 }
 
 ////////////////////////////////////////////////////
-// SAFE FIELD UPDATES
+// ACTIONS
 ////////////////////////////////////////////////////
-async function updateName(id,val){
+function update(id,val){
 let r=DB.find(x=>x.ID===id);
-r.Name=val;r.UpdatedAt=Date.now();
-await put(r);load();
+r.Name=val;
+r.UpdatedAt=Date.now();
+save();render();
 }
 
-async function updateAddr(id,val){
+function setStatus(id,val){
 let r=DB.find(x=>x.ID===id);
-r.Address=val;r.UpdatedAt=Date.now();
-await put(r);load();
+r.Status=val.toUpperCase();
+r.UpdatedAt=Date.now();
+save();render();
+}
+
+function markSent(id){
+setStatus(id,"SENT");
+}
+
+function resetSystem(){
+localStorage.removeItem("vault_dataset");
+location.reload();
+}
+
+function exportDB(){
+let b=new Blob([JSON.stringify(DB)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(b);
+a.download="vault_dataset.json";
+a.click();
 }
 
 ////////////////////////////////////////////////////
 // INIT
 ////////////////////////////////////////////////////
-openDB().then(load);
-
-////////////////////////////////////////////////////
-// EXPORT / RESET
-////////////////////////////////////////////////////
-async function exportDB(){
-let all=await getAll();
-let b=new Blob([JSON.stringify(all)],{type:"application/json"});
-let a=document.createElement("a");
-a.href=URL.createObjectURL(b);
-a.download="vault_industrial.json";
-a.click();
-}
-
-function wipe(){
-indexedDB.deleteDatabase(DB_NAME);
-location.reload();
-}
+load();
+render();
 
 </script>
 
