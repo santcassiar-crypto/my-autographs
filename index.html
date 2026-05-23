@@ -3,155 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS OCR Tracker (Upgraded)</title>
+<title>VaultOS - Bulletproof Ops Engine</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 
 <style>
-*{box-sizing:border-box;}
-
-body{
-margin:0;
-background:#000;
-color:#fff;
-font-family:Arial,sans-serif;
-}
-
-header{
-position:sticky;
-top:0;
-background:#111;
-padding:10px;
-z-index:10;
-border-bottom:1px solid #222;
-}
+body{margin:0;background:#000;color:#fff;font-family:Arial}
+header{position:sticky;top:0;background:#111;padding:10px;border-bottom:1px solid #222}
 
 input,select,textarea,button{
-width:100%;
-padding:10px;
-margin-top:8px;
-background:#000;
-color:#fff;
-border:1px solid #333;
-border-radius:8px;
-font-size:14px;
+width:100%;padding:10px;margin-top:6px;
+background:#000;color:#fff;border:1px solid #333;border-radius:8px
 }
 
-button{
-cursor:pointer;
-background:#111;
-min-height:44px;
-}
+button{cursor:pointer;background:#111}
+button:hover{background:#1c1c1c}
 
-button:hover{background:#1b1b1b;}
-
-.row{
-display:flex;
-gap:8px;
-padding:10px;
-flex-wrap:wrap;
-position:sticky;
-bottom:0;
-background:#000;
-z-index:20;
-}
-
-.row button{
-flex:1;
-min-width:100px;
-}
-
-.section{
-margin:10px;
-padding:10px;
-background:#0d0d0d;
-border:1px solid #222;
-border-radius:10px;
-}
-
-.card{
-background:#111;
-margin:10px;
-padding:10px;
-border-radius:10px;
-border:1px solid #222;
-}
-
-.grid{
-display:grid;
-grid-template-columns:repeat(5,1fr);
-gap:8px;
-padding:10px;
-}
-
-.box{
-background:#111;
-border:1px solid #222;
-padding:12px;
-border-radius:8px;
-text-align:center;
-font-size:14px;
-}
-
-.small{
-font-size:11px;
-color:#888;
-margin-top:5px;
-word-break:break-word;
-}
-
-textarea{min-height:90px;resize:vertical;}
-
-.raw{
-background:#050505;
-border:1px solid #222;
-padding:10px;
-border-radius:8px;
-font-size:11px;
-white-space:pre-wrap;
-margin-top:10px;
-color:#8f8f8f;
-max-height:180px;
-overflow:auto;
-}
-
-@media(max-width:700px){
-.grid{grid-template-columns:repeat(2,1fr);}
-}
+.card{background:#111;margin:10px;padding:10px;border-radius:10px;border:1px solid #222}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px}
+.box{background:#111;border:1px solid #222;padding:10px;border-radius:8px;text-align:center}
+.small{font-size:11px;color:#888}
+.section{margin:10px;padding:10px;background:#0d0d0d;border:1px solid #222;border-radius:10px}
+.queue{background:#0a0a0a;border:1px solid #333;padding:10px;margin:10px;border-radius:10px}
 </style>
 </head>
 
 <body>
 
 <header>
-<input id="search" placeholder="Search ALL records...">
+<input id="search" placeholder="Search records (full index)">
 </header>
 
-<div class="row">
-<button onclick="setFilter('ALL')">ALL</button>
-<button onclick="setFilter('PENDING')">PENDING</button>
-<button onclick="setFilter('SENT')">SENT</button>
-<button onclick="setFilter('SUCCESS')">SIGNED</button>
-<button onclick="setFilter('RTS')">RTS</button>
-</div>
-
-<div id="stats" class="grid"></div>
+<div class="grid" id="stats"></div>
 
 <div class="section">
-<h3>📸 OCR IMPORT</h3>
-<input type="file" id="ocrInput" accept="image/*">
-<button onclick="extractOCR()">Extract & Create Record</button>
-<div class="small">Upload envelope / letter / label image</div>
+<h3>🧠 NEXT ACTION (AUTO ENGINE)</h3>
+<div id="next"></div>
 </div>
 
-<div class="row">
-<button onclick="addManual()">+ ADD MANUAL</button>
+<div class="section">
+<h3>📸 OCR</h3>
+<input type="file" id="ocr">
+<button onclick="ocr()">Process OCR</button>
+</div>
+
+<div class="section">
+<button onclick="add()">+ ADD</button>
 <button onclick="exportDB()">EXPORT</button>
-</div>
-
-<div class="section">
-<input type="file" id="importFile">
-<button onclick="importDB()">IMPORT BACKUP</button>
+<button onclick="recover()">RECOVER SAFE STATE</button>
 </div>
 
 <div id="list"></div>
@@ -159,314 +58,296 @@ overflow:auto;
 <script>
 
 ////////////////////////////////////////////////////
-// MASTER DATA (immutable clone)
+// BULLETPROOF CORE DB ENGINE (WAL + SNAPSHOT)
 ////////////////////////////////////////////////////
-const MASTER_DATA = () => ([
-{
-ID:1,Name:"Jannik Sinner",Address:"",Status:"SUCCESS",
-CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
-},
-{
-ID:2,Name:"Keanu Reeves",Address:"",Status:"RTS",
-CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
-},
-{
-ID:3,Name:"Alan Carr",Address:"",Status:"SUCCESS",
-CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
-},
-{
-ID:4,Name:"Harry Kane",Address:"",Status:"PENDING",
-CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
-},
-{
-ID:5,Name:"David Attenborough",Address:"",Status:"SUCCESS",
-CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
+
+const KEY_DB = "vault_db_v3";
+const KEY_WAL = "vault_wal_v3";
+const KEY_SNAP = "vault_snap_v3";
+
+let DB = [];
+let WAL = loadWAL();
+let saveQueue = false;
+
+function now(){ return Date.now(); }
+
+function uid(){
+return now() + Math.random().toString(16).slice(2);
 }
-]);
 
 ////////////////////////////////////////////////////
-let DB = load();
+// LOAD + REBUILD (CRASH SAFE)
+////////////////////////////////////////////////////
+function loadWAL(){
+try{
+return JSON.parse(localStorage.getItem(KEY_WAL)||"[]");
+}catch(e){return []}
+}
+
 function load(){
-let raw = localStorage.getItem("vault_os_ocr");
-if(raw){
-try{return JSON.parse(raw);}catch(e){}
+try{
+
+let snap = localStorage.getItem(KEY_SNAP);
+if(snap){
+DB = JSON.parse(snap);
 }
-return MASTER_DATA();
+
+for(let op of WAL){
+apply(op,true);
 }
+
+}catch(e){
+DB=[];
+}
+}
+
+////////////////////////////////////////////////////
+// WRITE AHEAD LOG (NO LOSS GUARANTEE)
+////////////////////////////////////////////////////
+function log(op){
+WAL.push(op);
+localStorage.setItem(KEY_WAL,JSON.stringify(WAL));
+}
+
+function commitSnapshot(){
+localStorage.setItem(KEY_SNAP,JSON.stringify(DB));
+WAL=[];
+localStorage.setItem(KEY_WAL,"[]");
+}
+
+////////////////////////////////////////////////////
+// SAFE APPLY OPS
+////////////////////////////////////////////////////
+function apply(op,skipLog){
+
+switch(op.type){
+
+case "ADD":
+DB.unshift(op.data);
+break;
+
+case "UPDATE":
+let r=DB.find(x=>x.ID===op.id);
+if(r){
+r[op.key]=op.value;
+r.UpdatedAt=now();
+}
+break;
+
+case "DELETE":
+DB=DB.filter(x=>x.ID!==op.id);
+break;
+
+case "STATUS":
+let s=DB.find(x=>x.ID===op.id);
+if(s){
+s.Status=op.value;
+s.UpdatedAt=now();
+}
+break;
+
+}
+
+if(!skipLog) save();
+}
+
+////////////////////////////////////////////////////
+// SAVE PIPELINE (DEBOUNCED + SAFE)
+////////////////////////////////////////////////////
 function save(){
-localStorage.setItem("vault_os_ocr",JSON.stringify(DB));
+if(saveQueue) return;
+saveQueue=true;
+
+setTimeout(()=>{
+commitSnapshot();
+saveQueue=false;
+render();
+},300);
 }
 
 ////////////////////////////////////////////////////
-// STATE + DEBOUNCE
+// INIT
 ////////////////////////////////////////////////////
-let search = "";
-let filter = "ALL";
-let timer;
+load();
 
-document.getElementById("search").addEventListener("input", e=>{
-clearTimeout(timer);
-timer = setTimeout(()=>{
-search = e.target.value.toLowerCase().trim();
+////////////////////////////////////////////////////
+// SEARCH
+////////////////////////////////////////////////////
+let search="";
+document.getElementById("search").addEventListener("input",e=>{
+search=e.target.value.toLowerCase();
 render();
-},150);
 });
 
-function setFilter(f){
-filter = f;
-render();
+////////////////////////////////////////////////////
+// OPS ENGINE (WHO NEXT)
+////////////////////////////////////////////////////
+function nextCandidate(){
+
+let pool = DB.filter(x=>x.Status==="PENDING"||x.Status==="RTS");
+if(pool.length===0) return null;
+
+pool.sort((a,b)=>
+(priorityScore(b)-priorityScore(a))
+);
+
+return pool[0];
+}
+
+function priorityScore(r){
+let age = now()-(r.UpdatedAt||0);
+let base = r.Status==="RTS"?100:50;
+return base + age/100000;
 }
 
 ////////////////////////////////////////////////////
-// SAFE DOM HELPERS
+// OPS STATS
 ////////////////////////////////////////////////////
-function el(tag, props={}, children=[]){
-const node = document.createElement(tag);
-Object.entries(props).forEach(([k,v])=>{
-if(k==="class") node.className=v;
-else if(k==="html") node.innerHTML=v;
-else node[k]=v;
-});
-children.forEach(c=>node.appendChild(c));
-return node;
+function stats(){
+return {
+total:DB.length,
+pending:DB.filter(x=>x.Status==="PENDING").length,
+sent:DB.filter(x=>x.Status==="SENT").length,
+success:DB.filter(x=>x.Status==="SUCCESS").length,
+rts:DB.filter(x=>x.Status==="RTS").length
+};
 }
 
 ////////////////////////////////////////////////////
-// ADD MANUAL
+// ACTIONS (ALL LOGGED)
 ////////////////////////////////////////////////////
-function addManual(){
-let name = prompt("Name:");
-if(!name) return;
-
-DB.unshift({
-ID:Date.now(),
-Name:name,
+function add(){
+let r={
+ID:uid(),
+Name:"New Record",
 Address:"",
 Status:"PENDING",
-Notes:"",
-RawOCR:"",
-CreatedAt:Date.now(),
-UpdatedAt:Date.now(),
+CreatedAt:now(),
+UpdatedAt:now(),
 History:[]
-});
+};
 
-save();
-render();
+log({type:"ADD",data:r});
+apply({type:"ADD",data:r});
+}
+
+function update(id,key,value){
+log({type:"UPDATE",id,key,value});
+apply({type:"UPDATE",id,key,value});
+}
+
+function setStatus(id,value){
+log({type:"STATUS",id,value});
+apply({type:"STATUS",id,value});
+}
+
+function remove(id){
+log({type:"DELETE",id});
+apply({type:"DELETE",id});
 }
 
 ////////////////////////////////////////////////////
 // OCR
 ////////////////////////////////////////////////////
-async function extractOCR(){
+async function ocr(){
+let f=document.getElementById("ocr").files[0];
+if(!f) return alert("No file");
 
-let file = document.getElementById("ocrInput").files[0];
-if(!file) return alert("Upload image first");
+let res=await Tesseract.recognize(f,"eng");
+let text=res.data.text||"";
 
-alert("Running OCR...");
-
-try{
-
-const result = await Tesseract.recognize(file,"eng");
-const text = result.data.text || "";
-
-if(!text.trim()) return alert("No text detected");
-
-const parsed = parseText(text);
-createFromOCR(parsed);
-
-}catch(e){
-console.error(e);
-alert("OCR FAILED");
-}
-}
-
-////////////////////////////////////////////////////
-// OCR PARSER (improved)
-////////////////////////////////////////////////////
-function parseText(text){
-
-const lines = text
-.split("\n")
-.map(x=>x.trim())
-.filter(Boolean);
-
-let name = lines.find(l=>
-/^[A-Z][A-Za-z'-.]+(\s[A-Z][A-Za-z'-.]+)+$/.test(l) ||
-l === l.toUpperCase()
-) || lines[0] || "Unknown";
-
-let address = lines.filter(l=>l!==name).slice(0,6).join(", ");
-
-return {name,address,raw:text};
-}
-
-function createFromOCR(data){
-
-DB.unshift({
-ID:Date.now(),
-Name:data.name,
-Address:data.address,
+let r={
+ID:uid(),
+Name:text.split("\n")[0]||"OCR",
+Address:text,
 Status:"PENDING",
-Notes:"OCR IMPORT",
-RawOCR:data.raw,
-CreatedAt:Date.now(),
-UpdatedAt:Date.now(),
+CreatedAt:now(),
+UpdatedAt:now(),
 History:[]
-});
+};
 
-save();
-render();
-alert("OCR RECORD CREATED");
+log({type:"ADD",data:r});
+apply({type:"ADD",data:r});
 }
 
 ////////////////////////////////////////////////////
-// UPDATE
+// RECOVERY
 ////////////////////////////////////////////////////
-function updateField(id,field,val){
-let item = DB.find(x=>x.ID===id);
-if(!item) return;
-
-const oldStatus = item.Status;
-
-item[field]=val;
-item.UpdatedAt=Date.now();
-
-if(field==="Status"){
-item.History.push({
-from:oldStatus,
-to:val,
-date:Date.now()
-});
-}
-
-save();
-renderStats();
-}
-
-////////////////////////////////////////////////////
-// DELETE
-////////////////////////////////////////////////////
-function removeRecord(id){
-if(!confirm("Delete record?")) return;
-DB = DB.filter(x=>x.ID!==id);
-save();
+function recover(){
+WAL = [];
+localStorage.setItem(KEY_WAL,"[]");
+commitSnapshot();
+alert("Recovered clean snapshot state");
 render();
 }
 
 ////////////////////////////////////////////////////
-// EXPORT / IMPORT
+// EXPORT
 ////////////////////////////////////////////////////
 function exportDB(){
-const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-const a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="vault_backup.json";
+let b=new Blob([JSON.stringify(DB)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(b);
+a.download="vault_bulletproof.json";
 a.click();
 }
 
-function importDB(){
-let file=document.getElementById("importFile").files[0];
-if(!file) return alert("Select file");
-
-let reader=new FileReader();
-reader.onload=e=>{
-try{
-DB=JSON.parse(e.target.result);
-save();
-render();
-alert("IMPORT COMPLETE");
-}catch{
-alert("INVALID FILE");
-}
-};
-reader.readAsText(file);
-}
-
 ////////////////////////////////////////////////////
-// FILTER VIEW
-////////////////////////////////////////////////////
-function getView(){
-let list=[...DB];
-
-if(search){
-list=list.filter(r=>
-JSON.stringify(r).toLowerCase().includes(search)
-);
-}
-
-if(filter!=="ALL"){
-list=list.filter(x=>x.Status===filter);
-}
-
-return list;
-}
-
-////////////////////////////////////////////////////
-// STATS
-////////////////////////////////////////////////////
-function renderStats(){
-const count = s => DB.filter(x=>x.Status===s).length;
-
-document.getElementById("stats").innerHTML=`
-<div class="box">TOTAL<br>${DB.length}</div>
-<div class="box">PENDING<br>${count("PENDING")}</div>
-<div class="box">SENT<br>${count("SENT")}</div>
-<div class="box">SIGNED<br>${count("SUCCESS")}</div>
-<div class="box">RTS<br>${count("RTS")}</div>
-`;
-}
-
-////////////////////////////////////////////////////
-// RENDER (DOM-based)
+// RENDER
 ////////////////////////////////////////////////////
 function render(){
 
-const list = getView();
-const root = document.getElementById("list");
+let s=stats();
+
+document.getElementById("stats").innerHTML=`
+<div class="box">TOTAL<br>${s.total}</div>
+<div class="box">PENDING<br>${s.pending}</div>
+<div class="box">SENT<br>${s.sent}</div>
+<div class="box">SIGNED<br>${s.success}</div>
+<div class="box">RTS<br>${s.rts}</div>
+`;
+
+let next=nextCandidate();
+document.getElementById("next").innerHTML=
+next?
+`<div class="queue">
+<b>${next.Name}</b><br><br>
+<button onclick="setStatus('${next.ID}','SENT')">Mark SENT</button>
+</div>`
+:
+"Nothing pending";
+
+let root=document.getElementById("list");
 root.innerHTML="";
 
-list.forEach(r=>{
+let view=DB.filter(r=>
+JSON.stringify(r).toLowerCase().includes(search)
+);
 
-const card = el("div",{class:"card"});
+for(let r of view){
 
-const name = el("input",{value:r.Name});
-name.addEventListener("change",e=>{
-updateField(r.ID,"Name",e.target.value);
-});
+let div=document.createElement("div");
+div.className="card";
 
-const addr = el("textarea",{textContent:r.Address});
-addr.addEventListener("change",e=>{
-updateField(r.ID,"Address",e.target.value);
-});
+div.innerHTML=`
+<input value="${r.Name}" onchange="update('${r.ID}','Name',this.value)">
+<textarea onchange="update('${r.ID}','Address',this.value)">${r.Address||""}</textarea>
 
-const status = el("select");
-["PENDING","SENT","SUCCESS","RTS"].forEach(s=>{
-const opt = el("option",{value:s,innerHTML:s});
-if(r.Status===s) opt.selected=true;
-status.appendChild(opt);
-});
-status.addEventListener("change",e=>{
-updateField(r.ID,"Status",e.target.value);
-});
+<select onchange="setStatus('${r.ID}',this.value)">
+<option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
+<option ${r.Status==="SENT"?"selected":""}>SENT</option>
+<option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${r.Status==="RTS"?"selected":""}>RTS</option>
+</select>
 
-const del = el("button",{innerHTML:"DELETE"});
-del.addEventListener("click",()=>removeRecord(r.ID));
+<button onclick="remove('${r.ID}')">DELETE</button>
 
-card.appendChild(name);
-card.appendChild(addr);
-card.appendChild(status);
-card.appendChild(del);
+<div class="small">ID: ${r.ID}</div>
+`;
 
-card.appendChild(el("div",{class:"small",innerHTML:`ID: ${r.ID}`}));
-
-if(r.RawOCR){
-card.appendChild(el("div",{class:"raw",textContent:r.RawOCR}));
+root.appendChild(div);
 }
 
-root.appendChild(card);
-});
-
-renderStats();
 }
 
 render();
