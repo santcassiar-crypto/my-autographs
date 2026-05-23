@@ -1,26 +1,123 @@
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VaultOS OCR Tracker</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
-body{margin:0;font-family:Arial;background:#000;color:#fff}
-header{position:sticky;top:0;background:#111;padding:10px}
 
-input,select,textarea{
-width:100%;padding:8px;margin-top:5px;
-background:#000;color:#fff;border:1px solid #333;border-radius:6px
+*{
+box-sizing:border-box;
 }
 
-.card{background:#111;margin:10px;padding:10px;border-radius:8px;border:1px solid #222}
-button{margin:5px;padding:6px}
-.small{font-size:10px;color:#888}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px}
-.box{background:#111;padding:10px;border-radius:6px;text-align:center}
-.section{padding:10px;margin:10px;background:#0b0b0b;border-radius:8px}
+body{
+margin:0;
+background:#000;
+color:#fff;
+font-family:Arial,sans-serif;
+}
+
+header{
+position:sticky;
+top:0;
+background:#111;
+padding:10px;
+z-index:10;
+border-bottom:1px solid #222;
+}
+
+input,select,textarea,button{
+width:100%;
+padding:10px;
+margin-top:8px;
+background:#000;
+color:#fff;
+border:1px solid #333;
+border-radius:8px;
+font-size:14px;
+}
+
+button{
+cursor:pointer;
+background:#111;
+}
+
+button:hover{
+background:#1b1b1b;
+}
+
+.row{
+display:flex;
+gap:8px;
+padding:10px;
+flex-wrap:wrap;
+}
+
+.row button{
+flex:1;
+min-width:100px;
+}
+
+.section{
+margin:10px;
+padding:10px;
+background:#0d0d0d;
+border:1px solid #222;
+border-radius:10px;
+}
+
+.card{
+background:#111;
+margin:10px;
+padding:10px;
+border-radius:10px;
+border:1px solid #222;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(5,1fr);
+gap:8px;
+padding:10px;
+}
+
+.box{
+background:#111;
+border:1px solid #222;
+padding:12px;
+border-radius:8px;
+text-align:center;
+font-size:14px;
+}
+
+.small{
+font-size:11px;
+color:#888;
+margin-top:5px;
+word-break:break-word;
+}
+
+textarea{
+min-height:90px;
+resize:vertical;
+}
+
+h3{
+margin-top:0;
+}
+
+@media(max-width:700px){
+
+.grid{
+grid-template-columns:repeat(2,1fr);
+}
+
+}
+
 </style>
 </head>
 
@@ -30,7 +127,7 @@ button{margin:5px;padding:6px}
 <input id="search" placeholder="Search Vault...">
 </header>
 
-<div>
+<div class="row">
 <button onclick="setFilter('ALL')">ALL</button>
 <button onclick="setFilter('PENDING')">PENDING</button>
 <button onclick="setFilter('SENT')">SENT</button>
@@ -38,19 +135,37 @@ button{margin:5px;padding:6px}
 <button onclick="setFilter('RTS')">RTS</button>
 </div>
 
-<div class="grid" id="stats"></div>
+<div id="stats" class="grid"></div>
 
 <div class="section">
-<h3>📸 OCR Import (Image → Record)</h3>
+
+<h3>📸 OCR IMPORT</h3>
+
 <input type="file" id="ocrInput" accept="image/*">
-<button onclick="extractOCR()">Extract & Create Record</button>
-<div class="small">Upload envelope/letter photo → auto extract name + address</div>
+
+<button onclick="extractOCR()">
+Extract & Create Record
+</button>
+
+<div class="small">
+Upload photo of envelope / letter / document
 </div>
 
-<div class="section" id="priority"></div>
+</div>
 
-<div>
+<div class="row">
 <button onclick="add()">+ ADD MANUAL</button>
+<button onclick="exportDB()">EXPORT</button>
+</div>
+
+<div class="section">
+
+<input type="file" id="importFile">
+
+<button onclick="importDB()">
+IMPORT BACKUP
+</button>
+
 </div>
 
 <div id="list"></div>
@@ -58,138 +173,436 @@ button{margin:5px;padding:6px}
 <script>
 
 ////////////////////////////////////////////////////
-// DATA
+// MASTER DATA
 ////////////////////////////////////////////////////
 
 const MASTER_DATA = [
-{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
-{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
-{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
-{"ID":4,"Name":"Harry Kane","Status":"PENDING"},
-{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"}
+
+{
+ID:1,
+Name:"Jannik Sinner",
+Address:"",
+Status:"SUCCESS"
+},
+
+{
+ID:2,
+Name:"Keanu Reeves",
+Address:"",
+Status:"RTS"
+},
+
+{
+ID:3,
+Name:"Alan Carr",
+Address:"",
+Status:"SUCCESS"
+},
+
+{
+ID:4,
+Name:"Harry Kane",
+Address:"",
+Status:"PENDING"
+},
+
+{
+ID:5,
+Name:"David Attenborough",
+Address:"",
+Status:"SUCCESS"
+}
+
 ];
+
+////////////////////////////////////////////////////
+// DATABASE
+////////////////////////////////////////////////////
 
 let DB = load();
 
 function load(){
+
 let raw = localStorage.getItem("vault_os_ocr");
-if(raw) return JSON.parse(raw);
+
+if(raw){
+
+try{
+return JSON.parse(raw);
+}catch(e){}
+
+}
+
 return MASTER_DATA;
+
 }
 
 function save(){
-localStorage.setItem("vault_os_ocr",JSON.stringify(DB));
+
+localStorage.setItem(
+"vault_os_ocr",
+JSON.stringify(DB)
+);
+
 }
 
 ////////////////////////////////////////////////////
 // STATE
 ////////////////////////////////////////////////////
 
-let search="";
-let filter="ALL";
+let search = "";
+let filter = "ALL";
 
-document.getElementById("search").oninput=(e)=>{
-search=e.target.value.toLowerCase();
+document.getElementById("search").oninput = e => {
+
+search = e.target.value.toLowerCase();
+
 render();
+
 };
 
-function setFilter(f){filter=f;render();}
+function setFilter(f){
+
+filter = f;
+
+render();
+
+}
 
 ////////////////////////////////////////////////////
-// CORE ACTIONS
+// HELPERS
+////////////////////////////////////////////////////
+
+function escapeHTML(str=""){
+
+return str
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/"/g,"&quot;")
+.replace(/'/g,"&#039;");
+
+}
+
+////////////////////////////////////////////////////
+// MANUAL ADD
 ////////////////////////////////////////////////////
 
 function add(){
-let n=prompt("Name:");
-if(!n) return;
+
+let name = prompt("Name:");
+
+if(!name) return;
 
 DB.unshift({
+
 ID:Date.now(),
-Name:n,
+Name:name,
 Address:"",
 Status:"PENDING"
+
 });
 
 save();
+
 render();
+
 }
 
 ////////////////////////////////////////////////////
-// OCR FEATURE
+// OCR
 ////////////////////////////////////////////////////
 
-function extractOCR(){
+async function extractOCR(){
 
-let file=document.getElementById("ocrInput").files[0];
-if(!file) return alert("Upload an image first");
+let file = document.getElementById("ocrInput").files[0];
 
-Tesseract.recognize(
+if(!file){
+
+alert("Upload image first");
+
+return;
+
+}
+
+try{
+
+alert("Running OCR...");
+
+const result = await Tesseract.recognize(
 file,
-'eng',
-{ logger:m=>console.log(m) }
-).then(({data:{text}})=>{
+"eng",
+{
+logger:m=>console.log(m)
+}
+);
 
-console.log("OCR TEXT:",text);
+const text = result.data.text;
 
-let parsed=parseText(text);
+console.log("OCR:",text);
+
+if(!text || text.trim()===""){
+
+alert("No text detected");
+
+return;
+
+}
+
+const parsed = parseText(text);
 
 createFromOCR(parsed);
 
-});
+}catch(err){
+
+console.error(err);
+
+alert("OCR FAILED");
 
 }
+
+}
+
+////////////////////////////////////////////////////
+// OCR PARSER
+////////////////////////////////////////////////////
 
 function parseText(text){
 
-let lines=text
+let lines = text
 .split("\n")
-.map(l=>l.trim())
-.filter(Boolean);
+.map(x=>x.trim())
+.filter(x=>x.length>1);
 
-let name=lines[0]||"Unknown";
-let address=lines.slice(1,6).join(", ");
+let name = "Unknown";
 
-return {name,address,raw:text};
+for(let line of lines){
+
+if(
+/^[A-Z][a-z]+(\s[A-Z][a-z]+)+$/.test(line)
+){
+
+name = line;
+
+break;
+
 }
+
+}
+
+if(name==="Unknown" && lines[0]){
+
+name = lines[0];
+
+}
+
+let address = lines
+.filter(x=>x!==name)
+.slice(0,5)
+.join(", ");
+
+return {
+
+name,
+address,
+raw:text
+
+};
+
+}
+
+////////////////////////////////////////////////////
+// CREATE RECORD
+////////////////////////////////////////////////////
 
 function createFromOCR(data){
 
 DB.unshift({
+
 ID:Date.now(),
 Name:data.name,
 Address:data.address,
 Status:"PENDING",
 Notes:"OCR IMPORT",
 RawOCR:data.raw
+
 });
 
 save();
+
 render();
 
-alert("Record created from image!");
+alert("OCR RECORD CREATED");
+
 }
 
 ////////////////////////////////////////////////////
-// VIEW PIPELINE
+// UPDATE
+////////////////////////////////////////////////////
+
+function updateName(id,val){
+
+let item = DB.find(x=>x.ID==id);
+
+if(item){
+
+item.Name = val;
+
+save();
+
+}
+
+}
+
+function updateAddress(id,val){
+
+let item = DB.find(x=>x.ID==id);
+
+if(item){
+
+item.Address = val;
+
+save();
+
+}
+
+}
+
+function updateStatus(id,val){
+
+let item = DB.find(x=>x.ID==id);
+
+if(item){
+
+item.Status = val;
+
+save();
+
+renderStats();
+
+}
+
+}
+
+////////////////////////////////////////////////////
+// DELETE
+////////////////////////////////////////////////////
+
+function removeRecord(id){
+
+if(!confirm("Delete record?")) return;
+
+DB = DB.filter(x=>x.ID!=id);
+
+save();
+
+render();
+
+}
+
+////////////////////////////////////////////////////
+// EXPORT
+////////////////////////////////////////////////////
+
+function exportDB(){
+
+let blob = new Blob(
+[
+JSON.stringify(DB,null,2)
+],
+{
+type:"application/json"
+}
+);
+
+let a = document.createElement("a");
+
+a.href = URL.createObjectURL(blob);
+
+a.download = "vault_backup.json";
+
+a.click();
+
+}
+
+////////////////////////////////////////////////////
+// IMPORT
+////////////////////////////////////////////////////
+
+function importDB(){
+
+let file = document.getElementById("importFile").files[0];
+
+if(!file){
+
+alert("Select file");
+
+return;
+
+}
+
+let reader = new FileReader();
+
+reader.onload = e => {
+
+try{
+
+DB = JSON.parse(e.target.result);
+
+save();
+
+render();
+
+alert("IMPORT COMPLETE");
+
+}catch(err){
+
+alert("INVALID FILE");
+
+}
+
+};
+
+reader.readAsText(file);
+
+}
+
+////////////////////////////////////////////////////
+// FILTERING
 ////////////////////////////////////////////////////
 
 function getView(){
 
-let list=DB;
+let list = [...DB];
 
 if(search){
-list=list.filter(x=>
-x.Name.toLowerCase().includes(search) ||
-(x.Address||"").toLowerCase().includes(search)
+
+list = list.filter(x=>
+
+(x.Name||"")
+.toLowerCase()
+.includes(search)
+
+||
+
+(x.Address||"")
+.toLowerCase()
+.includes(search)
+
 );
+
 }
 
-if(filter==="PENDING") list=list.filter(x=>x.Status==="PENDING");
-if(filter==="SENT") list=list.filter(x=>x.Status==="SENT");
-if(filter==="SUCCESS") list=list.filter(x=>x.Status==="SUCCESS");
-if(filter==="RTS") list=list.filter(x=>x.Status==="RTS");
+if(filter!=="ALL"){
+
+list = list.filter(
+x=>x.Status===filter
+);
+
+}
 
 return list;
+
 }
 
 ////////////////////////////////////////////////////
@@ -198,19 +611,45 @@ return list;
 
 function renderStats(){
 
-let total=DB.length;
-let pending=DB.filter(x=>x.Status==="PENDING").length;
-let sent=DB.filter(x=>x.Status==="SENT").length;
-let success=DB.filter(x=>x.Status==="SUCCESS").length;
-let rts=DB.filter(x=>x.Status==="RTS").length;
+let total =
+DB.length;
 
-document.getElementById("stats").innerHTML=`
-<div class="box">TOTAL<br>${total}</div>
-<div class="box">PENDING<br>${pending}</div>
-<div class="box">SENT<br>${sent}</div>
-<div class="box">SIGNED<br>${success}</div>
-<div class="box">RTS<br>${rts}</div>
+let pending =
+DB.filter(x=>x.Status==="PENDING").length;
+
+let sent =
+DB.filter(x=>x.Status==="SENT").length;
+
+let success =
+DB.filter(x=>x.Status==="SUCCESS").length;
+
+let rts =
+DB.filter(x=>x.Status==="RTS").length;
+
+document.getElementById("stats").innerHTML = `
+
+<div class="box">
+TOTAL<br>${total}
+</div>
+
+<div class="box">
+PENDING<br>${pending}
+</div>
+
+<div class="box">
+SENT<br>${sent}
+</div>
+
+<div class="box">
+SIGNED<br>${success}
+</div>
+
+<div class="box">
+RTS<br>${rts}
+</div>
+
 `;
+
 }
 
 ////////////////////////////////////////////////////
@@ -219,30 +658,75 @@ document.getElementById("stats").innerHTML=`
 
 function render(){
 
-let list=getView();
+let list = getView();
 
-document.getElementById("list").innerHTML=
+document.getElementById("list").innerHTML =
+
 list.map(r=>`
+
 <div class="card">
 
-<input value="${r.Name}" onchange="r.Name=this.value;save()">
+<input
+value="${escapeHTML(r.Name||"")}"
+onchange="updateName(${r.ID},this.value)"
+>
 
-<textarea placeholder="Address" onchange="r.Address=this.value;save()">${r.Address||""}</textarea>
+<textarea
+placeholder="Address"
+onchange="updateAddress(${r.ID},this.value)"
+>${escapeHTML(r.Address||"")}</textarea>
 
-<select onchange="r.Status=this.value;save()">
-<option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
-<option ${r.Status==="SENT"?"selected":""}>SENT</option>
-<option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${r.Status==="RTS"?"selected":""}>RTS</option>
+<select
+onchange="updateStatus(${r.ID},this.value)"
+>
+
+<option
+value="PENDING"
+${r.Status==="PENDING"?"selected":""}
+>
+PENDING
+</option>
+
+<option
+value="SENT"
+${r.Status==="SENT"?"selected":""}
+>
+SENT
+</option>
+
+<option
+value="SUCCESS"
+${r.Status==="SUCCESS"?"selected":""}
+>
+SUCCESS
+</option>
+
+<option
+value="RTS"
+${r.Status==="RTS"?"selected":""}
+>
+RTS
+</option>
+
 </select>
 
-<div class="small">ID: ${r.ID}</div>
+<button onclick="removeRecord(${r.ID})">
+DELETE
+</button>
+
+<div class="small">
+ID: ${r.ID}
+</div>
 
 </div>
+
 `).join("");
 
 renderStats();
+
 }
+
+////////////////////////////////////////////////////
 
 render();
 
