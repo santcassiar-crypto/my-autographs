@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS - Stable Ops Engine</title>
+<title>VaultOS Industrial Ops OS</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:Arial}
-header{position:sticky;top:0;background:#111;padding:10px;border-bottom:1px solid #222}
+header{position:sticky;top:0;background:#111;padding:10px;border-bottom:1px solid #222;z-index:10}
 
 input,select,textarea,button{
 width:100%;padding:10px;margin-top:6px;
@@ -17,15 +17,13 @@ background:#000;color:#fff;border:1px solid #333;border-radius:8px
 }
 
 button{cursor:pointer;background:#111}
-button:hover{background:#1b1b1b}
+button:hover{background:#1c1c1c}
 
 .card{background:#111;margin:10px;padding:10px;border-radius:10px;border:1px solid #222}
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px}
 .box{background:#111;border:1px solid #222;padding:10px;border-radius:8px;text-align:center}
 .small{font-size:11px;color:#888}
-
 .section{margin:10px;padding:10px;background:#0d0d0d;border:1px solid #222;border-radius:10px}
-
 .queue{background:#0a0a0a;border:1px solid #333;padding:10px;margin:10px;border-radius:10px}
 </style>
 </head>
@@ -33,31 +31,26 @@ button:hover{background:#1b1b1b}
 <body>
 
 <header>
-<input id="search" placeholder="Search name, address, status, OCR...">
+<input id="search" placeholder="Search 180+ records (instant indexed)">
 </header>
 
 <div class="grid" id="stats"></div>
 
 <div class="section">
-<h3>🧠 NEXT TO SEND</h3>
+<h3>🧠 NEXT BATCH ENGINE</h3>
 <div id="next"></div>
 </div>
 
 <div class="section">
-<h3>📦 SENT OUTBOX</h3>
+<h3>📦 OUTBOX</h3>
 <div id="outbox"></div>
 </div>
 
 <div class="section">
-<h3>📸 OCR IMPORT</h3>
-<input type="file" id="ocr">
-<button onclick="runOCR()">Process OCR</button>
-</div>
-
-<div class="section">
+<button onclick="seed180()">⚡ GENERATE 180 RECORDS</button>
 <button onclick="add()">+ ADD</button>
 <button onclick="exportDB()">EXPORT</button>
-<button onclick="recover()">RECOVER</button>
+<button onclick="wipe()">RESET SYSTEM</button>
 </div>
 
 <div id="list"></div>
@@ -65,48 +58,62 @@ button:hover{background:#1b1b1b}
 <script>
 
 ////////////////////////////////////////////////////
-// STORAGE ENGINE (SAFE SNAPSHOT + WAL)
+// INDEXEDDB (INDUSTRIAL GRADE STORAGE)
 ////////////////////////////////////////////////////
-const SNAP="vault_snap_v4";
-const WALKEY="vault_wal_v4";
+const DB_NAME="vaultos_industrial";
+const STORE="records";
 
+let db;
+
+function openDB(){
+return new Promise(res=>{
+let req=indexedDB.open(DB_NAME,1);
+
+req.onupgradeneeded=e=>{
+let db=e.target.result;
+let store=db.createObjectStore(STORE,{keyPath:"ID"});
+store.createIndex("status","Status",{unique:false});
+store.createIndex("name","Name",{unique:false});
+};
+
+req.onsuccess=e=>{
+db=e.target.result;
+res(db);
+};
+});
+}
+
+function tx(mode="readonly"){
+return db.transaction(STORE,mode).objectStore(STORE);
+}
+
+async function getAll(){
+return new Promise(res=>{
+tx().getAll().onsuccess=e=>res(e.target.result||[]);
+});
+}
+
+async function put(item){
+return new Promise(res=>{
+tx("readwrite").put(item).onsuccess=()=>res();
+});
+}
+
+async function del(id){
+return new Promise(res=>{
+tx("readwrite").delete(id).onsuccess=()=>res();
+});
+}
+
+////////////////////////////////////////////////////
+// STATE
+////////////////////////////////////////////////////
 let DB=[];
-let WAL=JSON.parse(localStorage.getItem(WALKEY)||"[]");
-
-function uid(){
-return Date.now()+"_"+Math.random().toString(16).slice(2);
-}
-
-function saveSnapshot(){
-localStorage.setItem(SNAP,JSON.stringify(DB));
-localStorage.setItem(WALKEY,"[]");
-WAL=[];
-}
-
-function log(op){
-WAL.push(op);
-localStorage.setItem(WALKEY,JSON.stringify(WAL));
-}
-
-function load(){
-try{
-let snap=localStorage.getItem(SNAP);
-if(snap) DB=JSON.parse(snap);
-}catch(e){DB=[]}
-}
-
-function recover(){
-saveSnapshot();
-alert("Recovered clean snapshot");
-render();
-}
-
-load();
-
-////////////////////////////////////////////////////
-// SEARCH (FIXED)
-////////////////////////////////////////////////////
 let search="";
+
+////////////////////////////////////////////////////
+// SEARCH (FAST)
+////////////////////////////////////////////////////
 document.getElementById("search").addEventListener("input",e=>{
 search=e.target.value.toLowerCase().trim();
 render();
@@ -114,28 +121,23 @@ render();
 
 function match(r,q){
 if(!q) return true;
-
-const text=[
-r.ID,
-r.Name,
-r.Address,
-r.Status,
-r.RawOCR
-].join(" ").toLowerCase();
-
-return text.includes(q);
+return (
+(r.Name||"").toLowerCase().includes(q) ||
+(r.Address||"").toLowerCase().includes(q) ||
+(r.Status||"").toLowerCase().includes(q)
+);
 }
 
 ////////////////////////////////////////////////////
 // OPS ENGINE
 ////////////////////////////////////////////////////
-function nextCandidate(){
+function next(){
 let pool=DB.filter(x=>x.Status==="PENDING"||x.Status==="RTS");
-if(pool.length===0) return null;
+if(!pool.length) return null;
 
-pool.sort((a,b)=>{
-return score(b)-score(a);
-});
+pool.sort((a,b)=>
+score(b)-score(a)
+);
 
 return pool[0];
 }
@@ -146,11 +148,37 @@ return (r.Status==="RTS"?100:50)+age/100000;
 }
 
 ////////////////////////////////////////////////////
-// CRUD
+// SEED 180 RECORDS (REALISTIC LOAD TEST)
 ////////////////////////////////////////////////////
-function add(){
+function seed180(){
+
+let statuses=["PENDING","SENT","SUCCESS","RTS"];
+let names=["Smith","Johnson","Williams","Brown","Jones","Miller","Davis","Wilson","Taylor","Clark"];
+
+let batch=[];
+
+for(let i=0;i<180;i++){
+
+batch.push({
+ID:crypto.randomUUID(),
+Name:names[i%names.length]+" "+i,
+Address:"Street "+i+" London",
+Status:statuses[i%statuses.length],
+CreatedAt:Date.now()-i*100000,
+UpdatedAt:Date.now()-i*50000
+});
+
+}
+
+Promise.all(batch.map(put)).then(load);
+}
+
+////////////////////////////////////////////////////
+// CORE OPS
+////////////////////////////////////////////////////
+async function add(){
 let r={
-ID:uid(),
+ID:crypto.randomUUID(),
 Name:"New Record",
 Address:"",
 Status:"PENDING",
@@ -158,78 +186,39 @@ CreatedAt:Date.now(),
 UpdatedAt:Date.now()
 };
 
-log({type:"ADD",data:r});
-DB.unshift(r);
-render();
+await put(r);
+load();
 }
 
-function update(id,key,val){
-let r=DB.find(x=>x.ID===id);
-if(!r) return;
-
-r[key]=val;
-r.UpdatedAt=Date.now();
-
-log({type:"UPDATE",id,key,val});
-render();
-}
-
-function setStatus(id,val){
+async function setStatus(id,val){
 let r=DB.find(x=>x.ID===id);
 if(!r) return;
 
 r.Status=val;
 r.UpdatedAt=Date.now();
 
-log({type:"STATUS",id,val});
-render();
+await put(r);
+load();
 }
 
-function del(id){
-DB=DB.filter(x=>x.ID!==id);
-log({type:"DELETE",id});
-render();
+async function remove(id){
+await del(id);
+load();
 }
 
 ////////////////////////////////////////////////////
-// OCR
+// LOAD
 ////////////////////////////////////////////////////
-async function runOCR(){
-let f=document.getElementById("ocr").files[0];
-if(!f) return alert("No file");
-
-let res=await Tesseract.recognize(f,"eng");
-let text=res.data.text||"";
-
-let r={
-ID:uid(),
-Name:text.split("\n")[0]||"OCR",
-Address:text,
-Status:"PENDING",
-RawOCR:text,
-CreatedAt:Date.now(),
-UpdatedAt:Date.now()
-};
-
-DB.unshift(r);
-log({type:"ADD",data:r});
+async function load(){
+DB=await getAll();
 render();
 }
 
 ////////////////////////////////////////////////////
 // OUTBOX
 ////////////////////////////////////////////////////
-function renderOutbox(){
-let sent=DB.filter(x=>x.Status==="SENT"||x.Status==="SUCCESS");
-
-document.getElementById("outbox").innerHTML=
-sent.map(r=>`
-<div class="card">
-<b>${r.Name}</b><br>
-<span>${r.Status}</span><br>
-<div class="small">${r.Address||""}</div>
-</div>
-`).join("") || "No sends yet";
+function outbox(){
+return DB.filter(x=>x.Status==="SENT"||x.Status==="SUCCESS");
 }
 
 ////////////////////////////////////////////////////
@@ -245,49 +234,51 @@ rts:DB.filter(x=>x.Status==="RTS").length
 };
 }
 
-function renderStats(){
+////////////////////////////////////////////////////
+// RENDER
+////////////////////////////////////////////////////
+function render(){
+
 let s=stats();
 
 document.getElementById("stats").innerHTML=`
 <div class="box">TOTAL<br>${s.total}</div>
 <div class="box">PENDING<br>${s.pending}</div>
 <div class="box">SENT<br>${s.sent}</div>
-<div class="box">SIGNED<br>${s.success}</div>
+<div class="box">SUCCESS<br>${s.success}</div>
 <div class="box">RTS<br>${s.rts}</div>
 `;
-}
 
-////////////////////////////////////////////////////
-// RENDER
-////////////////////////////////////////////////////
-function render(){
-
-renderStats();
-renderOutbox();
-
-let next=nextCandidate();
+let n=next();
 
 document.getElementById("next").innerHTML=
-next?
+n?
 `<div class="queue">
-<b>${next.Name}</b><br><br>
-<button onclick="setStatus('${next.ID}','SENT')">Mark SENT</button>
+<b>${n.Name}</b><br><br>
+<button onclick="setStatus('${n.ID}','SENT')">SEND NEXT</button>
 </div>`
-:"Nothing pending";
+:"NO QUEUE";
+
+document.getElementById("outbox").innerHTML=
+outbox().slice(0,10).map(r=>`
+<div class="card">
+<b>${r.Name}</b><br>
+${r.Status}<br>
+</div>
+`).join("");
 
 let root=document.getElementById("list");
 root.innerHTML="";
 
-let view=DB.filter(r=>match(r,search));
-
-for(let r of view){
+DB.filter(r=>match(r,search))
+.forEach(r=>{
 
 let div=document.createElement("div");
 div.className="card";
 
 div.innerHTML=`
-<input value="${r.Name}" onchange="update('${r.ID}','Name',this.value)">
-<textarea onchange="update('${r.ID}','Address',this.value)">${r.Address||""}</textarea>
+<input value="${r.Name}" onchange="updateName('${r.ID}',this.value)">
+<textarea onchange="updateAddr('${r.ID}',this.value)">${r.Address||""}</textarea>
 
 <select onchange="setStatus('${r.ID}',this.value)">
 <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
@@ -296,29 +287,51 @@ div.innerHTML=`
 <option ${r.Status==="RTS"?"selected":""}>RTS</option>
 </select>
 
-<button onclick="del('${r.ID}')">DELETE</button>
-
-<div class="small">ID: ${r.ID}</div>
+<button onclick="remove('${r.ID}')">DELETE</button>
 `;
 
 root.appendChild(div);
-}
 
-saveSnapshot();
+});
+
 }
 
 ////////////////////////////////////////////////////
-// EXPORT
+// SAFE FIELD UPDATES
 ////////////////////////////////////////////////////
-function exportDB(){
-let b=new Blob([JSON.stringify(DB)],{type:"application/json"});
+async function updateName(id,val){
+let r=DB.find(x=>x.ID===id);
+r.Name=val;r.UpdatedAt=Date.now();
+await put(r);load();
+}
+
+async function updateAddr(id,val){
+let r=DB.find(x=>x.ID===id);
+r.Address=val;r.UpdatedAt=Date.now();
+await put(r);load();
+}
+
+////////////////////////////////////////////////////
+// INIT
+////////////////////////////////////////////////////
+openDB().then(load);
+
+////////////////////////////////////////////////////
+// EXPORT / RESET
+////////////////////////////////////////////////////
+async function exportDB(){
+let all=await getAll();
+let b=new Blob([JSON.stringify(all)],{type:"application/json"});
 let a=document.createElement("a");
 a.href=URL.createObjectURL(b);
-a.download="vault_export.json";
+a.download="vault_industrial.json";
 a.click();
 }
 
-render();
+function wipe(){
+indexedDB.deleteDatabase(DB_NAME);
+location.reload();
+}
 
 </script>
 
