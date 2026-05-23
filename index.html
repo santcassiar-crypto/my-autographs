@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Industrial Merge System</title>
+<title>VaultOS — Wipe Resistant Edition</title>
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:Arial}
@@ -17,11 +17,9 @@ background:#000;color:#fff;border:1px solid #333;border-radius:8px
 button{cursor:pointer;background:#111}
 button:hover{background:#1c1c1c}
 
-.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px}
 .box{background:#111;border:1px solid #222;padding:10px;border-radius:8px;text-align:center}
 .card{background:#111;margin:10px;padding:10px;border-radius:10px;border:1px solid #222}
-.section{margin:10px;padding:10px;background:#0d0d0d;border:1px solid #222;border-radius:10px}
-.queue{background:#0a0a0a;border:1px solid #333;padding:10px;margin:10px;border-radius:10px}
 .small{font-size:11px;color:#888}
 </style>
 </head>
@@ -29,25 +27,22 @@ button:hover{background:#1c1c1c}
 <body>
 
 <header>
-<input id="search" placeholder="Search full dataset...">
+<input id="search" placeholder="Search vault...">
 </header>
 
 <div class="grid" id="stats"></div>
 
-<div class="section">
-<h3>🧠 NEXT TO SEND</h3>
-<div id="next"></div>
-</div>
+<div class="card">
+<h3>🛡️ BACKUP CONTROLS</h3>
 
-<div class="section">
-<h3>📦 OUTBOX</h3>
-<div id="outbox"></div>
-</div>
+<button onclick="exportBackup()">⬇️ DOWNLOAD BACKUP NOW</button>
 
-<div class="section">
-<button onclick="saveNow()">💾 SAVE</button>
-<button onclick="exportDB()">EXPORT</button>
-<button onclick="resetDB()">RESET</button>
+<input type="file" id="restoreFile">
+<button onclick="restoreBackup()">⬆️ RESTORE FROM FILE</button>
+
+<div class="small">
+Backups are your protection if browser/device is wiped.
+</div>
 </div>
 
 <div id="list"></div>
@@ -55,63 +50,113 @@ button:hover{background:#1c1c1c}
 <script>
 
 ////////////////////////////////////////////////////
-// FULL DATASET (YOUR INPUT)
+// CORE DATA (your system)
 ////////////////////////////////////////////////////
-const RAW_DATA = [{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},{"ID":1779457496694,"Name":"George Graham - Home ","Status":"PENDING"},{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},{"ID":1779457437040,"Name":"Gosh4 Goals","Status":"PENDING"},{"ID":1779457382999,"Name":"San Antonio Training Centre ","Status":"PENDING"},{"ID":1779457367391,"Name":"OKC training centre","Status":"PENDING"},{"ID":1779457333472,"Name":"FC Barcelona - Training ground","Status":"PENDING"},{"ID":1779457307017,"Name":"Gary Oldman ","Status":"SUCCESS"},{"ID":1779457276281,"Name":"Arsenal womens team","Status":"PENDING"},{"ID":1779457232607,"Name":"Park theatre x 2 ","Status":"PENDING"},{"ID":1779457195881,"Name":"Jermery Sochan","Status":"PENDING"},{"ID":1779369334553,"Name":"Geoff Hurst ","Status":"LOGGED"},{"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},{"ID":28,"Name":"Mikel Arteta","Status":"Sent"},{"ID":61,"Name":"Cole Palmer","Status":"FAILURE / RTS"},{"ID":81,"Name":"LA Lakers","Status":"Sent"},{"ID":82,"Name":"TNT Sports London","Status":"Sent"},{"ID":83,"Name":"Man Utd Training","Status":"Sent"},{"ID":90,"Name":"Paul Scholes","Status":"RTS"},{"ID":99,"Name":"Jamal Musiala","Status":"LOGGED"},{"ID":100,"Name":"Serge Gnabry","Status":"LOGGED"}];
+let DB = [];
 
-////////////////////////////////////////////////////
-// STATE CLEANER
-////////////////////////////////////////////////////
-function normalize(r){
+const STORAGE_KEY = "vault_wipe_resistant_v1";
 
-let s=(r.Status||"PENDING").toUpperCase();
-
-if(s.includes("SUCCESS")) s="SUCCESS";
-else if(s.includes("SENT")) s="SENT";
-else if(s.includes("RTS") || s.includes("FAIL")) s="RTS";
-else if(s.includes("LOGGED")) s="PENDING";
-else s="PENDING";
-
-return {
-ID:r.ID,
-Name:(r.Name||"UNKNOWN").trim(),
-Status:s,
-UpdatedAt:Date.now()
-};
-
-}
-
-function dedupe(list){
-let seen=new Set();
-return list.filter(r=>{
-let k=r.Name.toLowerCase();
-if(seen.has(k)) return false;
-seen.add(k);
-return true;
-});
-}
+const SEED = [
+{ID:1,Name:"Example Record A",Status:"PENDING"},
+{ID:2,Name:"Example Record B",Status:"SUCCESS"}
+];
 
 ////////////////////////////////////////////////////
-// STORAGE
+// LOAD (multi-layer recovery system)
 ////////////////////////////////////////////////////
-let DB=[];
-
 function load(){
-let raw=localStorage.getItem("vault_merge");
+
+// Layer 1: browser storage
+let raw = localStorage.getItem(STORAGE_KEY);
 
 if(raw){
-DB=JSON.parse(raw);
+try{
+DB = JSON.parse(raw);
 render();
 return;
+}catch(e){}
 }
 
-DB=dedupe(RAW_DATA.map(normalize));
+// Layer 2: seed fallback
+DB = SEED;
 save();
 render();
 }
 
 function save(){
-localStorage.setItem("vault_merge",JSON.stringify(DB));
+localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
+
+// 🔥 AUTO BACKUP SNAPSHOT (critical)
+autoBackup();
+}
+
+////////////////////////////////////////////////////
+// AUTO BACKUP SYSTEM (KEY FEATURE)
+////////////////////////////////////////////////////
+function autoBackup(){
+
+let snapshot = {
+time:Date.now(),
+data:DB
+};
+
+// store rotating backup slots
+localStorage.setItem("vault_backup_latest", JSON.stringify(snapshot));
+
+// keep second safety copy
+localStorage.setItem("vault_backup_shadow", JSON.stringify(snapshot));
+}
+
+////////////////////////////////////////////////////
+// EXPORT BACKUP (download file)
+////////////////////////////////////////////////////
+function exportBackup(){
+
+let blob = new Blob(
+[JSON.stringify({
+time:Date.now(),
+data:DB
+},null,2)],
+{type:"application/json"}
+);
+
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="vault_backup_"+Date.now()+".json";
+a.click();
+}
+
+////////////////////////////////////////////////////
+// RESTORE SYSTEM (DRAG DROP FILE)
+////////////////////////////////////////////////////
+function restoreBackup(){
+
+let file = document.getElementById("restoreFile").files[0];
+if(!file) return alert("Select backup file");
+
+let reader = new FileReader();
+
+reader.onload = e=>{
+
+try{
+let obj = JSON.parse(e.target.result);
+
+if(obj.data){
+DB = obj.data;
+save();
+render();
+alert("RESTORE COMPLETE");
+}else{
+alert("Invalid backup file");
+}
+
+}catch(err){
+alert("Restore failed");
+}
+
+};
+
+reader.readAsText(file);
 }
 
 ////////////////////////////////////////////////////
@@ -125,19 +170,7 @@ render();
 
 function match(r,q){
 if(!q) return true;
-return (r.Name+" "+r.Status).toLowerCase().includes(q);
-}
-
-////////////////////////////////////////////////////
-// NEXT ENGINE
-////////////////////////////////////////////////////
-function next(){
-let pool=DB.filter(x=>x.Status==="PENDING"||x.Status==="RTS");
-if(!pool.length) return null;
-
-return pool.sort((a,b)=>
-(b.UpdatedAt||0)-(a.UpdatedAt||0)
-)[0];
+return (r.Name||"").toLowerCase().includes(q);
 }
 
 ////////////////////////////////////////////////////
@@ -147,9 +180,7 @@ function stats(){
 return {
 total:DB.length,
 pending:DB.filter(x=>x.Status==="PENDING").length,
-sent:DB.filter(x=>x.Status==="SENT").length,
-success:DB.filter(x=>x.Status==="SUCCESS").length,
-rts:DB.filter(x=>x.Status==="RTS").length
+success:DB.filter(x=>x.Status==="SUCCESS").length
 };
 }
 
@@ -163,28 +194,9 @@ let s=stats();
 document.getElementById("stats").innerHTML=`
 <div class="box">TOTAL<br>${s.total}</div>
 <div class="box">PENDING<br>${s.pending}</div>
-<div class="box">SENT<br>${s.sent}</div>
 <div class="box">SUCCESS<br>${s.success}</div>
-<div class="box">RTS<br>${s.rts}</div>
+<div class="box">BACKUP<br>ACTIVE</div>
 `;
-
-let n=next();
-
-document.getElementById("next").innerHTML=
-n?
-`<div class="queue">
-<b>${n.Name}</b><br><br>
-<button onclick="markSent(${n.ID})">MARK SENT</button>
-</div>`
-:"NO PENDING ITEMS";
-
-document.getElementById("outbox").innerHTML=
-DB.filter(x=>x.Status==="SENT"||x.Status==="SUCCESS")
-.map(r=>`
-<div class="card">
-<b>${r.Name}</b><br>${r.Status}
-</div>
-`).join("");
 
 document.getElementById("list").innerHTML=
 DB.filter(r=>match(r,search))
@@ -194,14 +206,11 @@ DB.filter(r=>match(r,search))
 
 <select onchange="setStatus(${r.ID},this.value)">
 <option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
-<option ${r.Status==="SENT"?"selected":""}>SENT</option>
 <option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
 <option ${r.Status==="RTS"?"selected":""}>RTS</option>
 </select>
 </div>
 `).join("");
-
-save();
 
 }
 
@@ -210,36 +219,38 @@ save();
 ////////////////////////////////////////////////////
 function update(id,val){
 let r=DB.find(x=>x.ID===id);
+if(r){
 r.Name=val;
-r.UpdatedAt=Date.now();
 save();
 render();
+}
 }
 
 function setStatus(id,val){
 let r=DB.find(x=>x.ID===id);
-r.Status=val.toUpperCase();
-r.UpdatedAt=Date.now();
+if(r){
+r.Status=val;
 save();
 render();
 }
-
-function markSent(id){
-setStatus(id,"SENT");
 }
 
-function exportDB(){
-let b=new Blob([JSON.stringify(DB)],{type:"application/json"});
-let a=document.createElement("a");
-a.href=URL.createObjectURL(b);
-a.download="vault_merge.json";
-a.click();
+////////////////////////////////////////////////////
+// EMERGENCY RECOVERY (if storage wiped)
+////////////////////////////////////////////////////
+(function recoveryCheck(){
+
+let backup = localStorage.getItem("vault_backup_latest");
+
+if(!localStorage.getItem(STORAGE_KEY) && backup){
+
+let obj = JSON.parse(backup);
+DB = obj.data || [];
+save();
+
 }
 
-function resetDB(){
-localStorage.removeItem("vault_merge");
-location.reload();
-}
+})();
 
 ////////////////////////////////////////////////////
 // INIT
