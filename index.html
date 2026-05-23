@@ -110,6 +110,19 @@ h3{
 margin-top:0;
 }
 
+.raw{
+background:#050505;
+border:1px solid #222;
+padding:10px;
+border-radius:8px;
+font-size:11px;
+white-space:pre-wrap;
+margin-top:10px;
+color:#8f8f8f;
+max-height:180px;
+overflow:auto;
+}
+
 @media(max-width:700px){
 
 .grid{
@@ -124,15 +137,36 @@ grid-template-columns:repeat(2,1fr);
 <body>
 
 <header>
-<input id="search" placeholder="Search Vault...">
+
+<input
+id="search"
+placeholder="Search ALL records..."
+>
+
 </header>
 
 <div class="row">
-<button onclick="setFilter('ALL')">ALL</button>
-<button onclick="setFilter('PENDING')">PENDING</button>
-<button onclick="setFilter('SENT')">SENT</button>
-<button onclick="setFilter('SUCCESS')">SIGNED</button>
-<button onclick="setFilter('RTS')">RTS</button>
+
+<button onclick="setFilter('ALL')">
+ALL
+</button>
+
+<button onclick="setFilter('PENDING')">
+PENDING
+</button>
+
+<button onclick="setFilter('SENT')">
+SENT
+</button>
+
+<button onclick="setFilter('SUCCESS')">
+SIGNED
+</button>
+
+<button onclick="setFilter('RTS')">
+RTS
+</button>
+
 </div>
 
 <div id="stats" class="grid"></div>
@@ -141,21 +175,32 @@ grid-template-columns:repeat(2,1fr);
 
 <h3>📸 OCR IMPORT</h3>
 
-<input type="file" id="ocrInput" accept="image/*">
+<input
+type="file"
+id="ocrInput"
+accept="image/*"
+>
 
 <button onclick="extractOCR()">
 Extract & Create Record
 </button>
 
 <div class="small">
-Upload photo of envelope / letter / document
+Upload envelope / letter / label image
 </div>
 
 </div>
 
 <div class="row">
-<button onclick="add()">+ ADD MANUAL</button>
-<button onclick="exportDB()">EXPORT</button>
+
+<button onclick="add()">
++ ADD MANUAL
+</button>
+
+<button onclick="exportDB()">
+EXPORT
+</button>
+
 </div>
 
 <div class="section">
@@ -223,7 +268,8 @@ let DB = load();
 
 function load(){
 
-let raw = localStorage.getItem("vault_os_ocr");
+let raw =
+localStorage.getItem("vault_os_ocr");
 
 if(raw){
 
@@ -255,7 +301,8 @@ let filter = "ALL";
 
 document.getElementById("search").oninput = e => {
 
-search = e.target.value.toLowerCase();
+search =
+e.target.value.toLowerCase();
 
 render();
 
@@ -285,7 +332,7 @@ return str
 }
 
 ////////////////////////////////////////////////////
-// MANUAL ADD
+// ADD MANUAL
 ////////////////////////////////////////////////////
 
 function add(){
@@ -299,7 +346,9 @@ DB.unshift({
 ID:Date.now(),
 Name:name,
 Address:"",
-Status:"PENDING"
+Status:"PENDING",
+Notes:"",
+RawOCR:""
 
 });
 
@@ -315,7 +364,8 @@ render();
 
 async function extractOCR(){
 
-let file = document.getElementById("ocrInput").files[0];
+let file =
+document.getElementById("ocrInput").files[0];
 
 if(!file){
 
@@ -329,7 +379,8 @@ try{
 
 alert("Running OCR...");
 
-const result = await Tesseract.recognize(
+const result =
+await Tesseract.recognize(
 file,
 "eng",
 {
@@ -337,7 +388,8 @@ logger:m=>console.log(m)
 }
 );
 
-const text = result.data.text;
+const text =
+result.data.text;
 
 console.log("OCR:",text);
 
@@ -349,7 +401,8 @@ return;
 
 }
 
-const parsed = parseText(text);
+const parsed =
+parseText(text);
 
 createFromOCR(parsed);
 
@@ -396,7 +449,8 @@ name = lines[0];
 
 }
 
-let address = lines
+let address =
+lines
 .filter(x=>x!==name)
 .slice(0,5)
 .join(", ");
@@ -442,7 +496,8 @@ alert("OCR RECORD CREATED");
 
 function updateName(id,val){
 
-let item = DB.find(x=>x.ID==id);
+let item =
+DB.find(x=>x.ID==id);
 
 if(item){
 
@@ -456,7 +511,8 @@ save();
 
 function updateAddress(id,val){
 
-let item = DB.find(x=>x.ID==id);
+let item =
+DB.find(x=>x.ID==id);
 
 if(item){
 
@@ -470,7 +526,8 @@ save();
 
 function updateStatus(id,val){
 
-let item = DB.find(x=>x.ID==id);
+let item =
+DB.find(x=>x.ID==id);
 
 if(item){
 
@@ -490,9 +547,11 @@ renderStats();
 
 function removeRecord(id){
 
-if(!confirm("Delete record?")) return;
+if(!confirm("Delete record?"))
+return;
 
-DB = DB.filter(x=>x.ID!=id);
+DB =
+DB.filter(x=>x.ID!=id);
 
 save();
 
@@ -506,7 +565,8 @@ render();
 
 function exportDB(){
 
-let blob = new Blob(
+let blob =
+new Blob(
 [
 JSON.stringify(DB,null,2)
 ],
@@ -515,11 +575,14 @@ type:"application/json"
 }
 );
 
-let a = document.createElement("a");
+let a =
+document.createElement("a");
 
-a.href = URL.createObjectURL(blob);
+a.href =
+URL.createObjectURL(blob);
 
-a.download = "vault_backup.json";
+a.download =
+"vault_backup.json";
 
 a.click();
 
@@ -531,7 +594,8 @@ a.click();
 
 function importDB(){
 
-let file = document.getElementById("importFile").files[0];
+let file =
+document.getElementById("importFile").files[0];
 
 if(!file){
 
@@ -541,13 +605,15 @@ return;
 
 }
 
-let reader = new FileReader();
+let reader =
+new FileReader();
 
 reader.onload = e => {
 
 try{
 
-DB = JSON.parse(e.target.result);
+DB =
+JSON.parse(e.target.result);
 
 save();
 
@@ -568,7 +634,7 @@ reader.readAsText(file);
 }
 
 ////////////////////////////////////////////////////
-// FILTERING
+// SEARCH / FILTER
 ////////////////////////////////////////////////////
 
 function getView(){
@@ -577,25 +643,30 @@ let list = [...DB];
 
 if(search){
 
-list = list.filter(x=>
+list = list.filter(x=>{
 
-(x.Name||"")
-.toLowerCase()
-.includes(search)
+let blob = `
 
-||
+${x.ID||""}
+${x.Name||""}
+${x.Address||""}
+${x.Status||""}
+${x.Notes||""}
+${x.RawOCR||""}
 
-(x.Address||"")
-.toLowerCase()
-.includes(search)
+`
+.toLowerCase();
 
-);
+return blob.includes(search);
+
+});
 
 }
 
 if(filter!=="ALL"){
 
-list = list.filter(
+list =
+list.filter(
 x=>x.Status===filter
 );
 
@@ -615,16 +686,24 @@ let total =
 DB.length;
 
 let pending =
-DB.filter(x=>x.Status==="PENDING").length;
+DB.filter(
+x=>x.Status==="PENDING"
+).length;
 
 let sent =
-DB.filter(x=>x.Status==="SENT").length;
+DB.filter(
+x=>x.Status==="SENT"
+).length;
 
 let success =
-DB.filter(x=>x.Status==="SUCCESS").length;
+DB.filter(
+x=>x.Status==="SUCCESS"
+).length;
 
 let rts =
-DB.filter(x=>x.Status==="RTS").length;
+DB.filter(
+x=>x.Status==="RTS"
+).length;
 
 document.getElementById("stats").innerHTML = `
 
@@ -658,7 +737,8 @@ RTS<br>${rts}
 
 function render(){
 
-let list = getView();
+let list =
+getView();
 
 document.getElementById("list").innerHTML =
 
@@ -717,6 +797,20 @@ DELETE
 <div class="small">
 ID: ${r.ID}
 </div>
+
+${
+r.RawOCR
+?
+
+`<div class="raw">
+${escapeHTML(r.RawOCR)}
+</div>`
+
+:
+
+""
+
+}
 
 </div>
 
