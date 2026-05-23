@@ -3,15 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS OCR Tracker</title>
+<title>VaultOS OCR Tracker (Upgraded)</title>
 
-<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 
 <style>
-
-*{
-box-sizing:border-box;
-}
+*{box-sizing:border-box;}
 
 body{
 margin:0;
@@ -43,17 +40,20 @@ font-size:14px;
 button{
 cursor:pointer;
 background:#111;
+min-height:44px;
 }
 
-button:hover{
-background:#1b1b1b;
-}
+button:hover{background:#1b1b1b;}
 
 .row{
 display:flex;
 gap:8px;
 padding:10px;
 flex-wrap:wrap;
+position:sticky;
+bottom:0;
+background:#000;
+z-index:20;
 }
 
 .row button{
@@ -100,10 +100,7 @@ margin-top:5px;
 word-break:break-word;
 }
 
-textarea{
-min-height:90px;
-resize:vertical;
-}
+textarea{min-height:90px;resize:vertical;}
 
 .raw{
 background:#050505;
@@ -119,93 +116,42 @@ overflow:auto;
 }
 
 @media(max-width:700px){
-
-.grid{
-grid-template-columns:repeat(2,1fr);
+.grid{grid-template-columns:repeat(2,1fr);}
 }
-
-}
-
 </style>
 </head>
 
 <body>
 
 <header>
-
-<input
-id="search"
-placeholder="Search ALL records..."
->
-
+<input id="search" placeholder="Search ALL records...">
 </header>
 
 <div class="row">
-
-<button onclick="setFilter('ALL')">
-ALL
-</button>
-
-<button onclick="setFilter('PENDING')">
-PENDING
-</button>
-
-<button onclick="setFilter('SENT')">
-SENT
-</button>
-
-<button onclick="setFilter('SUCCESS')">
-SIGNED
-</button>
-
-<button onclick="setFilter('RTS')">
-RTS
-</button>
-
+<button onclick="setFilter('ALL')">ALL</button>
+<button onclick="setFilter('PENDING')">PENDING</button>
+<button onclick="setFilter('SENT')">SENT</button>
+<button onclick="setFilter('SUCCESS')">SIGNED</button>
+<button onclick="setFilter('RTS')">RTS</button>
 </div>
 
 <div id="stats" class="grid"></div>
 
 <div class="section">
-
 <h3>📸 OCR IMPORT</h3>
-
-<input
-type="file"
-id="ocrInput"
-accept="image/*"
->
-
-<button onclick="extractOCR()">
-Extract & Create Record
-</button>
-
-<div class="small">
-Upload envelope / letter / label image
-</div>
-
+<input type="file" id="ocrInput" accept="image/*">
+<button onclick="extractOCR()">Extract & Create Record</button>
+<div class="small">Upload envelope / letter / label image</div>
 </div>
 
 <div class="row">
-
-<button onclick="add()">
-+ ADD MANUAL
-</button>
-
-<button onclick="exportDB()">
-EXPORT
-</button>
-
+<button onclick="addManual()">+ ADD MANUAL</button>
+<button onclick="exportDB()">EXPORT</button>
 </div>
 
 <div class="section">
-
 <input type="file" id="importFile">
-
-<button onclick="importDB()">
-IMPORT BACKUP
-</button>
-
+<button onclick="importDB()">IMPORT BACKUP</button>
 </div>
 
 <div id="list"></div>
@@ -213,623 +159,315 @@ IMPORT BACKUP
 <script>
 
 ////////////////////////////////////////////////////
-// MASTER DATA
+// MASTER DATA (immutable clone)
 ////////////////////////////////////////////////////
-
-const MASTER_DATA = [
-
+const MASTER_DATA = () => ([
 {
-ID:1,
-Name:"Jannik Sinner",
-Address:"",
-Status:"SUCCESS"
+ID:1,Name:"Jannik Sinner",Address:"",Status:"SUCCESS",
+CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
 },
-
 {
-ID:2,
-Name:"Keanu Reeves",
-Address:"",
-Status:"RTS"
+ID:2,Name:"Keanu Reeves",Address:"",Status:"RTS",
+CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
 },
-
 {
-ID:3,
-Name:"Alan Carr",
-Address:"",
-Status:"SUCCESS"
+ID:3,Name:"Alan Carr",Address:"",Status:"SUCCESS",
+CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
 },
-
 {
-ID:4,
-Name:"Harry Kane",
-Address:"",
-Status:"PENDING"
+ID:4,Name:"Harry Kane",Address:"",Status:"PENDING",
+CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
 },
-
 {
-ID:5,
-Name:"David Attenborough",
-Address:"",
-Status:"SUCCESS"
+ID:5,Name:"David Attenborough",Address:"",Status:"SUCCESS",
+CreatedAt:Date.now(),UpdatedAt:Date.now(),History:[]
 }
-
-];
+]);
 
 ////////////////////////////////////////////////////
-// DATABASE
-////////////////////////////////////////////////////
-
 let DB = load();
-
 function load(){
-
-let raw =
-localStorage.getItem("vault_os_ocr");
-
+let raw = localStorage.getItem("vault_os_ocr");
 if(raw){
-
-try{
-return JSON.parse(raw);
-}catch(e){}
-
+try{return JSON.parse(raw);}catch(e){}
 }
-
-return MASTER_DATA;
-
+return MASTER_DATA();
 }
-
 function save(){
-
-localStorage.setItem(
-"vault_os_ocr",
-JSON.stringify(DB)
-);
-
+localStorage.setItem("vault_os_ocr",JSON.stringify(DB));
 }
 
 ////////////////////////////////////////////////////
-// STATE
+// STATE + DEBOUNCE
 ////////////////////////////////////////////////////
-
 let search = "";
 let filter = "ALL";
+let timer;
 
 document.getElementById("search").addEventListener("input", e=>{
-
-search =
-String(e.target.value || "")
-.toLowerCase()
-.trim();
-
+clearTimeout(timer);
+timer = setTimeout(()=>{
+search = e.target.value.toLowerCase().trim();
 render();
-
+},150);
 });
 
 function setFilter(f){
-
 filter = f;
-
 render();
-
 }
 
 ////////////////////////////////////////////////////
-// HELPERS
+// SAFE DOM HELPERS
 ////////////////////////////////////////////////////
-
-function escapeHTML(str=""){
-
-return String(str)
-.replace(/&/g,"&amp;")
-.replace(/</g,"&lt;")
-.replace(/>/g,"&gt;")
-.replace(/"/g,"&quot;")
-.replace(/'/g,"&#039;");
-
+function el(tag, props={}, children=[]){
+const node = document.createElement(tag);
+Object.entries(props).forEach(([k,v])=>{
+if(k==="class") node.className=v;
+else if(k==="html") node.innerHTML=v;
+else node[k]=v;
+});
+children.forEach(c=>node.appendChild(c));
+return node;
 }
 
 ////////////////////////////////////////////////////
 // ADD MANUAL
 ////////////////////////////////////////////////////
-
-function add(){
-
+function addManual(){
 let name = prompt("Name:");
-
 if(!name) return;
 
 DB.unshift({
-
 ID:Date.now(),
 Name:name,
 Address:"",
 Status:"PENDING",
 Notes:"",
-RawOCR:""
-
+RawOCR:"",
+CreatedAt:Date.now(),
+UpdatedAt:Date.now(),
+History:[]
 });
 
 save();
-
 render();
-
 }
 
 ////////////////////////////////////////////////////
 // OCR
 ////////////////////////////////////////////////////
-
 async function extractOCR(){
 
-let file =
-document.getElementById("ocrInput").files[0];
-
-if(!file){
-
-alert("Upload image first");
-
-return;
-
-}
-
-try{
+let file = document.getElementById("ocrInput").files[0];
+if(!file) return alert("Upload image first");
 
 alert("Running OCR...");
 
-const result =
-await Tesseract.recognize(
-file,
-"eng",
-{
-logger:m=>console.log(m)
-}
-);
+try{
 
-const text =
-result.data.text;
+const result = await Tesseract.recognize(file,"eng");
+const text = result.data.text || "";
 
-console.log("OCR:",text);
+if(!text.trim()) return alert("No text detected");
 
-if(!text || text.trim()===""){
-
-alert("No text detected");
-
-return;
-
-}
-
-const parsed =
-parseText(text);
-
+const parsed = parseText(text);
 createFromOCR(parsed);
 
-}catch(err){
-
-console.error(err);
-
+}catch(e){
+console.error(e);
 alert("OCR FAILED");
-
 }
-
 }
 
 ////////////////////////////////////////////////////
-// OCR PARSER
+// OCR PARSER (improved)
 ////////////////////////////////////////////////////
-
 function parseText(text){
 
-let lines = text
+const lines = text
 .split("\n")
 .map(x=>x.trim())
-.filter(x=>x.length>1);
+.filter(Boolean);
 
-let name = "Unknown";
+let name = lines.find(l=>
+/^[A-Z][A-Za-z'-.]+(\s[A-Z][A-Za-z'-.]+)+$/.test(l) ||
+l === l.toUpperCase()
+) || lines[0] || "Unknown";
 
-for(let line of lines){
+let address = lines.filter(l=>l!==name).slice(0,6).join(", ");
 
-if(
-/^[A-Z][a-z]+(\s[A-Z][a-z]+)+$/.test(line)
-){
-
-name = line;
-
-break;
-
+return {name,address,raw:text};
 }
-
-}
-
-if(name==="Unknown" && lines[0]){
-
-name = lines[0];
-
-}
-
-let address =
-lines
-.filter(x=>x!==name)
-.slice(0,5)
-.join(", ");
-
-return {
-
-name,
-address,
-raw:text
-
-};
-
-}
-
-////////////////////////////////////////////////////
-// CREATE RECORD
-////////////////////////////////////////////////////
 
 function createFromOCR(data){
 
 DB.unshift({
-
 ID:Date.now(),
 Name:data.name,
 Address:data.address,
 Status:"PENDING",
 Notes:"OCR IMPORT",
-RawOCR:data.raw
-
+RawOCR:data.raw,
+CreatedAt:Date.now(),
+UpdatedAt:Date.now(),
+History:[]
 });
 
 save();
-
 render();
-
 alert("OCR RECORD CREATED");
-
 }
 
 ////////////////////////////////////////////////////
 // UPDATE
 ////////////////////////////////////////////////////
+function updateField(id,field,val){
+let item = DB.find(x=>x.ID===id);
+if(!item) return;
 
-function updateName(id,val){
+const oldStatus = item.Status;
 
-let item =
-DB.find(x=>x.ID==id);
+item[field]=val;
+item.UpdatedAt=Date.now();
 
-if(item){
-
-item.Name = val;
+if(field==="Status"){
+item.History.push({
+from:oldStatus,
+to:val,
+date:Date.now()
+});
+}
 
 save();
-
-}
-
-}
-
-function updateAddress(id,val){
-
-let item =
-DB.find(x=>x.ID==id);
-
-if(item){
-
-item.Address = val;
-
-save();
-
-}
-
-}
-
-function updateStatus(id,val){
-
-let item =
-DB.find(x=>x.ID==id);
-
-if(item){
-
-item.Status = val;
-
-save();
-
 renderStats();
-
-}
-
 }
 
 ////////////////////////////////////////////////////
 // DELETE
 ////////////////////////////////////////////////////
-
 function removeRecord(id){
-
-if(!confirm("Delete record?"))
-return;
-
-DB =
-DB.filter(x=>x.ID!=id);
-
+if(!confirm("Delete record?")) return;
+DB = DB.filter(x=>x.ID!==id);
 save();
-
 render();
-
 }
 
 ////////////////////////////////////////////////////
-// EXPORT
+// EXPORT / IMPORT
 ////////////////////////////////////////////////////
-
 function exportDB(){
-
-let blob =
-new Blob(
-[
-JSON.stringify(DB,null,2)
-],
-{
-type:"application/json"
-}
-);
-
-let a =
-document.createElement("a");
-
-a.href =
-URL.createObjectURL(blob);
-
-a.download =
-"vault_backup.json";
-
+const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+const a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="vault_backup.json";
 a.click();
-
 }
-
-////////////////////////////////////////////////////
-// IMPORT
-////////////////////////////////////////////////////
 
 function importDB(){
+let file=document.getElementById("importFile").files[0];
+if(!file) return alert("Select file");
 
-let file =
-document.getElementById("importFile").files[0];
-
-if(!file){
-
-alert("Select file");
-
-return;
-
-}
-
-let reader =
-new FileReader();
-
-reader.onload = e => {
-
+let reader=new FileReader();
+reader.onload=e=>{
 try{
-
-DB =
-JSON.parse(e.target.result);
-
+DB=JSON.parse(e.target.result);
 save();
-
 render();
-
 alert("IMPORT COMPLETE");
-
-}catch(err){
-
+}catch{
 alert("INVALID FILE");
-
 }
-
 };
-
 reader.readAsText(file);
-
 }
 
 ////////////////////////////////////////////////////
-// SEARCH + FILTER
+// FILTER VIEW
 ////////////////////////////////////////////////////
-
 function getView(){
+let list=[...DB];
 
-let list = [...DB];
-
-//////////////////////////////////////////////////
-// SEARCH
-//////////////////////////////////////////////////
-
-if(search && search.trim()!==""){
-
-const q = search.toLowerCase().trim();
-
-list = list.filter(record=>{
-
-const values = [
-
-record.ID,
-record.Name,
-record.Address,
-record.Status,
-record.Notes,
-record.RawOCR
-
-];
-
-const searchable = values
-.map(v => String(v || "").toLowerCase())
-.join(" ");
-
-return searchable.includes(q);
-
-});
-
+if(search){
+list=list.filter(r=>
+JSON.stringify(r).toLowerCase().includes(search)
+);
 }
 
-//////////////////////////////////////////////////
-// FILTER
-//////////////////////////////////////////////////
-
-if(filter !== "ALL"){
-
-list = list.filter(
-x => x.Status === filter
-);
-
+if(filter!=="ALL"){
+list=list.filter(x=>x.Status===filter);
 }
 
 return list;
-
 }
 
 ////////////////////////////////////////////////////
 // STATS
 ////////////////////////////////////////////////////
-
 function renderStats(){
+const count = s => DB.filter(x=>x.Status===s).length;
 
-let total =
-DB.length;
-
-let pending =
-DB.filter(
-x=>x.Status==="PENDING"
-).length;
-
-let sent =
-DB.filter(
-x=>x.Status==="SENT"
-).length;
-
-let success =
-DB.filter(
-x=>x.Status==="SUCCESS"
-).length;
-
-let rts =
-DB.filter(
-x=>x.Status==="RTS"
-).length;
-
-document.getElementById("stats").innerHTML = `
-
-<div class="box">
-TOTAL<br>${total}
-</div>
-
-<div class="box">
-PENDING<br>${pending}
-</div>
-
-<div class="box">
-SENT<br>${sent}
-</div>
-
-<div class="box">
-SIGNED<br>${success}
-</div>
-
-<div class="box">
-RTS<br>${rts}
-</div>
-
+document.getElementById("stats").innerHTML=`
+<div class="box">TOTAL<br>${DB.length}</div>
+<div class="box">PENDING<br>${count("PENDING")}</div>
+<div class="box">SENT<br>${count("SENT")}</div>
+<div class="box">SIGNED<br>${count("SUCCESS")}</div>
+<div class="box">RTS<br>${count("RTS")}</div>
 `;
-
 }
 
 ////////////////////////////////////////////////////
-// RENDER
+// RENDER (DOM-based)
 ////////////////////////////////////////////////////
-
 function render(){
 
-let list =
-getView();
+const list = getView();
+const root = document.getElementById("list");
+root.innerHTML="";
 
-document.getElementById("list").innerHTML =
+list.forEach(r=>{
 
-list.map(r=>`
+const card = el("div",{class:"card"});
 
-<div class="card">
+const name = el("input",{value:r.Name});
+name.addEventListener("change",e=>{
+updateField(r.ID,"Name",e.target.value);
+});
 
-<input
-value="${escapeHTML(r.Name||"")}"
-onchange="updateName(${r.ID},this.value)"
->
+const addr = el("textarea",{textContent:r.Address});
+addr.addEventListener("change",e=>{
+updateField(r.ID,"Address",e.target.value);
+});
 
-<textarea
-placeholder="Address"
-onchange="updateAddress(${r.ID},this.value)"
->${escapeHTML(r.Address||"")}</textarea>
+const status = el("select");
+["PENDING","SENT","SUCCESS","RTS"].forEach(s=>{
+const opt = el("option",{value:s,innerHTML:s});
+if(r.Status===s) opt.selected=true;
+status.appendChild(opt);
+});
+status.addEventListener("change",e=>{
+updateField(r.ID,"Status",e.target.value);
+});
 
-<select
-onchange="updateStatus(${r.ID},this.value)"
->
+const del = el("button",{innerHTML:"DELETE"});
+del.addEventListener("click",()=>removeRecord(r.ID));
 
-<option
-value="PENDING"
-${r.Status==="PENDING"?"selected":""}
->
-PENDING
-</option>
+card.appendChild(name);
+card.appendChild(addr);
+card.appendChild(status);
+card.appendChild(del);
 
-<option
-value="SENT"
-${r.Status==="SENT"?"selected":""}
->
-SENT
-</option>
+card.appendChild(el("div",{class:"small",innerHTML:`ID: ${r.ID}`}));
 
-<option
-value="SUCCESS"
-${r.Status==="SUCCESS"?"selected":""}
->
-SUCCESS
-</option>
-
-<option
-value="RTS"
-${r.Status==="RTS"?"selected":""}
->
-RTS
-</option>
-
-</select>
-
-<button onclick="removeRecord(${r.ID})">
-DELETE
-</button>
-
-<div class="small">
-ID: ${r.ID}
-</div>
-
-${
-r.RawOCR
-?
-
-`<div class="raw">
-${escapeHTML(r.RawOCR)}
-</div>`
-
-:
-
-""
-
+if(r.RawOCR){
+card.appendChild(el("div",{class:"raw",textContent:r.RawOCR}));
 }
 
-</div>
-
-`).join("");
+root.appendChild(card);
+});
 
 renderStats();
-
 }
-
-////////////////////////////////////////////////////
 
 render();
 
