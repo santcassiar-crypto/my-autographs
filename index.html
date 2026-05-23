@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS - Bulletproof Ops Engine</title>
+<title>VaultOS - Stable Ops Engine</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 
@@ -17,13 +17,15 @@ background:#000;color:#fff;border:1px solid #333;border-radius:8px
 }
 
 button{cursor:pointer;background:#111}
-button:hover{background:#1c1c1c}
+button:hover{background:#1b1b1b}
 
 .card{background:#111;margin:10px;padding:10px;border-radius:10px;border:1px solid #222}
 .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px}
 .box{background:#111;border:1px solid #222;padding:10px;border-radius:8px;text-align:center}
 .small{font-size:11px;color:#888}
+
 .section{margin:10px;padding:10px;background:#0d0d0d;border:1px solid #222;border-radius:10px}
+
 .queue{background:#0a0a0a;border:1px solid #333;padding:10px;margin:10px;border-radius:10px}
 </style>
 </head>
@@ -31,26 +33,31 @@ button:hover{background:#1c1c1c}
 <body>
 
 <header>
-<input id="search" placeholder="Search records (full index)">
+<input id="search" placeholder="Search name, address, status, OCR...">
 </header>
 
 <div class="grid" id="stats"></div>
 
 <div class="section">
-<h3>🧠 NEXT ACTION (AUTO ENGINE)</h3>
+<h3>🧠 NEXT TO SEND</h3>
 <div id="next"></div>
 </div>
 
 <div class="section">
-<h3>📸 OCR</h3>
+<h3>📦 SENT OUTBOX</h3>
+<div id="outbox"></div>
+</div>
+
+<div class="section">
+<h3>📸 OCR IMPORT</h3>
 <input type="file" id="ocr">
-<button onclick="ocr()">Process OCR</button>
+<button onclick="runOCR()">Process OCR</button>
 </div>
 
 <div class="section">
 <button onclick="add()">+ ADD</button>
 <button onclick="exportDB()">EXPORT</button>
-<button onclick="recover()">RECOVER SAFE STATE</button>
+<button onclick="recover()">RECOVER</button>
 </div>
 
 <div id="list"></div>
@@ -58,163 +65,88 @@ button:hover{background:#1c1c1c}
 <script>
 
 ////////////////////////////////////////////////////
-// BULLETPROOF CORE DB ENGINE (WAL + SNAPSHOT)
+// STORAGE ENGINE (SAFE SNAPSHOT + WAL)
 ////////////////////////////////////////////////////
+const SNAP="vault_snap_v4";
+const WALKEY="vault_wal_v4";
 
-const KEY_DB = "vault_db_v3";
-const KEY_WAL = "vault_wal_v3";
-const KEY_SNAP = "vault_snap_v3";
-
-let DB = [];
-let WAL = loadWAL();
-let saveQueue = false;
-
-function now(){ return Date.now(); }
+let DB=[];
+let WAL=JSON.parse(localStorage.getItem(WALKEY)||"[]");
 
 function uid(){
-return now() + Math.random().toString(16).slice(2);
+return Date.now()+"_"+Math.random().toString(16).slice(2);
 }
 
-////////////////////////////////////////////////////
-// LOAD + REBUILD (CRASH SAFE)
-////////////////////////////////////////////////////
-function loadWAL(){
-try{
-return JSON.parse(localStorage.getItem(KEY_WAL)||"[]");
-}catch(e){return []}
+function saveSnapshot(){
+localStorage.setItem(SNAP,JSON.stringify(DB));
+localStorage.setItem(WALKEY,"[]");
+WAL=[];
+}
+
+function log(op){
+WAL.push(op);
+localStorage.setItem(WALKEY,JSON.stringify(WAL));
 }
 
 function load(){
 try{
-
-let snap = localStorage.getItem(KEY_SNAP);
-if(snap){
-DB = JSON.parse(snap);
+let snap=localStorage.getItem(SNAP);
+if(snap) DB=JSON.parse(snap);
+}catch(e){DB=[]}
 }
 
-for(let op of WAL){
-apply(op,true);
-}
-
-}catch(e){
-DB=[];
-}
-}
-
-////////////////////////////////////////////////////
-// WRITE AHEAD LOG (NO LOSS GUARANTEE)
-////////////////////////////////////////////////////
-function log(op){
-WAL.push(op);
-localStorage.setItem(KEY_WAL,JSON.stringify(WAL));
-}
-
-function commitSnapshot(){
-localStorage.setItem(KEY_SNAP,JSON.stringify(DB));
-WAL=[];
-localStorage.setItem(KEY_WAL,"[]");
-}
-
-////////////////////////////////////////////////////
-// SAFE APPLY OPS
-////////////////////////////////////////////////////
-function apply(op,skipLog){
-
-switch(op.type){
-
-case "ADD":
-DB.unshift(op.data);
-break;
-
-case "UPDATE":
-let r=DB.find(x=>x.ID===op.id);
-if(r){
-r[op.key]=op.value;
-r.UpdatedAt=now();
-}
-break;
-
-case "DELETE":
-DB=DB.filter(x=>x.ID!==op.id);
-break;
-
-case "STATUS":
-let s=DB.find(x=>x.ID===op.id);
-if(s){
-s.Status=op.value;
-s.UpdatedAt=now();
-}
-break;
-
-}
-
-if(!skipLog) save();
-}
-
-////////////////////////////////////////////////////
-// SAVE PIPELINE (DEBOUNCED + SAFE)
-////////////////////////////////////////////////////
-function save(){
-if(saveQueue) return;
-saveQueue=true;
-
-setTimeout(()=>{
-commitSnapshot();
-saveQueue=false;
+function recover(){
+saveSnapshot();
+alert("Recovered clean snapshot");
 render();
-},300);
 }
 
-////////////////////////////////////////////////////
-// INIT
-////////////////////////////////////////////////////
 load();
 
 ////////////////////////////////////////////////////
-// SEARCH
+// SEARCH (FIXED)
 ////////////////////////////////////////////////////
 let search="";
 document.getElementById("search").addEventListener("input",e=>{
-search=e.target.value.toLowerCase();
+search=e.target.value.toLowerCase().trim();
 render();
 });
 
+function match(r,q){
+if(!q) return true;
+
+const text=[
+r.ID,
+r.Name,
+r.Address,
+r.Status,
+r.RawOCR
+].join(" ").toLowerCase();
+
+return text.includes(q);
+}
+
 ////////////////////////////////////////////////////
-// OPS ENGINE (WHO NEXT)
+// OPS ENGINE
 ////////////////////////////////////////////////////
 function nextCandidate(){
-
-let pool = DB.filter(x=>x.Status==="PENDING"||x.Status==="RTS");
+let pool=DB.filter(x=>x.Status==="PENDING"||x.Status==="RTS");
 if(pool.length===0) return null;
 
-pool.sort((a,b)=>
-(priorityScore(b)-priorityScore(a))
-);
+pool.sort((a,b)=>{
+return score(b)-score(a);
+});
 
 return pool[0];
 }
 
-function priorityScore(r){
-let age = now()-(r.UpdatedAt||0);
-let base = r.Status==="RTS"?100:50;
-return base + age/100000;
+function score(r){
+let age=Date.now()-(r.UpdatedAt||0);
+return (r.Status==="RTS"?100:50)+age/100000;
 }
 
 ////////////////////////////////////////////////////
-// OPS STATS
-////////////////////////////////////////////////////
-function stats(){
-return {
-total:DB.length,
-pending:DB.filter(x=>x.Status==="PENDING").length,
-sent:DB.filter(x=>x.Status==="SENT").length,
-success:DB.filter(x=>x.Status==="SUCCESS").length,
-rts:DB.filter(x=>x.Status==="RTS").length
-};
-}
-
-////////////////////////////////////////////////////
-// ACTIONS (ALL LOGGED)
+// CRUD
 ////////////////////////////////////////////////////
 function add(){
 let r={
@@ -222,34 +154,47 @@ ID:uid(),
 Name:"New Record",
 Address:"",
 Status:"PENDING",
-CreatedAt:now(),
-UpdatedAt:now(),
-History:[]
+CreatedAt:Date.now(),
+UpdatedAt:Date.now()
 };
 
 log({type:"ADD",data:r});
-apply({type:"ADD",data:r});
+DB.unshift(r);
+render();
 }
 
-function update(id,key,value){
-log({type:"UPDATE",id,key,value});
-apply({type:"UPDATE",id,key,value});
+function update(id,key,val){
+let r=DB.find(x=>x.ID===id);
+if(!r) return;
+
+r[key]=val;
+r.UpdatedAt=Date.now();
+
+log({type:"UPDATE",id,key,val});
+render();
 }
 
-function setStatus(id,value){
-log({type:"STATUS",id,value});
-apply({type:"STATUS",id,value});
+function setStatus(id,val){
+let r=DB.find(x=>x.ID===id);
+if(!r) return;
+
+r.Status=val;
+r.UpdatedAt=Date.now();
+
+log({type:"STATUS",id,val});
+render();
 }
 
-function remove(id){
+function del(id){
+DB=DB.filter(x=>x.ID!==id);
 log({type:"DELETE",id});
-apply({type:"DELETE",id});
+render();
 }
 
 ////////////////////////////////////////////////////
 // OCR
 ////////////////////////////////////////////////////
-async function ocr(){
+async function runOCR(){
 let f=document.getElementById("ocr").files[0];
 if(!f) return alert("No file");
 
@@ -261,42 +206,46 @@ ID:uid(),
 Name:text.split("\n")[0]||"OCR",
 Address:text,
 Status:"PENDING",
-CreatedAt:now(),
-UpdatedAt:now(),
-History:[]
+RawOCR:text,
+CreatedAt:Date.now(),
+UpdatedAt:Date.now()
 };
 
+DB.unshift(r);
 log({type:"ADD",data:r});
-apply({type:"ADD",data:r});
-}
-
-////////////////////////////////////////////////////
-// RECOVERY
-////////////////////////////////////////////////////
-function recover(){
-WAL = [];
-localStorage.setItem(KEY_WAL,"[]");
-commitSnapshot();
-alert("Recovered clean snapshot state");
 render();
 }
 
 ////////////////////////////////////////////////////
-// EXPORT
+// OUTBOX
 ////////////////////////////////////////////////////
-function exportDB(){
-let b=new Blob([JSON.stringify(DB)],{type:"application/json"});
-let a=document.createElement("a");
-a.href=URL.createObjectURL(b);
-a.download="vault_bulletproof.json";
-a.click();
+function renderOutbox(){
+let sent=DB.filter(x=>x.Status==="SENT"||x.Status==="SUCCESS");
+
+document.getElementById("outbox").innerHTML=
+sent.map(r=>`
+<div class="card">
+<b>${r.Name}</b><br>
+<span>${r.Status}</span><br>
+<div class="small">${r.Address||""}</div>
+</div>
+`).join("") || "No sends yet";
 }
 
 ////////////////////////////////////////////////////
-// RENDER
+// STATS
 ////////////////////////////////////////////////////
-function render(){
+function stats(){
+return {
+total:DB.length,
+pending:DB.filter(x=>x.Status==="PENDING").length,
+sent:DB.filter(x=>x.Status==="SENT").length,
+success:DB.filter(x=>x.Status==="SUCCESS").length,
+rts:DB.filter(x=>x.Status==="RTS").length
+};
+}
 
+function renderStats(){
 let s=stats();
 
 document.getElementById("stats").innerHTML=`
@@ -306,23 +255,30 @@ document.getElementById("stats").innerHTML=`
 <div class="box">SIGNED<br>${s.success}</div>
 <div class="box">RTS<br>${s.rts}</div>
 `;
+}
+
+////////////////////////////////////////////////////
+// RENDER
+////////////////////////////////////////////////////
+function render(){
+
+renderStats();
+renderOutbox();
 
 let next=nextCandidate();
+
 document.getElementById("next").innerHTML=
 next?
 `<div class="queue">
 <b>${next.Name}</b><br><br>
 <button onclick="setStatus('${next.ID}','SENT')">Mark SENT</button>
 </div>`
-:
-"Nothing pending";
+:"Nothing pending";
 
 let root=document.getElementById("list");
 root.innerHTML="";
 
-let view=DB.filter(r=>
-JSON.stringify(r).toLowerCase().includes(search)
-);
+let view=DB.filter(r=>match(r,search));
 
 for(let r of view){
 
@@ -340,7 +296,7 @@ div.innerHTML=`
 <option ${r.Status==="RTS"?"selected":""}>RTS</option>
 </select>
 
-<button onclick="remove('${r.ID}')">DELETE</button>
+<button onclick="del('${r.ID}')">DELETE</button>
 
 <div class="small">ID: ${r.ID}</div>
 `;
@@ -348,6 +304,18 @@ div.innerHTML=`
 root.appendChild(div);
 }
 
+saveSnapshot();
+}
+
+////////////////////////////////////////////////////
+// EXPORT
+////////////////////////////////////////////////////
+function exportDB(){
+let b=new Blob([JSON.stringify(DB)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(b);
+a.download="vault_export.json";
+a.click();
 }
 
 render();
