@@ -264,4 +264,17 @@ document.getElementById("stats").innerHTML=
 <div class='box'><h2>${s.success}</h2><div class='small'>SUCCESS</div></div>
 <div class='box'><h2>${s.pending}</h2><div class='small'>PENDING</div></div>`;
 
-let q=se
+let q=search.toLowerCase();
+document.getElementById("list").innerHTML=
+DB.filter(r=>!q||r.Name.toLowerCase().includes(q))
+.map(r=>`<div class='card'><b>${r.Name}</b><div class='small'>${r.Status}</div></div>`).join("");
+}
+
+document.getElementById("search").addEventListener("input",e=>{search=e.target.value;render();});
+
+load();
+
+</script>
+
+</body>
+</html>
