@@ -1,59 +1,69 @@
 
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Ultimate Intelligence Rebuild</title>
+<title>VaultOS v3 — Intelligence Layer</title>
 
 <style>
 *{box-sizing:border-box}
 body{
 margin:0;
 font-family:Arial;
-background:radial-gradient(circle at top,#111,#000 70%);
+background:radial-gradient(circle at top,#111,#000);
 color:#fff;
 }
+
 header{
-position:sticky;
-top:0;
-z-index:999;
-background:#0b0b0bee;
+position:sticky;top:0;
+background:rgba(10,10,10,.95);
 padding:14px;
 border-bottom:1px solid #222;
-backdrop-filter:blur(8px);
+backdrop-filter:blur(10px);
+z-index:10;
 }
-.title{font-size:26px;font-weight:bold}
+
+.title{font-size:20px;font-weight:bold}
 .subtitle{font-size:12px;color:#888}
-input,select,button,textarea{
+
+input,select,button{
 width:100%;
-padding:12px;
+padding:10px;
 margin-top:8px;
-background:#0d0d0d;
-color:#fff;
+border-radius:10px;
 border:1px solid #333;
-border-radius:12px;
-font-size:13px;
+background:#0b0b0b;
+color:#fff;
 }
+
 button{cursor:pointer;font-weight:bold}
-button:hover{border-color:#666}
+button:hover{border-color:#777}
+
 .grid{
 display:grid;
-grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
 gap:10px;
-padding:12px;
+padding:10px;
 }
-.box,.card{
+
+.box{
 background:#111;
 border:1px solid #222;
-border-radius:16px;
-padding:14px;
+border-radius:14px;
+padding:12px;
+text-align:center;
 }
-.box{text-align:center}
-.card{margin:12px;transition:.2s}
-.card:hover{transform:translateY(-2px);border-color:#444}
-.small{font-size:11px;color:#888;margin-top:6px}
+
+.card{
+background:#111;
+border:1px solid #222;
+border-radius:14px;
+padding:12px;
+margin:10px;
+}
+
+.small{font-size:11px;color:#888}
 
 .status-success{border-left:4px solid #00ff99}
 .status-pending{border-left:4px solid orange}
@@ -61,217 +71,214 @@ padding:14px;
 .status-logged{border-left:4px solid #44aaff}
 .status-sent{border-left:4px solid violet}
 
-.ticker-wrap{overflow:hidden;background:#050505;border-bottom:1px solid #222;padding:8px}
-.ticker{white-space:nowrap;display:inline-block;padding-left:100%;animation:move 25s linear infinite;color:#00ffcc;font-size:12px}
-@keyframes move{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+.badge{
+font-size:11px;
+padding:3px 6px;
+border:1px solid #333;
+border-radius:6px;
+display:inline-block;
+margin-top:6px;
+color:#aaa;
+}
 </style>
-
 </head>
+
 <body>
 
 <header>
-<div class="title">🏆 VaultOS Ultimate Intelligence</div>
-<div class="subtitle">FULL REBUILD — Data + AI Decision Engine</div>
+<div class="title">🧠 VaultOS v3</div>
+<div class="subtitle">Intelligence + Dedup + Priority Engine</div>
 <input id="search" placeholder="Search vault...">
 </header>
 
-<div class="ticker-wrap">
-<div class="ticker">🧠 Full Intelligence Engine Active • 📊 130+ Targets Loaded • 🎯 Next Action System Running</div>
-</div>
-
 <div class="grid" id="stats"></div>
 
-<div class="card">
-<h3>🔥 TOP 10 NEXT ACTION</h3>
-<div id="topTargets"></div>
-</div>
-
-<div class="card">
-<h3>⚠️ RISK TARGETS</h3>
-<div id="riskList"></div>
-</div>
-
-<div class="card">
-<h3>📈 RETURN PROBABILITY</h3>
-<div id="returnList"></div>
-</div>
-
-<div class="card">
-<h3>➕ QUICK ADD</h3>
-<input id="newName" placeholder="Add new target...">
-<select id="newStatus">
-<option>PENDING</option>
-<option>SUCCESS</option>
-<option>RTS</option>
-<option>LOGGED</option>
-<option>Sent</option>
-</select>
-<button onclick="addEntry()">ADD</button>
-</div>
+<div id="top10"></div>
 
 <div id="list"></div>
 
 <script>
 
-const STORAGE_KEY="vault_full_rebuild_v1";
+const STORAGE_KEY="vault_v3";
+
 let DB=[];
 let search="";
 
-/* =========================
-   FULL DATASET (USER IMPORT)
-   ========================= */
+/* -------------------------
+FULL DATA LOAD (YOU PASTE)
+--------------------------*/
+const RAW = /* YOUR FULL JSON HERE */ null;
 
-const SEED = [
-{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
-{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
-{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
-{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
-{"ID":1779457496694,"Name":"George Graham - Home ","Status":"PENDING"},
-{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},
-{"ID":1779457437040,"Name":"Gosh4 Goals","Status":"PENDING"},
-{"ID":1779457382999,"Name":"San Antonio Training Centre ","Status":"PENDING"},
-{"ID":1779457367391,"Name":"OKC training centre","Status":"PENDING"},
-{"ID":1779457333472,"Name":"FC Barcelona - Training ground","Status":"PENDING"},
-{"ID":1779457307017,"Name":"Gary Oldman ","Status":"SUCCESS"},
-{"ID":1779457276281,"Name":"Arsenal womens team","Status":"PENDING"},
-{"ID":1779457232607,"Name":"Park theatre x 2 ","Status":"PENDING"},
-{"ID":1779457195881,"Name":"Jermery Sochan","Status":"PENDING"},
-{"ID":1779369334553,"Name":"Geoff Hurst ","Status":"LOGGED"},
-{"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},
-{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
-{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
-{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
-{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},
-{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},
-{"ID":6,"Name":"Paul Merson (Original)","Status":"SUCCESS"},
-{"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},
-{"ID":8,"Name":"Joshua Kimmich","Status":"SUCCESS"},
-{"ID":9,"Name":"Ron Ferdinand","Status":"SUCCESS"},
-{"ID":10,"Name":"Erling Haaland (City)","Status":"SUCCESS"},
-{"ID":11,"Name":"Lamine Yamal (Home)","Status":"RTS"},
-{"ID":12,"Name":"Rosie Jones","Status":"SUCCESS"},
-{"ID":13,"Name":"Kevin Bridges","Status":"SUCCESS"},
-{"ID":14,"Name":"Lee Mack","Status":"SUCCESS"},
-{"ID":15,"Name":"Chris Waddle","Status":"SUCCESS"},
-{"ID":16,"Name":"Ivo Graham","Status":"SUCCESS"},
-{"ID":17,"Name":"Josh Widdicombe","Status":"SUCCESS"},
-{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},
-{"ID":19,"Name":"Rob Beckett","Status":"SUCCESS"},
-{"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"},
-{"ID":21,"Name":"Tommy Fleetwood","Status":"SUCCESS"},
-{"ID":22,"Name":"Lamine Yamal (Club)","Status":"SUCCESS"},
-{"ID":24,"Name":"Sebastian Coe","Status":"RTS"},
-{"ID":25,"Name":"Hugh Bonneville","Status":"SUCCESS"},
-{"ID":26,"Name":"Erling Haaland (Academy)","Status":"SUCCESS"},
-{"ID":27,"Name":"Mark Addy","Status":"SUCCESS"},
-{"ID":28,"Name":"Mikel Arteta","Status":"Sent"},
-{"ID":29,"Name":"Billy Crudup","Status":"SUCCESS"},
-{"ID":30,"Name":"Cole Palmer","Status":"RTS"},
-{"ID":31,"Name":"Dougray Scott","Status":"PENDING"},
-{"ID":32,"Name":"Jude Bellingham","Status":"PENDING"},
-{"ID":33,"Name":"Kylian Mbappé","Status":"PENDING"},
-{"ID":34,"Name":"Kevin De Bruyne","Status":"PENDING"},
-{"ID":35,"Name":"Jack Wilshere","Status":"PENDING"},
-{"ID":36,"Name":"Usain Bolt","Status":"PENDING"},
-{"ID":37,"Name":"Dirk Nowitzki","Status":"PENDING"},
-{"ID":38,"Name":"Harry Kane (CK66)","Status":"PENDING"},
-{"ID":39,"Name":"Grant Hill","Status":"PENDING"},
-{"ID":40,"Name":"Paolo Banchero","Status":"PENDING"}
-];
+/* -------------------------
+STATUS NORMALISER
+--------------------------*/
+function normStatus(s){
+s=(s||"").toUpperCase();
+if(s.includes("RTS")) return "RTS";
+if(s.includes("SUCCESS")) return "SUCCESS";
+if(s.includes("LOGGED")) return "LOGGED";
+if(s.includes("SENT")) return "SENT";
+return "PENDING";
+}
 
-/* ========================= */
+/* -------------------------
+DEDUP ENGINE (by ID)
+--------------------------*/
+function dedupe(arr){
+const map=new Map();
+arr.forEach(x=>{
+if(!map.has(x.ID)) map.set(x.ID,x);
+else {
+map.set(x.ID,{
+...map.get(x.ID),
+...x
+});
+}
+});
+return [...map.values()];
+}
 
-function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));}
-
+/* -------------------------
+LOAD SYSTEM
+--------------------------*/
 function load(){
+
 let raw=localStorage.getItem(STORAGE_KEY);
-if(raw){DB=JSON.parse(raw);}else{DB=[...SEED];}
+
+if(raw){
+try{
+DB=dedupe(JSON.parse(raw));
+return render();
+}catch(e){}
+}
+
+if(RAW){
+DB=dedupe(RAW);
+save();
 render();
 }
+}
 
+function save(){
+localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
+}
+
+/* -------------------------
+SCORING ENGINE (INTELLIGENCE)
+--------------------------*/
 function score(r){
-let s=0;
-if(r.Status==="PENDING") s+=12;
-if(r.Status==="LOGGED") s+=3;
-if(r.Status==="Sent") s+=1;
-if(r.Status==="SUCCESS") return -999;
-if((r.Status||"").includes("RTS")) return -50;
-let n=(r.Name||"").toLowerCase();
-if(n.includes("football")||n.includes("arsenal")) s+=3;
-if(n.includes("film")||n.includes("cast")) s+=2;
-return s;
+
+let s=normStatus(r.Status);
+
+if(s==="SUCCESS") return 0;
+if(s==="RTS") return 10;
+if(s==="SENT") return 60;
+if(s==="LOGGED") return 70;
+
+return 90; // PENDING highest priority
 }
 
-function returnP(r){
-let base=60;
-if(r.Status==="RTS") base-=30;
-if(r.Status==="Sent") base+=10;
-if(r.Status==="SUCCESS") base=0;
-let n=(r.Name||"").toLowerCase();
-if(n.includes("football")) base+=10;
-if(n.includes("arsenal")) base+=8;
-return Math.max(0,Math.min(100,base));
-}
-
+/* -------------------------
+TOP 10 NEXT TARGETS
+--------------------------*/
 function top10(){
-let list=DB.filter(r=>r.Status!=="SUCCESS");
-let top=[...list].sort((a,b)=>score(b)-score(a)).slice(0,10);
-
-document.getElementById("topTargets").innerHTML=
-top.map(r=>`
-<div class='card'>
-<b>${r.Name}</b>
-<div class='small'>Score: ${score(r)}</div>
-<div class='small'>Return: ${returnP(r)}%</div>
-</div>`).join("");
+return [...DB]
+.filter(x=>normStatus(x.Status)!=="SUCCESS")
+.sort((a,b)=>score(b)-score(a))
+.slice(0,10);
 }
 
-function risk(){
-let top=[...DB].sort((a,b)=>score(a)-score(b)).slice(0,8);
+/* -------------------------
+STATS
+--------------------------*/
+function stats(){
+let total=DB.length;
+let success=DB.filter(x=>normStatus(x.Status)==="SUCCESS").length;
+let pending=DB.filter(x=>normStatus(x.Status)==="PENDING").length;
+let sent=DB.filter(x=>normStatus(x.Status)==="SENT").length;
+let rts=DB.filter(x=>normStatus(x.Status)==="RTS").length;
 
-document.getElementById("riskList").innerHTML=
-top.map(r=>`
-<div class='card'>
-<b>${r.Name}</b>
-<div class='small'>Status: ${r.Status}</div>
-</div>`).join("");
+return{total,success,pending,sent,rts};
 }
 
-function returns(){
-let top=[...DB].sort((a,b)=>returnP(b)-returnP(a)).slice(0,8);
+/* -------------------------
+SEARCH
+--------------------------*/
+document.getElementById("search").addEventListener("input",e=>{
+search=e.target.value.toLowerCase();
+render();
+});
 
-document.getElementById("returnList").innerHTML=
-top.map(r=>`
-<div class='card'>
-<b>${r.Name}</b>
-<div class='small'>Return: ${returnP(r)}%</div>
-</div>`).join("");
+function match(r){
+return !search || (r.Name||"").toLowerCase().includes(search);
 }
 
+/* -------------------------
+RENDER
+--------------------------*/
 function render(){
-let s={
-total:DB.length,
-pending:DB.filter(x=>x.Status==="PENDING").length,
-success:DB.filter(x=>x.Status==="SUCCESS").length
-};
 
-top10();
-risk();
-returns();
+let s=stats();
 
-document.getElementById("stats").innerHTML=
-`<div class='box'><h2>${s.total}</h2><div class='small'>TOTAL</div></div>
-<div class='box'><h2>${s.success}</h2><div class='small'>SUCCESS</div></div>
-<div class='box'><h2>${s.pending}</h2><div class='small'>PENDING</div></div>`;
+document.getElementById("stats").innerHTML=`
+<div class="box"><b>${s.total}</b><div class="small">TOTAL</div></div>
+<div class="box"><b>${s.success}</b><div class="small">SUCCESS</div></div>
+<div class="box"><b>${s.pending}</b><div class="small">PENDING</div></div>
+<div class="box"><b>${s.sent}</b><div class="small">SENT</div></div>
+<div class="box"><b>${s.rts}</b><div class="small">RTS</div></div>
+`;
 
-let q=search.toLowerCase();
+/* TOP 10 */
+document.getElementById("top10").innerHTML=`
+<div class="card">
+<h3>🔥 TOP 10 NEXT TARGETS</h3>
+${top10().map(x=>`
+<div class="badge">${x.Name} — ${normStatus(x.Status)}</div>
+`).join("")}
+</div>
+`;
+
+/* LIST */
 document.getElementById("list").innerHTML=
-DB.filter(r=>!q||r.Name.toLowerCase().includes(q))
-.map(r=>`<div class='card'><b>${r.Name}</b><div class='small'>${r.Status}</div></div>`).join("");
+DB.filter(match)
+.sort((a,b)=>b.ID-a.ID)
+.map(r=>{
+
+let st=normStatus(r.Status);
+let cls="status-"+st.toLowerCase();
+
+return `
+<div class="card ${cls}">
+<div class="small">ID: ${r.ID}</div>
+
+<input value="${r.Name}"
+onchange="upd(${r.ID},this.value)">
+
+<select onchange="sts(${r.ID},this.value)">
+<option ${st==="PENDING"?"selected":""}>PENDING</option>
+<option ${st==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${st==="RTS"?"selected":""}>RTS</option>
+<option ${st==="LOGGED"?"selected":""}>LOGGED</option>
+<option ${st==="SENT"?"selected":""}>SENT</option>
+</select>
+</div>
+`;
+
+}).join("");
+
 }
 
-document.getElementById("search").addEventListener("input",e=>{search=e.target.value;render();});
+function upd(id,val){
+let r=DB.find(x=>x.ID===id);
+if(r){r.Name=val;save();render();}
+}
 
+function sts(id,val){
+let r=DB.find(x=>x.ID===id);
+if(r){r.Status=val;save();render();}
+}
+
+/* INIT */
 load();
 
 </script>
