@@ -5,7 +5,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Intelligence (Database Mode)</title>
+<title>VaultOS Intelligence — AI Layer</title>
 
 <style>
 *{box-sizing:border-box}
@@ -54,6 +54,7 @@ padding:14px;
 .card{margin:12px;transition:.2s}
 .card:hover{transform:translateY(-2px);border-color:#444}
 .small{font-size:11px;color:#888;margin-top:6px}
+
 .status-success{border-left:4px solid #00ff99}
 .status-pending{border-left:4px solid orange}
 .status-rts{border-left:4px solid red}
@@ -63,32 +64,36 @@ padding:14px;
 .ticker-wrap{overflow:hidden;background:#050505;border-bottom:1px solid #222;padding:8px}
 .ticker{white-space:nowrap;display:inline-block;padding-left:100%;animation:move 25s linear infinite;color:#00ffcc;font-size:12px}
 @keyframes move{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
-
 </style>
 
 </head>
 <body>
 
 <header>
-<div class="title">🏆 VaultOS Intelligence</div>
-<div class="subtitle">Database Mode (No SEED Dependency)</div>
+<div class="title">🏆 VaultOS Intelligence AI</div>
+<div class="subtitle">Next-Gen Decision Engine Layer</div>
 <input id="search" placeholder="Search vault...">
 </header>
 
 <div class="ticker-wrap">
-<div class="ticker">📊 Live system active • 💾 Local database mode • 🔒 No seed dependency • ⚡ Fully persistent system</div>
+<div class="ticker">🧠 AI Scoring Active • 🎯 Actionable intelligence only • ⚡ Risk + return prediction enabled</div>
 </div>
 
 <div class="grid" id="stats"></div>
 
-<!-- IMPORT SYSTEM (OPTION B) -->
+<div class="card">
+<h3>🔥 NEXT ACTION TODAY</h3>
+<div id="topTargets"></div>
+</div>
 
-<div class="card" id="importCard">
-<h3>📦 INITIAL IMPORT (REQUIRED ON FIRST RUN)</h3>
-<div class="small">Paste your full JSON dataset (130+ records) below once. This becomes your database.</div>
-<textarea id="importBox" rows="10" placeholder='Paste full JSON array here'></textarea>
-<button onclick="importData()">IMPORT DATASET</button>
-<div class="small">Format: [{ID, Name, Status}, ...]</div>
+<div class="card">
+<h3>⚠️ HIGH RISK / LOW RETURN</h3>
+<div id="riskList"></div>
+</div>
+
+<div class="card">
+<h3>📈 RETURN PROBABILITY VIEW</h3>
+<div id="returnList"></div>
 </div>
 
 <div class="card">
@@ -104,143 +109,114 @@ padding:14px;
 <button onclick="addEntry()">ADD</button>
 </div>
 
-<div class="card">
-<h3>🔥 TOP 10 TARGETS</h3>
-<div id="topTargets"></div>
-</div>
-
-<div class="card">
-<h3>🛡️ BACKUP</h3>
-<button onclick="exportBackup()">DOWNLOAD</button>
-<input type="file" id="restoreFile">
-<button onclick="restoreBackup()">RESTORE</button>
-</div>
-
 <div id="list"></div>
 
 <script>
 
-const STORAGE_KEY="vault_db_v1";
+const STORAGE_KEY="vault_ai_v1";
 let DB=[];
 let search="";
 
-function save(){
-localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
-autoBackup();
-}
-
-function load(){
-let raw=localStorage.getItem(STORAGE_KEY);
-if(raw){
-DB=JSON.parse(raw);
-hideImport();
-render();
-return;
-}
-DB=[];
-render();
-}
-
-function hideImport(){
-document.getElementById("importCard").style.display="none";
-}
-
-function importData(){
-try{
-let txt=document.getElementById("importBox").value;
-let data=JSON.parse(txt);
-if(!Array.isArray(data)) throw "Invalid";
-DB=data;
-save();
-hideImport();
-render();
-alert("IMPORT COMPLETE");
-}catch(e){
-alert("Invalid JSON format");
-}
-}
-
-function autoBackup(){
-localStorage.setItem("vault_backup",JSON.stringify({time:Date.now(),data:DB}));
-}
-
-function exportBackup(){
-let blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="vault_backup.json";
-a.click();
-}
-
-function restoreBackup(){
-let file=document.getElementById("restoreFile").files[0];
-if(!file)return;
-let r=new FileReader();
-r.onload=e=>{
-DB=JSON.parse(e.target.result);
-save();render();
-alert("RESTORED");
-};
-r.readAsText(file);
-}
-
-function addEntry(){
-let n=document.getElementById("newName").value.trim();
-let s=document.getElementById("newStatus").value;
-if(!n)return;
-DB.unshift({ID:Date.now(),Name:n,Status:s});
-save();render();
-}
-
-function update(id,val){
-let r=DB.find(x=>x.ID===id);
-if(r){r.Name=val;save();}
-}
-
-function setStatus(id,val){
-let r=DB.find(x=>x.ID===id);
-if(r){r.Status=val;save();render();}
-}
+function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));}
+function load(){let r=localStorage.getItem(STORAGE_KEY);DB=r?JSON.parse(r):[];render();}
 
 function score(r){
 let s=0;
-if(r.Status==="SUCCESS")s+=10;
-if(r.Status==="LOGGED")s+=2;
-if(r.Status==="Sent")s+=1;
-if((r.Status||"").includes("RTS"))s-=5;
+if(r.Status==="PENDING") s+=12;
+if(r.Status==="LOGGED") s+=3;
+if(r.Status==="Sent") s+=1;
+if(r.Status==="SUCCESS") s-=999;
+if((r.Status||"").includes("RTS")) s-=25;
+
 let n=(r.Name||"").toLowerCase();
-if(n.includes("football")||n.includes("arsenal"))s+=3;
-if(n.includes("film")||n.includes("cast"))s+=2;
-if(n.includes("nba")||n.includes("lakers"))s+=2;
+if(n.includes("football")||n.includes("arsenal")) s+=3;
+if(n.includes("film")||n.includes("cast")) s+=2;
+if(n.includes("nba")||n.includes("lakers")) s+=2;
+
+// weak recency boost (new IDs behave like timestamps)
+if(r.ID>1e12) s+=2;
+
 return s;
 }
 
-function topTargets(){
-let top=[...DB].sort((a,b)=>score(b)-score(a)).slice(0,10);
-document.getElementById("topTargets").innerHTML=top.map(r=>
-`<div class="card"><b>${r.Name}</b><div class="small">Score ${score(r)} | ${r.Status}</div></div>`
-).join("");
+function returnProbability(r){
+let base=60;
+if(r.Status==="RTS") base-=25;
+if(r.Status==="LOGGED") base+=5;
+if(r.Status==="Sent") base+=10;
+if(r.Status==="SUCCESS") base=0;
+
+let n=(r.Name||"").toLowerCase();
+if(n.includes("football")) base+=10;
+if(n.includes("arsenal")) base+=8;
+if(n.includes("film")) base+=5;
+
+if(r.ID>1e12) base+=5;
+
+return Math.max(0,Math.min(100,base));
+}
+
+function riskScore(r){
+let s=0;
+if(r.Status==="RTS") s+=50;
+if(r.Status==="Sent") s+=20;
+if(r.Status==="PENDING") s+=10;
+if(r.Status==="SUCCESS") s=0;
+return s;
+}
+
+function topNext(){
+let list=DB.filter(r=>r.Status!=="SUCCESS");
+let top=[...list].sort((a,b)=>score(b)-score(a)).slice(0,10);
+
+document.getElementById("topTargets").innerHTML=
+!top.length?"<div class='small'>No actions</div>":top.map(r=>`
+<div class="card">
+<b>${r.Name}</b>
+<div class="small">Score: ${score(r)}</div>
+<div class="small">Return: ${returnProbability(r)}%</div>
+</div>`).join("");
+}
+
+function riskList(){
+let top=[...DB].sort((a,b)=>riskScore(b)-riskScore(a)).slice(0,8);
+
+document.getElementById("riskList").innerHTML=top.map(r=>`
+<div class="card">
+<b>${r.Name}</b>
+<div class="small">Risk: ${riskScore(r)}</div>
+<div class="small">Status: ${r.Status}</div>
+</div>`).join("");
+}
+
+function returnList(){
+let top=[...DB].sort((a,b)=>returnProbability(b)-returnProbability(a)).slice(0,8);
+
+document.getElementById("returnList").innerHTML=top.map(r=>`
+<div class="card">
+<b>${r.Name}</b>
+<div class="small">Return: ${returnProbability(r)}%</div>
+</div>`).join("");
 }
 
 function stats(){
 return{
 total:DB.length,
-success:DB.filter(x=>x.Status==="SUCCESS").length,
-pending:DB.filter(x=>x.Status==="PENDING").length
+pending:DB.filter(x=>x.Status==="PENDING").length,
+success:DB.filter(x=>x.Status==="SUCCESS").length
 };
 }
 
 function render(){
 let s=stats();
+
 let rate=Math.round((s.success/s.total)*100)||0;
 
-topTargets();
+topNext();
+riskList();
+returnList();
 
-if(DB.length===0){
-// keep import visible
-}else{
-document.getElementById("importCard").style.display="none";
-}
+let q=search.toLowerCase();
 
 document.getElementById("stats").innerHTML=
 `<div class="box"><h2>${s.total}</h2><div class="small">TOTAL</div></div>
@@ -248,33 +224,16 @@ document.getElementById("stats").innerHTML=
 <div class="box"><h2>${rate}%</h2><div class="small">RATE</div></div>
 <div class="box"><h2>${s.pending}</h2><div class="small">PENDING</div></div>`;
 
-let q=search.toLowerCase();
-
 document.getElementById("list").innerHTML=
 DB.filter(r=>!q||r.Name.toLowerCase().includes(q))
-.map(r=>
-`<div class="card">
-<input value="${r.Name}" onchange="update(${r.ID},this.value)">
-<select onchange="setStatus(${r.ID},this.value)">
-<option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
-<option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${r.Status==="RTS"?"selected":""}>RTS</option>
-<option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
-<option ${r.Status==="Sent"?"selected":""}>Sent</option>
-</select>
+.map(r=>`
+<div class="card">
+<b>${r.Name}</b>
+<div class="small">Status: ${r.Status}</div>
 <div class="small">Score: ${score(r)}</div>
-</div>`
-).join("");
+<div class="small">Return: ${returnProbability(r)}%</div>
+</div>`).join("");
 }
 
-document.getElementById("search").addEventListener("input",e=>{
-search=e.target.value;
-render();
-});
-
-load();
-
-</script>
-
-</body>
-</html>
+function addEntry(){
+let n=document.getElementB
