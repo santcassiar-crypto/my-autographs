@@ -4,115 +4,82 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS v3 — Intelligence Layer</title>
+<title>VaultOS v3.1</title>
 
 <style>
-*{box-sizing:border-box}
-body{
-margin:0;
-font-family:Arial;
-background:radial-gradient(circle at top,#111,#000);
-color:#fff;
-}
-
-header{
-position:sticky;top:0;
-background:rgba(10,10,10,.95);
-padding:14px;
-border-bottom:1px solid #222;
-backdrop-filter:blur(10px);
-z-index:10;
-}
-
-.title{font-size:20px;font-weight:bold}
-.subtitle{font-size:12px;color:#888}
-
-input,select,button{
-width:100%;
-padding:10px;
-margin-top:8px;
-border-radius:10px;
-border:1px solid #333;
-background:#0b0b0b;
-color:#fff;
-}
-
-button{cursor:pointer;font-weight:bold}
-button:hover{border-color:#777}
-
-.grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
-gap:10px;
-padding:10px;
-}
-
-.box{
-background:#111;
-border:1px solid #222;
-border-radius:14px;
-padding:12px;
-text-align:center;
-}
-
-.card{
-background:#111;
-border:1px solid #222;
-border-radius:14px;
-padding:12px;
-margin:10px;
-}
-
+body{margin:0;background:#000;color:#fff;font-family:Arial}
+header{position:sticky;top:0;background:#111;padding:12px;border-bottom:1px solid #222}
+input,select,button{width:100%;padding:10px;margin-top:6px;background:#0b0b0b;color:#fff;border:1px solid #333;border-radius:10px}
+button{cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:10px}
+.box{background:#111;padding:10px;border-radius:10px;text-align:center;border:1px solid #222}
+.card{background:#111;margin:10px;padding:10px;border-radius:10px;border:1px solid #222}
 .small{font-size:11px;color:#888}
-
 .status-success{border-left:4px solid #00ff99}
 .status-pending{border-left:4px solid orange}
 .status-rts{border-left:4px solid red}
-.status-logged{border-left:4px solid #44aaff}
+.status-logged{border-left:4px solid #4aa3ff}
 .status-sent{border-left:4px solid violet}
-
-.badge{
-font-size:11px;
-padding:3px 6px;
-border:1px solid #333;
-border-radius:6px;
-display:inline-block;
-margin-top:6px;
-color:#aaa;
-}
 </style>
 </head>
 
 <body>
 
 <header>
-<div class="title">🧠 VaultOS v3</div>
-<div class="subtitle">Intelligence + Dedup + Priority Engine</div>
+<h3>🧠 VaultOS v3.1</h3>
 <input id="search" placeholder="Search vault...">
 </header>
 
 <div class="grid" id="stats"></div>
 
+<div class="card">
+<h3>🔥 TOP 10 PRIORITY</h3>
 <div id="top10"></div>
+</div>
 
 <div id="list"></div>
 
 <script>
 
-const STORAGE_KEY="vault_v3";
+/* =========================
+FULL DATA (YOUR COMPLETE SET)
+========================= */
 
-let DB=[];
-let search="";
+let DB = [
+{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
+{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
+{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
+{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
+{"ID":1779457496694,"Name":"George Graham - Home ","Status":"PENDING"},
+{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},
+{"ID":1779457437040,"Name":"Gosh4 Goals","Status":"PENDING"},
+{"ID":1779457382999,"Name":"San Antonio Training Centre ","Status":"PENDING"},
+{"ID":1779457367391,"Name":"OKC training centre","Status":"PENDING"},
+{"ID":1779457333472,"Name":"FC Barcelona - Training ground","Status":"PENDING"},
+{"ID":1779457307017,"Name":"Gary Oldman ","Status":"SUCCESS"},
+{"ID":1779457276281,"Name":"Arsenal womens team","Status":"PENDING"},
+{"ID":1779457232607,"Name":"Park theatre x 2 ","Status":"PENDING"},
+{"ID":1779457195881,"Name":"Jermery Sochan","Status":"PENDING"},
+{"ID":1779369334553,"Name":"Geoff Hurst ","Status":"LOGGED"},
+{"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},
 
-/* -------------------------
-FULL DATA LOAD (YOU PASTE)
---------------------------*/
-const RAW = /* YOUR FULL JSON HERE */ null;
+{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
+{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
+{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
+{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},
+{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},
+{"ID":6,"Name":"Paul Merson (Original)","Status":"SUCCESS"},
+{"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},
+{"ID":8,"Name":"Joshua Kimmich","Status":"SUCCESS"},
+{"ID":9,"Name":"Ron Ferdinand","Status":"SUCCESS"},
+{"ID":10,"Name":"Erling Haaland (City)","Status":"SUCCESS"}
+];
 
-/* -------------------------
-STATUS NORMALISER
---------------------------*/
-function normStatus(s){
+/* =========================
+UTILS
+========================= */
+
+function norm(s){
 s=(s||"").toUpperCase();
 if(s.includes("RTS")) return "RTS";
 if(s.includes("SUCCESS")) return "SUCCESS";
@@ -121,145 +88,91 @@ if(s.includes("SENT")) return "SENT";
 return "PENDING";
 }
 
-/* -------------------------
-DEDUP ENGINE (by ID)
---------------------------*/
-function dedupe(arr){
-const map=new Map();
-arr.forEach(x=>{
-if(!map.has(x.ID)) map.set(x.ID,x);
-else {
-map.set(x.ID,{
-...map.get(x.ID),
-...x
-});
-}
-});
-return [...map.values()];
+/* =========================
+STATS
+========================= */
+
+function stats(){
+return {
+total:DB.length,
+success:DB.filter(x=>norm(x.Status)==="SUCCESS").length,
+pending:DB.filter(x=>norm(x.Status)==="PENDING").length,
+rts:DB.filter(x=>norm(x.Status)==="RTS").length,
+logged:DB.filter(x=>norm(x.Status)==="LOGGED").length
+};
 }
 
-/* -------------------------
-LOAD SYSTEM
---------------------------*/
-function load(){
+/* =========================
+TOP 10 ENGINE
+========================= */
 
-let raw=localStorage.getItem(STORAGE_KEY);
-
-if(raw){
-try{
-DB=dedupe(JSON.parse(raw));
-return render();
-}catch(e){}
-}
-
-if(RAW){
-DB=dedupe(RAW);
-save();
-render();
-}
-}
-
-function save(){
-localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
-}
-
-/* -------------------------
-SCORING ENGINE (INTELLIGENCE)
---------------------------*/
-function score(r){
-
-let s=normStatus(r.Status);
-
+function score(x){
+let s=norm(x.Status);
+if(s==="PENDING") return 100;
+if(s==="LOGGED") return 80;
+if(s==="RTS") return 20;
 if(s==="SUCCESS") return 0;
-if(s==="RTS") return 10;
-if(s==="SENT") return 60;
-if(s==="LOGGED") return 70;
-
-return 90; // PENDING highest priority
+return 50;
 }
 
-/* -------------------------
-TOP 10 NEXT TARGETS
---------------------------*/
 function top10(){
 return [...DB]
-.filter(x=>normStatus(x.Status)!=="SUCCESS")
+.filter(x=>norm(x.Status)!=="SUCCESS")
 .sort((a,b)=>score(b)-score(a))
 .slice(0,10);
 }
 
-/* -------------------------
-STATS
---------------------------*/
-function stats(){
-let total=DB.length;
-let success=DB.filter(x=>normStatus(x.Status)==="SUCCESS").length;
-let pending=DB.filter(x=>normStatus(x.Status)==="PENDING").length;
-let sent=DB.filter(x=>normStatus(x.Status)==="SENT").length;
-let rts=DB.filter(x=>normStatus(x.Status)==="RTS").length;
-
-return{total,success,pending,sent,rts};
-}
-
-/* -------------------------
+/* =========================
 SEARCH
---------------------------*/
+========================= */
+
+let search="";
 document.getElementById("search").addEventListener("input",e=>{
 search=e.target.value.toLowerCase();
 render();
 });
 
-function match(r){
-return !search || (r.Name||"").toLowerCase().includes(search);
+function match(x){
+return !search || (x.Name||"").toLowerCase().includes(search);
 }
 
-/* -------------------------
+/* =========================
 RENDER
---------------------------*/
+========================= */
+
 function render(){
 
 let s=stats();
 
 document.getElementById("stats").innerHTML=`
-<div class="box"><b>${s.total}</b><div class="small">TOTAL</div></div>
-<div class="box"><b>${s.success}</b><div class="small">SUCCESS</div></div>
-<div class="box"><b>${s.pending}</b><div class="small">PENDING</div></div>
-<div class="box"><b>${s.sent}</b><div class="small">SENT</div></div>
-<div class="box"><b>${s.rts}</b><div class="small">RTS</div></div>
+<div class="box">${s.total}<br><small>TOTAL</small></div>
+<div class="box">${s.success}<br><small>SUCCESS</small></div>
+<div class="box">${s.pending}<br><small>PENDING</small></div>
+<div class="box">${s.rts}<br><small>RTS</small></div>
+<div class="box">${s.logged}<br><small>LOGGED</small></div>
 `;
 
-/* TOP 10 */
-document.getElementById("top10").innerHTML=`
-<div class="card">
-<h3>🔥 TOP 10 NEXT TARGETS</h3>
-${top10().map(x=>`
-<div class="badge">${x.Name} — ${normStatus(x.Status)}</div>
-`).join("")}
-</div>
-`;
+document.getElementById("top10").innerHTML=
+top10().map(x=>`
+<div class="box">${x.Name} — ${norm(x.Status)}</div>
+`).join("");
 
-/* LIST */
 document.getElementById("list").innerHTML=
 DB.filter(match)
-.sort((a,b)=>b.ID-a.ID)
-.map(r=>{
+.map(x=>{
 
-let st=normStatus(r.Status);
-let cls="status-"+st.toLowerCase();
+let c="status-"+norm(x.Status).toLowerCase();
 
 return `
-<div class="card ${cls}">
-<div class="small">ID: ${r.ID}</div>
-
-<input value="${r.Name}"
-onchange="upd(${r.ID},this.value)">
-
-<select onchange="sts(${r.ID},this.value)">
-<option ${st==="PENDING"?"selected":""}>PENDING</option>
-<option ${st==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${st==="RTS"?"selected":""}>RTS</option>
-<option ${st==="LOGGED"?"selected":""}>LOGGED</option>
-<option ${st==="SENT"?"selected":""}>SENT</option>
+<div class="card ${c}">
+<div class="small">ID: ${x.ID}</div>
+<input value="${x.Name}">
+<select>
+<option ${norm(x.Status)==="PENDING"?"selected":""}>PENDING</option>
+<option ${norm(x.Status)==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${norm(x.Status)==="RTS"?"selected":""}>RTS</option>
+<option ${norm(x.Status)==="LOGGED"?"selected":""}>LOGGED</option>
+<option ${norm(x.Status)==="SENT"?"selected":""}>SENT</option>
 </select>
 </div>
 `;
@@ -268,18 +181,7 @@ onchange="upd(${r.ID},this.value)">
 
 }
 
-function upd(id,val){
-let r=DB.find(x=>x.ID===id);
-if(r){r.Name=val;save();render();}
-}
-
-function sts(id,val){
-let r=DB.find(x=>x.ID===id);
-if(r){r.Status=val;save();render();}
-}
-
-/* INIT */
-load();
+render();
 
 </script>
 
