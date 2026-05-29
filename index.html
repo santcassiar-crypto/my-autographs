@@ -1,12 +1,11 @@
 
-
-```html
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Intelligence</title>
+<title>VaultOS Intelligence (Database Mode)</title>
 
 <style>
 *{box-sizing:border-box}
@@ -25,9 +24,9 @@ padding:14px;
 border-bottom:1px solid #222;
 backdrop-filter:blur(8px);
 }
-.title{font-size:28px;font-weight:bold}
+.title{font-size:26px;font-weight:bold}
 .subtitle{font-size:12px;color:#888}
-input,select,button{
+input,select,button,textarea{
 width:100%;
 padding:12px;
 margin-top:8px;
@@ -35,6 +34,7 @@ background:#0d0d0d;
 color:#fff;
 border:1px solid #333;
 border-radius:12px;
+font-size:13px;
 }
 button{cursor:pointer;font-weight:bold}
 button:hover{border-color:#666}
@@ -47,57 +47,49 @@ padding:12px;
 .box,.card{
 background:#111;
 border:1px solid #222;
-border-radius:18px;
+border-radius:16px;
 padding:14px;
 }
 .box{text-align:center}
 .card{margin:12px;transition:.2s}
-.card:hover{
-transform:translateY(-2px);
-box-shadow:0 0 20px rgba(255,255,255,.05);
-border-color:#444;
-}
+.card:hover{transform:translateY(-2px);border-color:#444}
 .small{font-size:11px;color:#888;margin-top:6px}
 .status-success{border-left:4px solid #00ff99}
 .status-pending{border-left:4px solid orange}
 .status-rts{border-left:4px solid red}
 .status-logged{border-left:4px solid #44aaff}
 .status-sent{border-left:4px solid violet}
-.ticker-wrap{
-overflow:hidden;
-background:#050505;
-border-bottom:1px solid #222;
-padding:10px 0;
-}
-.ticker{
-white-space:nowrap;
-display:inline-block;
-padding-left:100%;
-animation:tickerMove 30s linear infinite;
-color:#00ffcc;
-font-size:13px;
-}
-@keyframes tickerMove{
-0%{transform:translateX(0)}
-100%{transform:translateX(-100%)}
-}
+
+.ticker-wrap{overflow:hidden;background:#050505;border-bottom:1px solid #222;padding:8px}
+.ticker{white-space:nowrap;display:inline-block;padding-left:100%;animation:move 25s linear infinite;color:#00ffcc;font-size:12px}
+@keyframes move{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+
 </style>
+
 </head>
 <body>
 
 <header>
 <div class="title">🏆 VaultOS Intelligence</div>
-<div class="subtitle">Autograph Intelligence Dashboard</div>
+<div class="subtitle">Database Mode (No SEED Dependency)</div>
 <input id="search" placeholder="Search vault...">
 </header>
 
 <div class="ticker-wrap">
-<div class="ticker">
-⚽ Arsenal squad back in training • 🎬 Batman II production active • 🏀 NBA facilities accessible • 🎭 London theatre season active • ✍️ Football legends signing regularly
-</div>
+<div class="ticker">📊 Live system active • 💾 Local database mode • 🔒 No seed dependency • ⚡ Fully persistent system</div>
 </div>
 
 <div class="grid" id="stats"></div>
+
+<!-- IMPORT SYSTEM (OPTION B) -->
+
+<div class="card" id="importCard">
+<h3>📦 INITIAL IMPORT (REQUIRED ON FIRST RUN)</h3>
+<div class="small">Paste your full JSON dataset (130+ records) below once. This becomes your database.</div>
+<textarea id="importBox" rows="10" placeholder='Paste full JSON array here'></textarea>
+<button onclick="importData()">IMPORT DATASET</button>
+<div class="small">Format: [{ID, Name, Status}, ...]</div>
+</div>
 
 <div class="card">
 <h3>➕ QUICK ADD</h3>
@@ -109,46 +101,28 @@ font-size:13px;
 <option>LOGGED</option>
 <option>Sent</option>
 </select>
-<button onclick="addEntry()">ADD TO VAULT</button>
+<button onclick="addEntry()">ADD</button>
 </div>
 
 <div class="card">
-<h3>🛡️ BACKUP CONTROLS</h3>
-<button onclick="exportBackup()">⬇️ DOWNLOAD BACKUP</button>
+<h3>🔥 TOP 10 TARGETS</h3>
+<div id="topTargets"></div>
+</div>
+
+<div class="card">
+<h3>🛡️ BACKUP</h3>
+<button onclick="exportBackup()">DOWNLOAD</button>
 <input type="file" id="restoreFile">
-<button onclick="restoreBackup()">⬆️ RESTORE BACKUP</button>
-<button onclick="resetVault()">♻️ RESET VAULT</button>
-</div>
-
-<div class="card">
-<h3>🎯 WHO TO SEND NEXT</h3>
-<div id="nextTargets"></div>
-</div>
-
-<div class="card">
-<h3>🏆 ACHIEVEMENTS</h3>
-<div id="achievements"></div>
+<button onclick="restoreBackup()">RESTORE</button>
 </div>
 
 <div id="list"></div>
 
 <script>
 
-const STORAGE_KEY = "vault_wipe_resistant_v5";
-let DB = [];
-let search = "";
-
-const SEED = [
-// PASTE YOUR FULL 130+ RECORD DATASET HERE
-];
-
-function esc(s){
-return String(s)
-.replace(/&/g,"&amp;")
-.replace(/</g,"&lt;")
-.replace(/>/g,"&gt;")
-.replace(/\"/g,"&quot;");
-}
+const STORAGE_KEY="vault_db_v1";
+let DB=[];
+let search="";
 
 function save(){
 localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
@@ -157,31 +131,150 @@ autoBackup();
 
 function load(){
 let raw=localStorage.getItem(STORAGE_KEY);
-
 if(raw){
-try{
 DB=JSON.parse(raw);
-SEED.forEach(seed=>{
-if(!DB.find(x=>x.ID===seed.ID)) DB.push(seed);
-});
-save();
+hideImport();
 render();
 return;
-}catch(e){}
+}
+DB=[];
+render();
 }
 
-DB=[...SEED];
+function hideImport(){
+document.getElementById("importCard").style.display="none";
+}
+
+function importData(){
+try{
+let txt=document.getElementById("importBox").value;
+let data=JSON.parse(txt);
+if(!Array.isArray(data)) throw "Invalid";
+DB=data;
 save();
+hideImport();
 render();
+alert("IMPORT COMPLETE");
+}catch(e){
+alert("Invalid JSON format");
+}
 }
 
 function autoBackup(){
-let snapshot={time:Date.now(),data:DB};
-localStorage.setItem("vault_backup_latest",JSON.stringify(snapshot));
-localStorage.setItem("vault_backup_shadow",JSON.stringify(snapshot));
+localStorage.setItem("vault_backup",JSON.stringify({time:Date.now(),data:DB}));
 }
 
 function exportBackup(){
-let blob=new Blob([
-JSON.strin
-```
+let blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="vault_backup.json";
+a.click();
+}
+
+function restoreBackup(){
+let file=document.getElementById("restoreFile").files[0];
+if(!file)return;
+let r=new FileReader();
+r.onload=e=>{
+DB=JSON.parse(e.target.result);
+save();render();
+alert("RESTORED");
+};
+r.readAsText(file);
+}
+
+function addEntry(){
+let n=document.getElementById("newName").value.trim();
+let s=document.getElementById("newStatus").value;
+if(!n)return;
+DB.unshift({ID:Date.now(),Name:n,Status:s});
+save();render();
+}
+
+function update(id,val){
+let r=DB.find(x=>x.ID===id);
+if(r){r.Name=val;save();}
+}
+
+function setStatus(id,val){
+let r=DB.find(x=>x.ID===id);
+if(r){r.Status=val;save();render();}
+}
+
+function score(r){
+let s=0;
+if(r.Status==="SUCCESS")s+=10;
+if(r.Status==="LOGGED")s+=2;
+if(r.Status==="Sent")s+=1;
+if((r.Status||"").includes("RTS"))s-=5;
+let n=(r.Name||"").toLowerCase();
+if(n.includes("football")||n.includes("arsenal"))s+=3;
+if(n.includes("film")||n.includes("cast"))s+=2;
+if(n.includes("nba")||n.includes("lakers"))s+=2;
+return s;
+}
+
+function topTargets(){
+let top=[...DB].sort((a,b)=>score(b)-score(a)).slice(0,10);
+document.getElementById("topTargets").innerHTML=top.map(r=>
+`<div class="card"><b>${r.Name}</b><div class="small">Score ${score(r)} | ${r.Status}</div></div>`
+).join("");
+}
+
+function stats(){
+return{
+total:DB.length,
+success:DB.filter(x=>x.Status==="SUCCESS").length,
+pending:DB.filter(x=>x.Status==="PENDING").length
+};
+}
+
+function render(){
+let s=stats();
+let rate=Math.round((s.success/s.total)*100)||0;
+
+topTargets();
+
+if(DB.length===0){
+// keep import visible
+}else{
+document.getElementById("importCard").style.display="none";
+}
+
+document.getElementById("stats").innerHTML=
+`<div class="box"><h2>${s.total}</h2><div class="small">TOTAL</div></div>
+<div class="box"><h2>${s.success}</h2><div class="small">SUCCESS</div></div>
+<div class="box"><h2>${rate}%</h2><div class="small">RATE</div></div>
+<div class="box"><h2>${s.pending}</h2><div class="small">PENDING</div></div>`;
+
+let q=search.toLowerCase();
+
+document.getElementById("list").innerHTML=
+DB.filter(r=>!q||r.Name.toLowerCase().includes(q))
+.map(r=>
+`<div class="card">
+<input value="${r.Name}" onchange="update(${r.ID},this.value)">
+<select onchange="setStatus(${r.ID},this.value)">
+<option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
+<option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${r.Status==="RTS"?"selected":""}>RTS</option>
+<option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
+<option ${r.Status==="Sent"?"selected":""}>Sent</option>
+</select>
+<div class="small">Score: ${score(r)}</div>
+</div>`
+).join("");
+}
+
+document.getElementById("search").addEventListener("input",e=>{
+search=e.target.value;
+render();
+});
+
+load();
+
+</script>
+
+</body>
+</html>
