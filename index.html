@@ -1,5 +1,5 @@
-```html
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -14,10 +14,9 @@ box-sizing:border-box;
 
 body{
 margin:0;
-background:
-radial-gradient(circle at top,#111 0%,#000 60%);
+background:radial-gradient(circle at top,#111 0%,#000 60%);
 color:#fff;
-font-family:Inter,Arial,sans-serif;
+font-family:Arial,sans-serif;
 min-height:100vh;
 }
 
@@ -25,75 +24,59 @@ header{
 position:sticky;
 top:0;
 z-index:999;
-backdrop-filter:blur(12px);
-background:rgba(10,10,10,.88);
+background:rgba(10,10,10,.92);
 padding:14px;
 border-bottom:1px solid #222;
+backdrop-filter:blur(10px);
 }
 
-h1,h2,h3{
-margin:0;
-}
-
-input,select,textarea,button{
+input,select,button{
 width:100%;
 padding:12px;
 margin-top:8px;
-background:#090909;
+background:#0b0b0b;
 color:#fff;
-border:1px solid #2d2d2d;
+border:1px solid #333;
 border-radius:12px;
 font-size:14px;
-outline:none;
 }
 
 button{
 cursor:pointer;
-background:
-linear-gradient(180deg,#1d1d1d,#101010);
+background:linear-gradient(180deg,#1d1d1d,#111);
 font-weight:bold;
-letter-spacing:.4px;
-transition:.2s;
 }
 
 button:hover{
-border-color:#777;
-transform:translateY(-1px);
+border-color:#666;
 }
 
 .grid{
 display:grid;
-grid-template-columns:
-repeat(auto-fit,minmax(140px,1fr));
-gap:12px;
+grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+gap:10px;
 padding:12px;
 }
 
 .box{
-background:
-linear-gradient(180deg,#181818,#101010);
-border:1px solid #2a2a2a;
+background:#111;
+border:1px solid #222;
 border-radius:18px;
 padding:18px;
 text-align:center;
-box-shadow:
-0 10px 30px rgba(0,0,0,.45);
 }
 
 .card{
-background:
-linear-gradient(180deg,#151515,#0d0d0d);
-border:1px solid #262626;
+background:#111;
+border:1px solid #222;
 border-radius:18px;
 padding:14px;
 margin:12px;
-box-shadow:
-0 10px 30px rgba(0,0,0,.35);
 }
 
 .small{
 font-size:11px;
-color:#999;
+color:#888;
 margin-top:6px;
 }
 
@@ -102,11 +85,11 @@ border-left:4px solid #00ff99;
 }
 
 .status-pending{
-border-left:4px solid #ffaa00;
+border-left:4px solid orange;
 }
 
 .status-rts{
-border-left:4px solid #ff4444;
+border-left:4px solid red;
 }
 
 .status-logged{
@@ -114,7 +97,7 @@ border-left:4px solid #44aaff;
 }
 
 .status-sent{
-border-left:4px solid #bb66ff;
+border-left:4px solid violet;
 }
 
 .title{
@@ -124,41 +107,26 @@ font-weight:bold;
 
 .subtitle{
 font-size:12px;
-color:#888;
+color:#777;
 margin-top:4px;
 }
 
-.footer-space{
-height:40px;
-}
-
 </style>
-</head>
 
+</head>
 <body>
 
 <header>
-
-<div class="title">
-🏆 VaultOS
-</div>
-
-<div class="subtitle">
-Autograph Tracking System
-</div>
-
+<div class="title">🏆 VaultOS</div>
+<div class="subtitle">Autograph Tracking System</div>
 <input id="search" placeholder="Search vault...">
-
 </header>
 
 <div class="grid" id="stats"></div>
 
 <div class="card">
-
 <h3>➕ QUICK ADD</h3>
-
 <input id="newName" placeholder="Add new target...">
-
 <select id="newStatus">
 <option>PENDING</option>
 <option>SUCCESS</option>
@@ -166,61 +134,30 @@ Autograph Tracking System
 <option>LOGGED</option>
 <option>Sent</option>
 </select>
-
-<button onclick="addEntry()">
-ADD TO VAULT
-</button>
-
+<button onclick="addEntry()">ADD TO VAULT</button>
 </div>
 
 <div class="card">
-
 <h3>🛡️ BACKUP CONTROLS</h3>
-
-<button onclick="exportBackup()">
-⬇️ DOWNLOAD BACKUP NOW
-</button>
-
+<button onclick="exportBackup()">⬇️ DOWNLOAD BACKUP NOW</button>
 <input type="file" id="restoreFile">
-
-<button onclick="restoreBackup()">
-⬆️ RESTORE FROM FILE
-</button>
-
-<button onclick="resetVault()">
-♻️ RESET TO FULL SEED DATA
-</button>
-
+<button onclick="restoreBackup()">⬆️ RESTORE FROM FILE</button>
+<button onclick="resetVault()">♻️ RESET TO FULL SEED DATA</button>
 <div class="small">
 Backups protect your vault if browser/device storage is wiped.
 </div>
-
 </div>
 
 <div id="list"></div>
 
-<div class="footer-space"></div>
-
 <script>
 
-////////////////////////////////////////////////////
-// STORAGE
-////////////////////////////////////////////////////
-
-const STORAGE_KEY = "vault_wipe_resistant_v3";
-
-////////////////////////////////////////////////////
-// DATABASE
-////////////////////////////////////////////////////
+const STORAGE_KEY = "vault_wipe_resistant_v4";
 
 let DB = [];
-
-////////////////////////////////////////////////////
-// FULL DATASET
-////////////////////////////////////////////////////
+let search = "";
 
 const SEED = [
-
 {"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
 {"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
 {"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
@@ -237,7 +174,6 @@ const SEED = [
 {"ID":1779457195881,"Name":"Jermery Sochan","Status":"PENDING"},
 {"ID":1779369334553,"Name":"Geoff Hurst","Status":"LOGGED"},
 {"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},
-
 {"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
 {"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
 {"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
@@ -257,100 +193,52 @@ const SEED = [
 {"ID":17,"Name":"Josh Widdicombe","Status":"SUCCESS"},
 {"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},
 {"ID":19,"Name":"Rob Beckett","Status":"SUCCESS"},
-{"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"},
-{"ID":21,"Name":"Tommy Fleetwood","Status":"SUCCESS"},
-{"ID":22,"Name":"Lamine Yamal (Club)","Status":"SUCCESS"},
-{"ID":24,"Name":"Sebastian Coe","Status":"RTS"},
-{"ID":25,"Name":"Hugh Bonneville","Status":"SUCCESS"},
-{"ID":26,"Name":"Erling Haaland (Academy)","Status":"SUCCESS"},
-{"ID":27,"Name":"Mark Addy","Status":"SUCCESS"},
-{"ID":28,"Name":"Mikel Arteta","Status":"Sent"},
-{"ID":29,"Name":"Billy Crudup","Status":"SUCCESS"},
-{"ID":30,"Name":"Cole Palmer","Status":"RTS"}
-
+{"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"}
 ];
 
-////////////////////////////////////////////////////
-// ESCAPE
-////////////////////////////////////////////////////
-
 function esc(s){
-
 return String(s)
 .replace(/&/g,"&amp;")
 .replace(/</g,"&lt;")
 .replace(/>/g,"&gt;")
 .replace(/\"/g,"&quot;");
-
 }
 
-////////////////////////////////////////////////////
-// LOAD
-////////////////////////////////////////////////////
+function save(){
+localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
+autoBackup();
+}
 
 function load(){
-
 let raw = localStorage.getItem(STORAGE_KEY);
 
 if(raw){
-
 try{
-
 DB = JSON.parse(raw);
 
-SEED.forEach(seedItem=>{
-
-let exists =
-DB.find(x=>x.ID===seedItem.ID);
-
+SEED.forEach(seed=>{
+let exists = DB.find(x=>x.ID===seed.ID);
 if(!exists){
-DB.push(seedItem);
+DB.push(seed);
 }
-
 });
 
 save();
 render();
-
 return;
-
 }catch(e){}
-
 }
 
 DB = [...SEED];
-
 save();
 render();
-
 }
-
-////////////////////////////////////////////////////
-// SAVE
-////////////////////////////////////////////////////
-
-function save(){
-
-localStorage.setItem(
-STORAGE_KEY,
-JSON.stringify(DB)
-);
-
-autoBackup();
-
-}
-
-////////////////////////////////////////////////////
-// BACKUPS
-////////////////////////////////////////////////////
 
 function autoBackup(){
 
 let snapshot = {
-
 time:Date.now(),
 data:DB
-
 };
 
 localStorage.setItem(
@@ -365,285 +253,155 @@ JSON.stringify(snapshot)
 
 }
 
-////////////////////////////////////////////////////
-// EXPORT
-////////////////////////////////////////////////////
-
 function exportBackup(){
 
 let blob = new Blob(
-
 [JSON.stringify({
-
 time:Date.now(),
 data:DB
-
 },null,2)],
-
 {type:"application/json"}
-
 );
 
-let a = document.createElement("a");
-
-a.href =
-URL.createObjectURL(blob);
-
-a.download =
-"vault_backup_" + Date.now() + ".json";
-
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="vault_backup_"+Date.now()+".json";
 a.click();
 
 }
 
-////////////////////////////////////////////////////
-// RESTORE
-////////////////////////////////////////////////////
-
 function restoreBackup(){
 
-let file =
-document.getElementById("restoreFile").files[0];
+let file=document.getElementById("restoreFile").files[0];
 
 if(!file){
-
 alert("Select backup file");
 return;
-
 }
 
-let reader = new FileReader();
+let reader=new FileReader();
 
-reader.onload = e=>{
-
+reader.onload=e=>{
 try{
-
-let obj =
-JSON.parse(e.target.result);
+let obj=JSON.parse(e.target.result);
 
 if(obj.data){
-
-DB = obj.data;
-
+DB=obj.data;
 save();
 render();
-
 alert("RESTORE COMPLETE");
-
 }else{
-
 alert("Invalid backup file");
-
 }
-
 }catch(err){
-
 alert("Restore failed");
-
 }
-
 };
 
 reader.readAsText(file);
 
 }
 
-////////////////////////////////////////////////////
-// RESET
-////////////////////////////////////////////////////
-
 function resetVault(){
 
-let ok = confirm(
-"Reset vault to latest full seed data?"
-);
+let ok=confirm("Reset vault to latest full seed data?");
 
 if(!ok) return;
 
 localStorage.removeItem(STORAGE_KEY);
+localStorage.removeItem("vault_backup_latest");
+localStorage.removeItem("vault_backup_shadow");
 
-localStorage.removeItem(
-"vault_backup_latest"
-);
-
-localStorage.removeItem(
-"vault_backup_shadow"
-);
-
-DB = [...SEED];
+DB=[...SEED];
 
 save();
-
 render();
 
-alert(
-"FULL DATA RESTORED"
-);
+alert("FULL DATA RESTORED");
 
 }
-
-////////////////////////////////////////////////////
-// SEARCH
-////////////////////////////////////////////////////
-
-let search = "";
-
-document
-.getElementById("search")
-.addEventListener("input",e=>{
-
-search =
-e.target.value.toLowerCase();
-
-render();
-
-});
-
-function match(r,q){
-
-if(!q) return true;
-
-return (
-(r.Name || "")
-.toLowerCase()
-.includes(q)
-);
-
-}
-
-////////////////////////////////////////////////////
-// STATS
-////////////////////////////////////////////////////
-
-function stats(){
-
-return {
-
-total:
-DB.length,
-
-pending:
-DB.filter(x=>x.Status==="PENDING").length,
-
-success:
-DB.filter(x=>x.Status==="SUCCESS").length,
-
-rts:
-DB.filter(x=>x.Status.includes("RTS")).length,
-
-logged:
-DB.filter(x=>x.Status==="LOGGED").length,
-
-sent:
-DB.filter(x=>x.Status==="Sent").length
-
-};
-
-}
-
-////////////////////////////////////////////////////
-// ADD ENTRY
-////////////////////////////////////////////////////
 
 function addEntry(){
 
-let name =
-document.getElementById("newName").value.trim();
-
-let status =
-document.getElementById("newStatus").value;
+let name=document.getElementById("newName").value.trim();
+let status=document.getElementById("newStatus").value;
 
 if(!name){
-
-alert("Enter a name");
+alert("Enter a target name");
 return;
-
 }
 
 DB.unshift({
-
 ID:Date.now(),
 Name:name,
 Status:status
-
 });
 
-document.getElementById("newName").value = "";
-
 save();
 render();
 
-}
+document.getElementById("newName").value="";
 
-////////////////////////////////////////////////////
-// UPDATE
-////////////////////////////////////////////////////
+}
 
 function update(id,val){
-
-let r = DB.find(x=>x.ID===id);
-
+let r=DB.find(x=>x.ID===id);
 if(r){
-
-r.Name = val;
-
+r.Name=val;
 save();
-render();
-
 }
-
 }
-
-////////////////////////////////////////////////////
-// STATUS UPDATE
-////////////////////////////////////////////////////
 
 function setStatus(id,val){
-
-let r = DB.find(x=>x.ID===id);
-
+let r=DB.find(x=>x.ID===id);
 if(r){
-
-r.Status = val;
-
+r.Status=val;
 save();
 render();
-
 }
-
 }
-
-////////////////////////////////////////////////////
-// DELETE
-////////////////////////////////////////////////////
 
 function removeEntry(id){
-
 if(!confirm("Delete entry?")) return;
-
-DB = DB.filter(x=>x.ID!==id);
-
+DB=DB.filter(x=>x.ID!==id);
 save();
 render();
-
 }
 
-////////////////////////////////////////////////////
-// RENDER
-////////////////////////////////////////////////////
+function stats(){
+return {
+total:DB.length,
+pending:DB.filter(x=>x.Status==="PENDING").length,
+success:DB.filter(x=>x.Status==="SUCCESS").length,
+rts:DB.filter(x=>x.Status.includes("RTS")).length,
+logged:DB.filter(x=>x.Status==="LOGGED").length
+};
+}
+
+document.getElementById("search")
+.addEventListener("input",function(){
+search=this.value.toLowerCase().trim();
+render();
+});
+
+function match(r,q){
+if(!q) return true;
+return String(r.Name||"")
+.toLowerCase()
+.includes(q);
+}
 
 function render(){
 
-let s = stats();
+let s=stats();
 
-let successRate =
-Math.round((s.success / s.total) * 100) || 0;
+let successRate=
+Math.round((s.success/s.total)*100)||0;
 
-document.getElementById("stats").innerHTML = `
-
+document.getElementById("stats").innerHTML=`
 <div class="box">
 <h2>${s.total}</h2>
-<div class="small">TOTAL TARGETS</div>
+<div class="small">TOTAL</div>
 </div>
 
 <div class="box">
@@ -660,68 +418,36 @@ document.getElementById("stats").innerHTML = `
 <h2>${s.pending}</h2>
 <div class="small">PENDING</div>
 </div>
-
-<div class="box">
-<h2>${s.rts}</h2>
-<div class="small">RTS</div>
-</div>
-
-<div class="box">
-<h2>${s.logged}</h2>
-<div class="small">LOGGED</div>
-</div>
-
 `;
 
-document.getElementById("list").innerHTML =
-
-DB
-
+let filtered = DB
 .filter(r=>match(r,search))
+.sort((a,b)=>b.ID-a.ID);
 
-.map(r=>{
+document.getElementById("list").innerHTML=
+filtered.map(r=>{
 
-let statusClass =
-"status-" +
-r.Status.toLowerCase().replace(/\\s/g,"");
+let statusClass="status-"+
+r.Status.toLowerCase()
+.replace(/\s/g,"")
+.replace("/","");
 
 return `
-
 <div class="card ${statusClass}">
 
-<div class="small">
-ID: ${r.ID}
-</div>
+<div class="small">ID: ${r.ID}</div>
 
 <input
 value="${esc(r.Name)}"
 onchange="update(${r.ID},this.value)"
 >
 
-<select
-onchange="setStatus(${r.ID},this.value)"
->
-
-<option ${r.Status==="PENDING"?"selected":""}>
-PENDING
-</option>
-
-<option ${r.Status==="SUCCESS"?"selected":""}>
-SUCCESS
-</option>
-
-<option ${r.Status==="RTS"?"selected":""}>
-RTS
-</option>
-
-<option ${r.Status==="LOGGED"?"selected":""}>
-LOGGED
-</option>
-
-<option ${r.Status==="Sent"?"selected":""}>
-Sent
-</option>
-
+<select onchange="setStatus(${r.ID},this.value)">
+<option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
+<option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${r.Status==="RTS"?"selected":""}>RTS</option>
+<option ${r.Status==="LOGGED"?"selected":""}>LOGGED</option>
+<option ${r.Status==="Sent"?"selected":""}>Sent</option>
 </select>
 
 <button onclick="removeEntry(${r.ID})">
@@ -729,16 +455,11 @@ Sent
 </button>
 
 </div>
-
 `;
 
 }).join("");
 
 }
-
-////////////////////////////////////////////////////
-// INIT
-////////////////////////////////////////////////////
 
 load();
 
@@ -746,4 +467,3 @@ load();
 
 </body>
 </html>
-```
