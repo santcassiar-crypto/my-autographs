@@ -1,18 +1,21 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Ultimate Core</title>
+<title>VaultOS PRO</title>
 
 <style>
 body{margin:0;background:#000;color:#fff;font-family:Arial}
-header{position:sticky;top:0;background:#111;padding:12px;border-bottom:1px solid #222}
-input,button{width:100%;padding:10px;margin-top:6px;background:#0b0b0b;color:#fff;border:1px solid #333;border-radius:10px}
-.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:10px}
-.box{background:#111;padding:10px;border-radius:10px;text-align:center;border:1px solid #222}
-.card{background:#111;margin:10px;padding:10px;border-radius:10px;border:1px solid #222}
+header{position:sticky;top:0;background:#111;padding:12px;border-bottom:1px solid #222;z-index:10}
+input,button,textarea{
+width:100%;padding:10px;margin-top:6px;
+background:#0b0b0b;color:#fff;border:1px solid #333;border-radius:10px
+}
+button{cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px}
+.box{background:#111;border:1px solid #222;border-radius:10px;padding:10px;text-align:center}
+.card{background:#111;border:1px solid #222;border-radius:10px;padding:10px;margin:10px}
 .small{font-size:11px;color:#888}
 </style>
 </head>
@@ -20,117 +23,95 @@ input,button{width:100%;padding:10px;margin-top:6px;background:#0b0b0b;color:#ff
 <body>
 
 <header>
-<h3>🧠 VaultOS Ultimate</h3>
-<input id="search" placeholder="Search...">
+<h3>🧠 VaultOS PRO</h3>
+<input id="search" placeholder="Search vault...">
 </header>
 
 <div class="grid" id="stats"></div>
-<div id="top10"></div>
+
+<div class="card">
+<h3>📥 IMPORT FULL DATASET</h3>
+<textarea id="importBox" placeholder="Paste full JSON array here..."></textarea>
+<button onclick="importData()">IMPORT DATA</button>
+<button onclick="clearData()">RESET STORAGE</button>
+</div>
+
 <div id="list"></div>
 
 <script>
 
-/* =========================
-🧠 CONFIG (ONLY THING YOU EVER EDIT)
-========================= */
+const KEY = "vault_pro_master";
 
-const CONFIG = {
-storageKey:"vault_master_v1"
-};
+let DB = [];
 
-/* =========================
-📦 INITIAL SEED (ONLY USED ON FIRST RUN)
-========================= */
-
-const SEED = [
-{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
-{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
-{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
-{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
-{"ID":1779457307017,"Name":"Gary Oldman","Status":"SUCCESS"}
-];
-
-/* =========================
-💾 DATABASE
-========================= */
-
-let DB=[];
-
-/* =========================
-🧠 LOAD + SELF HEAL
-========================= */
-
+/* ------------------------
+LOAD
+------------------------ */
 function load(){
-let raw=localStorage.getItem(CONFIG.storageKey);
+let raw = localStorage.getItem(KEY);
 
 if(raw){
 try{
-DB=JSON.parse(raw);
-mergeSeed();
+DB = JSON.parse(raw);
+render();
 return;
 }catch(e){}
 }
 
-DB=[...SEED];
-save();
+DB = [];
+render();
 }
 
-function mergeSeed(){
-SEED.forEach(s=>{
-if(!DB.find(x=>x.ID===s.ID)){
-DB.push(s);
-}
-});
-save();
-}
-
-/* =========================
-💾 SAVE
-========================= */
-
+/* ------------------------
+SAVE
+------------------------ */
 function save(){
-localStorage.setItem(CONFIG.storageKey,JSON.stringify(DB));
+localStorage.setItem(KEY, JSON.stringify(DB));
 }
 
-/* =========================
-🧠 INTELLIGENCE ENGINE
-========================= */
+/* ------------------------
+IMPORT (MAIN FIX)
+------------------------ */
+function importData(){
+let text = document.getElementById("importBox").value.trim();
 
-function norm(s){
-return (s||"PENDING").toUpperCase();
+if(!text){
+alert("Paste JSON first");
+return;
 }
 
-function score(x){
-let s=norm(x.Status);
-if(s==="SUCCESS") return 0;
-if(s==="RTS") return 10;
-if(s==="LOGGED") return 60;
-return 100;
+try{
+let data = JSON.parse(text);
+
+if(!Array.isArray(data)){
+alert("Must be an array");
+return;
 }
 
-function top10(){
-return [...DB]
-.filter(x=>norm(x.Status)!=="SUCCESS")
-.sort((a,b)=>score(b)-score(a))
-.slice(0,10);
+DB = data;
+save();
+render();
+
+alert("IMPORT COMPLETE: " + DB.length + " records");
+
+}catch(e){
+alert("Invalid JSON");
+}
 }
 
-/* =========================
-📊 STATS
-========================= */
-
-function stats(){
-return {
-total:DB.length,
-success:DB.filter(x=>norm(x.Status)==="SUCCESS").length,
-pending:DB.filter(x=>norm(x.Status)==="PENDING").length
-};
+/* ------------------------
+RESET
+------------------------ */
+function clearData(){
+if(!confirm("Clear ALL stored data?")) return;
+localStorage.removeItem(KEY);
+DB=[];
+render();
 }
 
-/* =========================
-🔍 SEARCH
-========================= */
-
+/* ------------------------
+SEARCH
+------------------------ */
 let search="";
 document.getElementById("search").addEventListener("input",e=>{
 search=e.target.value.toLowerCase();
@@ -138,16 +119,27 @@ render();
 });
 
 function match(x){
-return !search || x.Name.toLowerCase().includes(search);
+return !search || (x.Name||"").toLowerCase().includes(search);
 }
 
-/* =========================
-🎯 RENDER
-========================= */
+/* ------------------------
+STATS
+------------------------ */
+function stats(){
+return {
+total:DB.length,
+success:DB.filter(x=>x.Status==="SUCCESS").length,
+pending:DB.filter(x=>x.Status==="PENDING").length,
+rts:DB.filter(x=>x.Status?.includes("RTS")).length
+};
+}
 
+/* ------------------------
+RENDER
+------------------------ */
 function render(){
 
-let s=stats();
+let s = stats();
 
 document.getElementById("stats").innerHTML=`
 <div class="box">${s.total}<br><small>TOTAL</small></div>
@@ -155,24 +147,18 @@ document.getElementById("stats").innerHTML=`
 <div class="box">${s.pending}<br><small>PENDING</small></div>
 `;
 
-document.getElementById("top10").innerHTML=
-`<div class="card"><h3>🔥 TOP 10</h3>`+
-top10().map(x=>`<div>${x.Name}</div>`).join("")+
-`</div>`;
-
 document.getElementById("list").innerHTML=
 DB.filter(match)
 .map(x=>`
 <div class="card">
-<b>${x.Name}</b><br>
-<small>${norm(x.Status)}</small>
+<b>${x.Name || "Unnamed"}</b><br>
+<small>${x.Status || "UNKNOWN"}</small>
 </div>
 `).join("");
 
 }
 
 load();
-render();
 
 </script>
 
