@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,21 +7,75 @@
 <title>VaultOS — Wipe Resistant Edition</title>
 
 <style>
-body{margin:0;background:#000;color:#fff;font-family:Arial}
-header{position:sticky;top:0;background:#111;padding:10px;border-bottom:1px solid #222}
 
-input,select,textarea,button{
-width:100%;padding:10px;margin-top:6px;
-background:#000;color:#fff;border:1px solid #333;border-radius:8px
+body{
+margin:0;
+background:#000;
+color:#fff;
+font-family:Arial;
 }
 
-button{cursor:pointer;background:#111}
-button:hover{background:#1c1c1c}
+header{
+position:sticky;
+top:0;
+background:#111;
+padding:10px;
+border-bottom:1px solid #222;
+z-index:100;
+}
 
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px}
-.box{background:#111;border:1px solid #222;padding:10px;border-radius:8px;text-align:center}
-.card{background:#111;margin:10px;padding:10px;border-radius:10px;border:1px solid #222}
-.small{font-size:11px;color:#888}
+input,select,textarea,button{
+width:100%;
+padding:10px;
+margin-top:6px;
+background:#000;
+color:#fff;
+border:1px solid #333;
+border-radius:8px;
+box-sizing:border-box;
+}
+
+button{
+cursor:pointer;
+background:#111;
+}
+
+button:hover{
+background:#1c1c1c;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+gap:8px;
+padding:10px;
+}
+
+.box{
+background:#111;
+border:1px solid #222;
+padding:10px;
+border-radius:8px;
+text-align:center;
+}
+
+.card{
+background:#111;
+margin:10px;
+padding:10px;
+border-radius:10px;
+border:1px solid #222;
+}
+
+.small{
+font-size:11px;
+color:#888;
+}
+
+h3{
+margin-top:0;
+}
+
 </style>
 </head>
 
@@ -33,16 +88,23 @@ button:hover{background:#1c1c1c}
 <div class="grid" id="stats"></div>
 
 <div class="card">
+
 <h3>🛡️ BACKUP CONTROLS</h3>
 
-<button onclick="exportBackup()">⬇️ DOWNLOAD BACKUP NOW</button>
+<button onclick="exportBackup()">
+⬇️ DOWNLOAD BACKUP NOW
+</button>
 
 <input type="file" id="restoreFile">
-<button onclick="restoreBackup()">⬆️ RESTORE FROM FILE</button>
+
+<button onclick="restoreBackup()">
+⬆️ RESTORE FROM FILE
+</button>
 
 <div class="small">
-Backups are your protection if browser/device is wiped.
+Backups protect your vault if browser/device storage is wiped.
 </div>
+
 </div>
 
 <div id="list"></div>
@@ -50,166 +112,386 @@ Backups are your protection if browser/device is wiped.
 <script>
 
 ////////////////////////////////////////////////////
-// CORE DATA (your system)
+// CORE DATA
 ////////////////////////////////////////////////////
-let DB = [];
 
 const STORAGE_KEY = "vault_wipe_resistant_v1";
 
+let DB = [];
+
 const SEED = [
-{ID:1,Name:"Example Record A",Status:"PENDING"},
-{ID:2,Name:"Example Record B",Status:"SUCCESS"}
+
+{"ID":1779457614274,"Name":"Scott Melvin- Stick to football podcast","Status":"PENDING"},
+{"ID":1779457583433,"Name":"Jonathan ross tv show","Status":"PENDING"},
+{"ID":1779457568898,"Name":"Matchroom - Brentwood","Status":"PENDING"},
+{"ID":1779457518143,"Name":"Kevin Keegan- Home","Status":"SUCCESS"},
+{"ID":1779457496694,"Name":"George Graham - Home ","Status":"PENDING"},
+{"ID":1779457449900,"Name":"LFC Gala Event","Status":"PENDING"},
+{"ID":1779457437040,"Name":"Gosh4 Goals","Status":"PENDING"},
+{"ID":1779457382999,"Name":"San Antonio Training Centre ","Status":"PENDING"},
+{"ID":1779457367391,"Name":"OKC training centre","Status":"PENDING"},
+{"ID":1779457333472,"Name":"FC Barcelona - Training ground","Status":"PENDING"},
+{"ID":1779457307017,"Name":"Gary Oldman ","Status":"SUCCESS"},
+{"ID":1779457276281,"Name":"Arsenal womens team","Status":"PENDING"},
+{"ID":1779457232607,"Name":"Park theatre x 2 ","Status":"PENDING"},
+{"ID":1779457195881,"Name":"Jermery Sochan","Status":"PENDING"},
+{"ID":1779369334553,"Name":"Geoff Hurst ","Status":"LOGGED"},
+{"ID":1779362415139,"Name":"Max Dowman - Dads London office","Status":"PENDING"},
+
+{"ID":1,"Name":"Jannik Sinner","Status":"SUCCESS"},
+{"ID":2,"Name":"Keanu Reeves","Status":"RTS"},
+{"ID":3,"Name":"Alan Carr","Status":"SUCCESS"},
+{"ID":4,"Name":"Harry Kane (Bayern)","Status":"RTS"},
+{"ID":5,"Name":"David Attenborough","Status":"SUCCESS"},
+{"ID":6,"Name":"Paul Merson (Original)","Status":"SUCCESS"},
+{"ID":7,"Name":"Tony Adams","Status":"SUCCESS"},
+{"ID":8,"Name":"Joshua Kimmich","Status":"SUCCESS"},
+{"ID":9,"Name":"Ron Ferdinand","Status":"SUCCESS"},
+{"ID":10,"Name":"Erling Haaland (City)","Status":"SUCCESS"},
+{"ID":11,"Name":"Lamine Yamal (Home)","Status":"RTS"},
+{"ID":12,"Name":"Rosie Jones","Status":"SUCCESS"},
+{"ID":13,"Name":"Kevin Bridges","Status":"SUCCESS"},
+{"ID":14,"Name":"Lee Mack","Status":"SUCCESS"},
+{"ID":15,"Name":"Chris Waddle","Status":"SUCCESS"},
+{"ID":16,"Name":"Ivo Graham","Status":"SUCCESS"},
+{"ID":17,"Name":"Josh Widdicombe","Status":"SUCCESS"},
+{"ID":18,"Name":"Timothée Chalamet","Status":"Sent"},
+{"ID":19,"Name":"Rob Beckett","Status":"SUCCESS"},
+{"ID":20,"Name":"Mohamed Salah","Status":"SUCCESS"},
+{"ID":21,"Name":"Tommy Fleetwood","Status":"SUCCESS"},
+{"ID":22,"Name":"Lamine Yamal (Club)","Status":"SUCCESS"},
+{"ID":24,"Name":"Sebastian Coe","Status":"RTS"},
+{"ID":25,"Name":"Hugh Bonneville","Status":"SUCCESS"},
+{"ID":26,"Name":"Erling Haaland (Academy)","Status":"SUCCESS"},
+{"ID":27,"Name":"Mark Addy","Status":"SUCCESS"},
+{"ID":28,"Name":"Mikel Arteta","Status":"Sent"},
+{"ID":29,"Name":"Billy Crudup","Status":"SUCCESS"},
+{"ID":30,"Name":"Cole Palmer","Status":"RTS"}
+
 ];
 
 ////////////////////////////////////////////////////
-// LOAD (multi-layer recovery system)
+// HTML ESCAPE SAFETY
 ////////////////////////////////////////////////////
+
+function esc(s){
+
+return String(s)
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/"/g,"&quot;");
+
+}
+
+////////////////////////////////////////////////////
+// LOAD SYSTEM
+////////////////////////////////////////////////////
+
 function load(){
 
-// Layer 1: browser storage
 let raw = localStorage.getItem(STORAGE_KEY);
 
+////////////////////////////////////////////////////
+// EXISTING SAVED DATA
+////////////////////////////////////////////////////
+
 if(raw){
+
 try{
+
 DB = JSON.parse(raw);
-render();
-return;
-}catch(e){}
+
+////////////////////////////////////////////////////
+// MERGE NEW RECORDS SAFELY
+////////////////////////////////////////////////////
+
+SEED.forEach(seedItem=>{
+
+let exists = DB.find(x=>x.ID===seedItem.ID);
+
+if(!exists){
+DB.push(seedItem);
 }
 
-// Layer 2: seed fallback
-DB = SEED;
+});
+
 save();
 render();
+return;
+
+}catch(e){}
+
 }
+
+////////////////////////////////////////////////////
+// FIRST TIME LOAD
+////////////////////////////////////////////////////
+
+DB = [...SEED];
+
+save();
+render();
+
+}
+
+////////////////////////////////////////////////////
+// SAVE SYSTEM
+////////////////////////////////////////////////////
 
 function save(){
-localStorage.setItem(STORAGE_KEY, JSON.stringify(DB));
 
-// 🔥 AUTO BACKUP SNAPSHOT (critical)
+localStorage.setItem(
+STORAGE_KEY,
+JSON.stringify(DB)
+);
+
 autoBackup();
+
 }
 
 ////////////////////////////////////////////////////
-// AUTO BACKUP SYSTEM (KEY FEATURE)
+// AUTO BACKUP
 ////////////////////////////////////////////////////
+
 function autoBackup(){
 
 let snapshot = {
-time:Date.now(),
-data:DB
+
+time: Date.now(),
+data: DB
+
 };
 
-// store rotating backup slots
-localStorage.setItem("vault_backup_latest", JSON.stringify(snapshot));
+localStorage.setItem(
+"vault_backup_latest",
+JSON.stringify(snapshot)
+);
 
-// keep second safety copy
-localStorage.setItem("vault_backup_shadow", JSON.stringify(snapshot));
+localStorage.setItem(
+"vault_backup_shadow",
+JSON.stringify(snapshot)
+);
+
 }
 
 ////////////////////////////////////////////////////
-// EXPORT BACKUP (download file)
+// EXPORT BACKUP
 ////////////////////////////////////////////////////
+
 function exportBackup(){
 
 let blob = new Blob(
+
 [JSON.stringify({
-time:Date.now(),
-data:DB
+
+time: Date.now(),
+data: DB
+
 },null,2)],
+
 {type:"application/json"}
+
 );
 
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="vault_backup_"+Date.now()+".json";
+let a = document.createElement("a");
+
+a.href = URL.createObjectURL(blob);
+
+a.download =
+"vault_backup_" + Date.now() + ".json";
+
 a.click();
+
 }
 
 ////////////////////////////////////////////////////
-// RESTORE SYSTEM (DRAG DROP FILE)
+// RESTORE BACKUP
 ////////////////////////////////////////////////////
+
 function restoreBackup(){
 
-let file = document.getElementById("restoreFile").files[0];
-if(!file) return alert("Select backup file");
+let file =
+document.getElementById("restoreFile").files[0];
+
+if(!file){
+
+alert("Select backup file");
+return;
+
+}
 
 let reader = new FileReader();
 
 reader.onload = e=>{
 
 try{
+
 let obj = JSON.parse(e.target.result);
 
 if(obj.data){
+
 DB = obj.data;
+
 save();
 render();
+
 alert("RESTORE COMPLETE");
+
 }else{
+
 alert("Invalid backup file");
+
 }
 
 }catch(err){
+
 alert("Restore failed");
+
 }
 
 };
 
 reader.readAsText(file);
+
 }
 
 ////////////////////////////////////////////////////
 // SEARCH
 ////////////////////////////////////////////////////
-let search="";
-document.getElementById("search").addEventListener("input",e=>{
-search=e.target.value.toLowerCase();
+
+let search = "";
+
+document
+.getElementById("search")
+.addEventListener("input",e=>{
+
+search = e.target.value.toLowerCase();
+
 render();
+
 });
 
 function match(r,q){
+
 if(!q) return true;
-return (r.Name||"").toLowerCase().includes(q);
+
+return (
+(r.Name || "")
+.toLowerCase()
+.includes(q)
+);
+
 }
 
 ////////////////////////////////////////////////////
 // STATS
 ////////////////////////////////////////////////////
+
 function stats(){
+
 return {
-total:DB.length,
-pending:DB.filter(x=>x.Status==="PENDING").length,
-success:DB.filter(x=>x.Status==="SUCCESS").length
+
+total:
+DB.length,
+
+pending:
+DB.filter(x=>x.Status==="PENDING").length,
+
+success:
+DB.filter(x=>x.Status==="SUCCESS").length,
+
+rts:
+DB.filter(x=>x.Status.includes("RTS")).length,
+
+logged:
+DB.filter(x=>x.Status==="LOGGED").length,
+
+sent:
+DB.filter(x=>x.Status==="Sent").length
+
 };
+
 }
 
 ////////////////////////////////////////////////////
 // RENDER
 ////////////////////////////////////////////////////
+
 function render(){
 
-let s=stats();
+let s = stats();
 
-document.getElementById("stats").innerHTML=`
-<div class="box">TOTAL<br>${s.total}</div>
-<div class="box">PENDING<br>${s.pending}</div>
-<div class="box">SUCCESS<br>${s.success}</div>
-<div class="box">BACKUP<br>ACTIVE</div>
+document.getElementById("stats").innerHTML = `
+
+<div class="box">
+TOTAL<br>${s.total}
+</div>
+
+<div class="box">
+PENDING<br>${s.pending}
+</div>
+
+<div class="box">
+SUCCESS<br>${s.success}
+</div>
+
+<div class="box">
+RTS<br>${s.rts}
+</div>
+
+<div class="box">
+LOGGED<br>${s.logged}
+</div>
+
+<div class="box">
+SENT<br>${s.sent}
+</div>
+
 `;
 
-document.getElementById("list").innerHTML=
-DB.filter(r=>match(r,search))
-.map(r=>`
-<div class="card">
-<input value="${r.Name}" onchange="update(${r.ID},this.value)">
+document.getElementById("list").innerHTML =
 
-<select onchange="setStatus(${r.ID},this.value)">
-<option ${r.Status==="PENDING"?"selected":""}>PENDING</option>
-<option ${r.Status==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${r.Status==="RTS"?"selected":""}>RTS</option>
+DB
+.filter(r=>match(r,search))
+
+.map(r=>`
+
+<div class="card">
+
+<input
+value="${esc(r.Name)}"
+onchange="update(${r.ID},this.value)"
+>
+
+<select
+onchange="setStatus(${r.ID},this.value)"
+>
+
+<option ${r.Status==="PENDING"?"selected":""}>
+PENDING
+</option>
+
+<option ${r.Status==="SUCCESS"?"selected":""}>
+SUCCESS
+</option>
+
+<option ${r.Status==="RTS"?"selected":""}>
+RTS
+</option>
+
+<option ${r.Status==="LOGGED"?"selected":""}>
+LOGGED
+</option>
+
+<option ${r.Status==="Sent"?"selected":""}>
+Sent
+</option>
+
 </select>
+
 </div>
+
 `).join("");
 
 }
@@ -217,35 +499,55 @@ DB.filter(r=>match(r,search))
 ////////////////////////////////////////////////////
 // ACTIONS
 ////////////////////////////////////////////////////
+
 function update(id,val){
-let r=DB.find(x=>x.ID===id);
+
+let r = DB.find(x=>x.ID===id);
+
 if(r){
-r.Name=val;
+
+r.Name = val;
+
 save();
 render();
+
 }
+
 }
 
 function setStatus(id,val){
-let r=DB.find(x=>x.ID===id);
+
+let r = DB.find(x=>x.ID===id);
+
 if(r){
-r.Status=val;
+
+r.Status = val;
+
 save();
 render();
+
 }
+
 }
 
 ////////////////////////////////////////////////////
-// EMERGENCY RECOVERY (if storage wiped)
+// EMERGENCY RECOVERY
 ////////////////////////////////////////////////////
+
 (function recoveryCheck(){
 
-let backup = localStorage.getItem("vault_backup_latest");
+let backup =
+localStorage.getItem("vault_backup_latest");
 
-if(!localStorage.getItem(STORAGE_KEY) && backup){
+if(
+!localStorage.getItem(STORAGE_KEY)
+&& backup
+){
 
 let obj = JSON.parse(backup);
+
 DB = obj.data || [];
+
 save();
 
 }
@@ -255,9 +557,11 @@ save();
 ////////////////////////////////////////////////////
 // INIT
 ////////////////////////////////////////////////////
+
 load();
 
 </script>
 
 </body>
 </html>
+```
