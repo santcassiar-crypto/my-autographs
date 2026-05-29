@@ -1,28 +1,189 @@
+# VaultOS — Single HTML Intelligence Build
+
+Replace your current HTML with this merged structure.
+
 ```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VaultOS Intelligence</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+margin:0;
+font-family:Arial;
+background:radial-gradient(circle at top,#111,#000 70%);
+color:#fff;
+}
+header{
+position:sticky;
+top:0;
+z-index:999;
+background:#0b0b0bee;
+padding:14px;
+border-bottom:1px solid #222;
+backdrop-filter:blur(8px);
+}
+.title{font-size:28px;font-weight:bold}
+.subtitle{font-size:12px;color:#888}
+input,select,button{
+width:100%;
+padding:12px;
+margin-top:8px;
+background:#0d0d0d;
+color:#fff;
+border:1px solid #333;
+border-radius:12px;
+}
+button{cursor:pointer;font-weight:bold}
+button:hover{border-color:#666}
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+gap:10px;
+padding:12px;
+}
+.box,.card{
+background:#111;
+border:1px solid #222;
+border-radius:18px;
+padding:14px;
+}
+.box{text-align:center}
+.card{margin:12px;transition:.2s}
+.card:hover{
+transform:translateY(-2px);
+box-shadow:0 0 20px rgba(255,255,255,.05);
+border-color:#444;
+}
+.small{font-size:11px;color:#888;margin-top:6px}
+.status-success{border-left:4px solid #00ff99}
+.status-pending{border-left:4px solid orange}
+.status-rts{border-left:4px solid red}
+.status-logged{border-left:4px solid #44aaff}
+.status-sent{border-left:4px solid violet}
+.ticker-wrap{
+overflow:hidden;
+background:#050505;
+border-bottom:1px solid #222;
+padding:10px 0;
+}
+.ticker{
+white-space:nowrap;
+display:inline-block;
+padding-left:100%;
+animation:tickerMove 30s linear infinite;
+color:#00ffcc;
+font-size:13px;
+}
+@keyframes tickerMove{
+0%{transform:translateX(0)}
+100%{transform:translateX(-100%)}
+}
+</style>
+</head>
+<body>
+
+<header>
+<div class="title">🏆 VaultOS Intelligence</div>
+<div class="subtitle">Autograph Intelligence Dashboard</div>
+<input id="search" placeholder="Search vault...">
+</header>
+
+<div class="ticker-wrap">
+<div class="ticker">
+⚽ Arsenal squad back in training • 🎬 Batman II production active • 🏀 NBA facilities accessible • 🎭 London theatre season active • ✍️ Football legends signing regularly
+</div>
+</div>
+
+<div class="grid" id="stats"></div>
+
+<div class="card">
+<h3>➕ QUICK ADD</h3>
+<input id="newName" placeholder="Add new target...">
+<select id="newStatus">
+<option>PENDING</option>
+<option>SUCCESS</option>
+<option>RTS</option>
+<option>LOGGED</option>
+<option>Sent</option>
+</select>
+<button onclick="addEntry()">ADD TO VAULT</button>
+</div>
+
+<div class="card">
+<h3>🛡️ BACKUP CONTROLS</h3>
+<button onclick="exportBackup()">⬇️ DOWNLOAD BACKUP</button>
+<input type="file" id="restoreFile">
+<button onclick="restoreBackup()">⬆️ RESTORE BACKUP</button>
+<button onclick="resetVault()">♻️ RESET VAULT</button>
+</div>
+
+<div class="card">
+<h3>🎯 WHO TO SEND NEXT</h3>
+<div id="nextTargets"></div>
+</div>
+
+<div class="card">
+<h3>🏆 ACHIEVEMENTS</h3>
+<div id="achievements"></div>
+</div>
+
+<div id="list"></div>
+
 <script>
 
-const STORAGE_KEY = "vault_wipe_resistant_v4";
-
+const STORAGE_KEY = "vault_wipe_resistant_v5";
 let DB = [];
 let search = "";
 
 const SEED = [
-...FULL DATASET HERE...
+// PASTE YOUR FULL 130+ RECORD DATASET HERE
 ];
 
+function esc(s){
+return String(s)
+.replace(/&/g,"&amp;")
+.replace(/</g,"&lt;")
+.replace(/>/g,"&gt;")
+.replace(/\"/g,"&quot;");
+}
+
 function save(){
-...
+localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));
+autoBackup();
 }
 
 function load(){
-...
+let raw=localStorage.getItem(STORAGE_KEY);
+
+if(raw){
+try{
+DB=JSON.parse(raw);
+SEED.forEach(seed=>{
+if(!DB.find(x=>x.ID===seed.ID)) DB.push(seed);
+});
+save();
+render();
+return;
+}catch(e){}
 }
 
-function render(){
-...
+DB=[...SEED];
+save();
+render();
 }
 
-load();
+function autoBackup(){
+let snapshot={time:Date.now(),data:DB};
+localStorage.setItem("vault_backup_latest",JSON.stringify(snapshot));
+localStorage.setItem("vault_backup_shadow",JSON.stringify(snapshot));
+}
 
-</script>
+function exportBackup(){
+let blob=new Blob([
+JSON.strin
 ```
