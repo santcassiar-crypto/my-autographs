@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS PRO+ (Fixed Import)</title>
+<title>TTM OS – Autonomous Scheduler</title>
 
 <style>
 body{
-  font-family:Arial,sans-serif;
+  font-family:Arial;
   background:#0b0b0b;
   color:#fff;
   margin:0;
@@ -45,10 +45,8 @@ input,textarea,button,select{
   color:#fff;
 }
 
-button{cursor:pointer}
-
 .record{
-  padding:8px;
+  padding:6px;
   border-bottom:1px solid #222;
 }
 
@@ -66,7 +64,7 @@ button{cursor:pointer}
 <body>
 
 <header>
-<h2>TTM OS PRO+ (Stable Fixed Version)</h2>
+<h2>TTM OS – Autonomous Scheduler</h2>
 <input id="search" placeholder="Search targets...">
 </header>
 
@@ -75,7 +73,7 @@ button{cursor:pointer}
 <div class="card">
 <h3>➕ Add Targets</h3>
 <textarea id="bulk" placeholder="One target per line"></textarea>
-<button onclick="addTargets()">Add</button>
+<button onclick="add()">Add</button>
 </div>
 
 <div class="card">
@@ -88,51 +86,38 @@ button{cursor:pointer}
 <option>RTS</option>
 <option>LOGGED</option>
 </select>
-<button onclick="updateStatus()">Update</button>
+<button onclick="update()">Update</button>
 </div>
 
 <div class="card">
-<h3>💾 JSON Backup</h3>
-<input type="file" id="file">
-<button onclick="importJSON()">Import JSON</button>
-<button onclick="exportJSON()">Export JSON</button>
-<div id="backup" class="small"></div>
+<h3>⚡ TODAY’S AUTONOMOUS SEND LIST</h3>
+<div id="today"></div>
 </div>
 
 <div class="card">
-<h3>🎯 Queue</h3>
-<div id="queue"></div>
+<h3>🧠 SYSTEM STATES</h3>
+<div id="states"></div>
 </div>
 
 <div class="card">
-<h3>📋 All Records</h3>
+<h3>📋 ALL RECORDS</h3>
 <div id="list"></div>
 </div>
 
 <script>
 
-const KEY = "ttm_os_fixed_v1";
+/* =========================
+   CORE DB
+========================= */
 
+const KEY = "ttm_autonomous_v1";
 let DB = load();
 
-/* =========================
-   SAFE LOAD (FIXED)
-========================= */
 function load(){
   try{
     const raw = JSON.parse(localStorage.getItem(KEY)||"{}");
-
-    if(Array.isArray(raw)){
-      return {records: raw};
-    }
-
-    if(raw && Array.isArray(raw.records)){
-      return raw;
-    }
-
-    return {records:[]};
-
-  }catch(e){
+    return raw.records ? raw : {records:[]};
+  }catch{
     return {records:[]};
   }
 }
@@ -144,6 +129,7 @@ function save(){
 /* =========================
    NORMALISE STATUS
 ========================= */
+
 function norm(s){
   if(!s) return "PENDING";
   s = String(s).trim().toUpperCase();
@@ -158,9 +144,10 @@ function norm(s){
 }
 
 /* =========================
-   ADD
+   CORE ACTIONS
 ========================= */
-function addTargets(){
+
+function add(){
   const lines = document.getElementById("bulk").value
     .split("\n").map(x=>x.trim()).filter(Boolean);
 
@@ -169,19 +156,16 @@ function addTargets(){
       id: Date.now()+Math.random(),
       name:n,
       status:"PENDING",
-      history:[]
+      history:[],
+      created:Date.now()
     });
   });
 
   document.getElementById("bulk").value="";
-  save();
-  render();
+  cycle();
 }
 
-/* =========================
-   UPDATE
-========================= */
-function updateStatus(){
+function update(){
   const name = document.getElementById("u_name").value.toLowerCase();
   const status = norm(document.getElementById("u_status").value);
 
@@ -191,113 +175,81 @@ function updateStatus(){
     }
   });
 
-  save();
-  render();
+  cycle();
 }
 
 /* =========================
-   SCORE
+   SCORING ENGINE
 ========================= */
+
 function score(r){
   let s = 50;
 
-  if(r.status === "SUCCESS") s += 30;
+  if(r.status === "SUCCESS") s += 40;
+  if(r.status === "RTS") s -= 30;
   if(r.status === "SENT") s += 10;
-  if(r.status === "RTS") s -= 25;
+
+  const n = r.name.toLowerCase();
+  if(n.includes("event")) s += 5;
+  if(n.includes("training")) s -= 5;
 
   return Math.max(0,Math.min(100,s));
 }
 
 /* =========================
-   IMPORT (FIXED + SAFE)
+   AUTONOMOUS SCHEDULER CORE
 ========================= */
-function importJSON(){
-  const file = document.getElementById("file").files[0];
-  if(!file){
-    alert("Select file");
-    return;
-  }
 
-  const reader = new FileReader();
-
-  reader.onload = e=>{
-    try{
-      const raw = JSON.parse(e.target.result);
-
-      let records = [];
-
-      if(Array.isArray(raw)){
-        records = raw;
-      } else if(raw && Array.isArray(raw.records)){
-        records = raw.records;
-      } else {
-        throw new Error("Bad format");
-      }
-
-      DB.records = records
-        .filter(r => r && (r.Name || r.name))
-        .map(r => ({
-          id: r.ID || r.id || Date.now()+Math.random(),
-          name: String(r.Name || r.name).trim(),
-          status: norm(r.Status || r.status),
-          history: Array.isArray(r.history) ? r.history : []
-        }));
-
-      save();
-      render();
-
-      document.getElementById("backup").innerText =
-        "Imported " + DB.records.length + " records";
-
-    }catch(err){
-      alert("Import failed");
-      console.error(err);
-    }
-  };
-
-  reader.readAsText(file);
-}
-
-/* =========================
-   EXPORT
-========================= */
-function exportJSON(){
-  const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="ttm_backup.json";
-  a.click();
-}
-
-/* =========================
-   QUEUE
-========================= */
-function queue(){
+function todayList(){
   return DB.records
-    .filter(r=>r.status==="PENDING")
+    .filter(r => r.status === "PENDING")
     .sort((a,b)=>score(b)-score(a))
-    .slice(0,10);
+    .slice(0,12);
 }
 
 /* =========================
-   RENDER
+   STATE BREAKDOWN
 ========================= */
+
+function states(){
+  return {
+    pending: DB.records.filter(r=>r.status==="PENDING").length,
+    sent: DB.records.filter(r=>r.status==="SENT").length,
+    success: DB.records.filter(r=>r.status==="SUCCESS").length,
+    rts: DB.records.filter(r=>r.status==="RTS").length,
+    logged: DB.records.filter(r=>r.status==="LOGGED").length
+  };
+}
+
+/* =========================
+   RENDER ENGINE
+========================= */
+
 function render(){
 
-  const total = DB.records.length;
-  const pending = DB.records.filter(r=>r.status==="PENDING").length;
-  const success = DB.records.filter(r=>r.status==="SUCCESS").length;
+  const s = states();
 
   document.getElementById("stats").innerHTML = `
-    <div class="card"><h2>${total}</h2>Total</div>
-    <div class="card"><h2>${pending}</h2>Pending</div>
-    <div class="card"><h2>${success}</h2>Success</div>
+    <div class="card"><h2>${DB.records.length}</h2>Total</div>
+    <div class="card"><h2>${s.pending}</h2>Pending</div>
+    <div class="card"><h2>${s.sent}</h2>Sent</div>
+    <div class="card"><h2>${s.success}</h2>Success</div>
+    <div class="card"><h2>${s.rts}</h2>RTS</div>
   `;
 
-  document.getElementById("queue").innerHTML =
-    queue().map(r=>`
-      🎯 ${r.name} <span class="badge">${score(r)}%</span>
+  /* ⚡ AUTONOMOUS OUTPUT */
+  document.getElementById("today").innerHTML =
+    todayList().map(r=>`
+      ⚡ ${r.name}
+      <span class="badge">${score(r)}%</span>
     `).join("<br>");
+
+  document.getElementById("states").innerHTML = `
+    READY (PENDING): ${s.pending}<br>
+    IN PROGRESS (SENT): ${s.sent}<br>
+    COMPLETED (SUCCESS): ${s.success}<br>
+    FAILED / RETRY (RTS): ${s.rts}
+  `;
 
   const q = (document.getElementById("search").value||"").toLowerCase();
 
@@ -312,6 +264,15 @@ function render(){
       `).join("");
 
   save();
+}
+
+/* =========================
+   CYCLE
+========================= */
+
+function cycle(){
+  save();
+  render();
 }
 
 /* INIT */
