@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS v9 Predictive Engine</title>
+<title>VaultOS Stable Core</title>
 
 <style>
 body{
@@ -36,7 +36,7 @@ header{
   margin:10px;
 }
 
-input,textarea,button{
+input,textarea,button,select{
   width:100%;
   padding:10px;
   margin-top:6px;
@@ -68,7 +68,7 @@ button{cursor:pointer}
 <body>
 
 <header>
-<h2>VaultOS v9 Predictive Engine</h2>
+<h2>VaultOS Stable Core</h2>
 <input id="search" placeholder="Search records...">
 </header>
 
@@ -77,18 +77,13 @@ button{cursor:pointer}
 <div class="card">
 <h3>Bulk Add</h3>
 <textarea id="bulkNames" placeholder="One name per line..."></textarea>
-<button onclick="bulkAdd()">Add All As PENDING</button>
+<button onclick="bulkAdd()">Add All</button>
 <div id="bulkResult" class="small"></div>
 </div>
 
 <div class="card">
-<h3>🔮 Predictive Intelligence</h3>
+<h3>Intelligence</h3>
 <div id="intel"></div>
-</div>
-
-<div class="card">
-<h3>📈 Next Best Targets</h3>
-<div id="next"></div>
 </div>
 
 <div class="card">
@@ -98,126 +93,137 @@ button{cursor:pointer}
 
 <script>
 
-const KEY = "vaultos_v9_predict";
-let DB = [];
+/* =========================
+   🧱 STABLE DATABASE CORE
+========================= */
 
-/* ---------------- STORAGE ---------------- */
+const KEY = "vaultos_core_db";
 
-function save(){
+let DB = loadDB();
+
+/* load with migration support */
+function loadDB(){
+
+  const core = JSON.parse(localStorage.getItem(KEY) || "null");
+
+  if(core && core.records) return core;
+
+  // MIGRATION from old versions
+  const legacy =
+    JSON.parse(localStorage.getItem("vaultos_v10_auto") || "[]");
+
+  const migrated = legacy.map(r => ({
+    id: r.ID || Date.now() + Math.random(),
+    name: r.Name || "",
+    status: r.Status || "PENDING",
+    created: r.created || Date.now(),
+    history: r.History || []
+  }));
+
+  return {
+    records: migrated,
+    meta: {
+      version: "stable-core-1",
+      created: Date.now(),
+      lastUpdated: Date.now()
+    }
+  };
+}
+
+/* save */
+function saveDB(){
+  DB.meta.lastUpdated = Date.now();
   localStorage.setItem(KEY, JSON.stringify(DB));
-  render();
 }
 
-function load(){
-  try{
-    DB = JSON.parse(localStorage.getItem(KEY) || "[]");
-  }catch(e){
-    DB = [];
-  }
-  render();
-}
-
-/* ---------------- BULK ---------------- */
+/* =========================
+   ➕ BULK ADD
+========================= */
 
 function bulkAdd(){
+
   const text = document.getElementById('bulkNames').value.trim();
   if(!text) return alert("No input");
 
   const lines = text.split("\n").map(x=>x.trim()).filter(Boolean);
 
   lines.forEach(name=>{
-    DB.push({
-      ID: Date.now()+Math.random(),
-      Name: name,
-      Status: "PENDING",
-      History: []
+    DB.records.push({
+      id: Date.now()+Math.random(),
+      name,
+      status: "PENDING",
+      created: Date.now(),
+      history: []
     });
   });
 
   document.getElementById('bulkNames').value="";
   document.getElementById('bulkResult').innerText =
-    `Added ${lines.length} targets`;
+    `Added ${lines.length} records`;
 
-  save();
+  saveDB();
+  render();
 }
 
-/* ---------------- CORE MODELS ---------------- */
+/* =========================
+   🧠 INTELLIGENCE ENGINE
+========================= */
 
-function category(n){
-  n=(n||"").toLowerCase();
+function baseScore(r){
 
-  if(/football|england|liverpool|barcelona/.test(n)) return "Football";
-  if(/nba|lakers|celtics/.test(n)) return "NBA";
-  if(/actor|movie|film|tv/.test(n)) return "Entertainment";
-  if(/event|tour|show/.test(n)) return "Events";
-  return "Other";
-}
-
-/* AI SCORE */
-function aiScore(r){
   let s = 50;
-  const n = (r.Name||"").toLowerCase();
+  const n = (r.name || "").toLowerCase();
 
-  if(r.Status==="SUCCESS") s += 25;
-  if(r.Status==="RTS") s -= 20;
-  if(r.Status==="PENDING") s += 10;
+  if(r.status === "SUCCESS") s += 25;
+  if(r.status === "RTS") s -= 25;
+  if(r.status === "PENDING") s += 10;
 
-  if(/official|verified/.test(n)) s += 15;
-  if(/academy|trial/.test(n)) s -= 15;
-  if(/event|tour/.test(n)) s += 10;
+  if(n.includes("official")) s += 10;
+  if(n.includes("event")) s += 8;
+  if(n.includes("academy")) s -= 10;
 
-  return Math.max(0,Math.min(100,s));
+  return Math.max(0, Math.min(100, s));
 }
 
-/* TREND ENGINE (NEW) */
-function trendScore(r){
+/* learning memory */
+function updateHistory(r){
 
-  const hist = r.History || [];
-  if(hist.length < 2) return 0;
+  if(!r.history) r.history = [];
 
-  const last = hist[hist.length-1];
-  const prev = hist[hist.length-2];
+  r.history.push(baseScore(r));
 
-  return last - prev;
+  if(r.history.length > 8){
+    r.history.shift();
+  }
 }
 
-/* PREDICTION ENGINE (NEW CORE) */
+/* trend engine */
+function trend(r){
+  const h = r.history || [];
+  if(h.length < 2) return 0;
+  return h[h.length-1] - h[0];
+}
+
+/* predictive score */
 function predict(r){
 
-  const base = aiScore(r);
-  const trend = trendScore(r);
+  const base = baseScore(r);
+  const t = trend(r);
 
-  const cat = category(r.Name);
-
-  let prediction = base;
-
-  // trend influence
-  prediction += trend * 1.5;
-
-  // category weighting (system-wide bias)
-  if(cat === "Football") prediction += 8;
-  if(cat === "NBA") prediction += 5;
-  if(cat === "Events") prediction += 6;
-
-  // randomness removed (stability focus)
-
-  return Math.max(0,Math.min(100,prediction));
+  return Math.max(0, Math.min(100, base + t * 1.5));
 }
 
-/* ---------------- RENDER ---------------- */
+/* =========================
+   📊 RENDER
+========================= */
 
 function render(){
 
-  /* update history snapshot */
-  DB.forEach(r=>{
-    if(!r.History) r.History = [];
-    r.History.push(aiScore(r));
-    if(r.History.length > 5) r.History.shift();
-  });
+  DB.records.forEach(updateHistory);
 
-  const total = DB.length;
-  const pending = DB.filter(x=>x.Status==="PENDING").length;
-  const success = DB.filter(x=>x.Status==="SUCCESS").length;
+  const total = DB.records.length;
+  const pending = DB.records.filter(x=>x.status==="PENDING").length;
+  const success = DB.records.filter(x=>x.status==="SUCCESS").length;
 
   document.getElementById('stats').innerHTML = `
     <div class="card"><h2>${total}</h2>Total</div>
@@ -225,56 +231,41 @@ function render(){
     <div class="card"><h2>${success}</h2>Success</div>
   `;
 
-  /* INTELLIGENCE (CURRENT STATE) */
-  const intel = DB
-    .filter(x=>x.Status==="PENDING")
+  const top = DB.records
+    .filter(x=>x.status==="PENDING")
     .sort((a,b)=>predict(b)-predict(a))
     .slice(0,10);
 
   document.getElementById('intel').innerHTML =
-    intel.length
-      ? intel.map(x=>`
-        <div>
-          ⚡ <b>${x.Name}</b>
-          <span class="badge">${predict(x).toFixed(0)}%</span>
-          <span class="small">${category(x.Name)}</span>
-        </div>
-      `).join("")
-      : "No predictive signals";
+    top.length ? top.map(x=>`
+      ⚡ <b>${x.name}</b>
+      <span class="badge">${predict(x).toFixed(0)}%</span>
+    `).join("") : "No intelligence data";
 
-  /* NEXT BEST TARGETS (NEW FEATURE) */
-  const next = DB
-    .filter(x=>x.Status==="PENDING")
-    .sort((a,b)=>predict(b)-predict(a))
-    .slice(0,5);
-
-  document.getElementById('next').innerHTML =
-    next.map(x=>`
-      🚀 ${x.Name}
-      <span class="badge">P:${predict(x).toFixed(0)}%</span>
-    `).join("<br>");
-
-  /* LIST */
   const q = (document.getElementById('search').value||"").toLowerCase();
 
   document.getElementById('list').innerHTML =
-    DB
-      .filter(x=>(x.Name||"").toLowerCase().includes(q))
+    DB.records
+      .filter(x=>(x.name||"").toLowerCase().includes(q))
       .map(x=>`
         <div class="record">
-          <b>${x.Name}</b><br>
-          <span class="small">${x.Status}</span>
+          <b>${x.name}</b><br>
+          <span class="small">${x.status}</span>
         </div>
       `).join("");
+
+  saveDB();
 }
 
-/* ---------------- SEARCH ---------------- */
+/* =========================
+   🔎 SEARCH
+========================= */
 
-document.getElementById('search').addEventListener('input',render);
+document.getElementById('search')
+  .addEventListener('input', render);
 
-/* ---------------- INIT ---------------- */
-
-load();
+/* init */
+render();
 
 </script>
 
