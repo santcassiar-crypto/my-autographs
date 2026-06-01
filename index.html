@@ -1,166 +1,112 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS PRO</title>
-
+<title>VaultOS Pro v4</title>
 <style>
-body{margin:0;background:#000;color:#fff;font-family:Arial}
-header{position:sticky;top:0;background:#111;padding:12px;border-bottom:1px solid #222;z-index:10}
-input,button,textarea{
-width:100%;padding:10px;margin-top:6px;
-background:#0b0b0b;color:#fff;border:1px solid #333;border-radius:10px
-}
-button{cursor:pointer}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px}
-.box{background:#111;border:1px solid #222;border-radius:10px;padding:10px;text-align:center}
-.card{background:#111;border:1px solid #222;border-radius:10px;padding:10px;margin:10px}
-.small{font-size:11px;color:#888}
+body{font-family:Arial;margin:0;background:#0b0b0b;color:#fff}
+header{padding:12px;background:#111;position:sticky;top:0}
+input,select,textarea,button{width:100%;padding:10px;margin:6px 0;background:#181818;color:#fff;border:1px solid #333;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:10px}
+.card{background:#111;border:1px solid #222;border-radius:10px;padding:10px}
+.small{font-size:12px;color:#aaa}
+.list{padding:10px}
 </style>
 </head>
-
 <body>
-
 <header>
-<h3>🧠 VaultOS PRO</h3>
-<input id="search" placeholder="Search vault...">
+<h2>VaultOS Pro v4</h2>
+<input id="search" placeholder="Search...">
 </header>
 
 <div class="grid" id="stats"></div>
 
 <div class="card">
-<h3>📥 IMPORT FULL DATASET</h3>
-<textarea id="importBox" placeholder="Paste full JSON array here..."></textarea>
-<button onclick="importData()">IMPORT DATA</button>
-<button onclick="clearData()">RESET STORAGE</button>
+<h3>Import / Export</h3>
+<textarea id="jsonBox" placeholder="Paste JSON array here"></textarea>
+<button onclick="importJSON()">Import JSON</button>
+<button onclick="exportJSON()">Export JSON</button>
 </div>
 
-<div id="list"></div>
+<div class="card">
+<h3>Intelligence</h3>
+<div id="intel"></div>
+</div>
+
+<div class="list" id="list"></div>
 
 <script>
+const KEY="vaultos_v4";
+let DB=[];
 
-const KEY = "vault_pro_master";
+function save(){localStorage.setItem(KEY,JSON.stringify(DB));render();}
+function load(){DB=JSON.parse(localStorage.getItem(KEY)||"[]");render();}
 
-let DB = [];
-
-/* ------------------------
-LOAD
------------------------- */
-function load(){
-let raw = localStorage.getItem(KEY);
-
-if(raw){
-try{
-DB = JSON.parse(raw);
-render();
-return;
-}catch(e){}
+function importJSON(){
+ try{
+  DB=JSON.parse(document.getElementById('jsonBox').value);
+  save();
+  alert("Imported "+DB.length+" records");
+ }catch(e){alert("Invalid JSON");}
 }
 
-DB = [];
-render();
+function exportJSON(){
+ const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(b);
+ a.download='vault_backup.json';
+ a.click();
 }
 
-/* ------------------------
-SAVE
------------------------- */
-function save(){
-localStorage.setItem(KEY, JSON.stringify(DB));
-}
-
-/* ------------------------
-IMPORT (MAIN FIX)
------------------------- */
-function importData(){
-let text = document.getElementById("importBox").value.trim();
-
-if(!text){
-alert("Paste JSON first");
-return;
-}
-
-try{
-let data = JSON.parse(text);
-
-if(!Array.isArray(data)){
-alert("Must be an array");
-return;
-}
-
-DB = data;
-save();
-render();
-
-alert("IMPORT COMPLETE: " + DB.length + " records");
-
-}catch(e){
-alert("Invalid JSON");
-}
-}
-
-/* ------------------------
-RESET
------------------------- */
-function clearData(){
-if(!confirm("Clear ALL stored data?")) return;
-localStorage.removeItem(KEY);
-DB=[];
-render();
-}
-
-/* ------------------------
-SEARCH
------------------------- */
-let search="";
-document.getElementById("search").addEventListener("input",e=>{
-search=e.target.value.toLowerCase();
-render();
-});
-
-function match(x){
-return !search || (x.Name||"").toLowerCase().includes(search);
-}
-
-/* ------------------------
-STATS
------------------------- */
 function stats(){
-return {
-total:DB.length,
-success:DB.filter(x=>x.Status==="SUCCESS").length,
-pending:DB.filter(x=>x.Status==="PENDING").length,
-rts:DB.filter(x=>x.Status?.includes("RTS")).length
-};
+ return {
+ total:DB.length,
+ success:DB.filter(x=>x.Status==="SUCCESS").length,
+ pending:DB.filter(x=>x.Status==="PENDING").length,
+ rts:DB.filter(x=>(x.Status||"").includes("RTS")).length
+ }
 }
 
-/* ------------------------
-RENDER
------------------------- */
+function score(r){
+ let s=50;
+ if((r.Status||"")==="PENDING") s+=20;
+ if((r.Name||"").match(/England|Arsenal|training|cast/i)) s-=10;
+ return s;
+}
+
 function render(){
+ let st=stats();
+ document.getElementById('stats').innerHTML=`
+ <div class="card"><h2>${st.total}</h2>Total</div>
+ <div class="card"><h2>${st.success}</h2>Success</div>
+ <div class="card"><h2>${st.pending}</h2>Pending</div>
+ <div class="card"><h2>${st.rts}</h2>RTS</div>`;
 
-let s = stats();
+ let top=DB.filter(x=>x.Status==="PENDING")
+           .sort((a,b)=>score(b)-score(a))
+           .slice(0,10);
 
-document.getElementById("stats").innerHTML=`
-<div class="box">${s.total}<br><small>TOTAL</small></div>
-<div class="box">${s.success}<br><small>SUCCESS</small></div>
-<div class="box">${s.pending}<br><small>PENDING</small></div>
-`;
+ document.getElementById('intel').innerHTML =
+ "<b>Top 10 Likely Returns</b><ol>"+
+ top.map(x=>`<li>${x.Name} (${score(x)}%)</li>`).join("")+
+ "</ol>";
 
-document.getElementById("list").innerHTML=
-DB.filter(match)
-.map(x=>`
-<div class="card">
-<b>${x.Name || "Unnamed"}</b><br>
-<small>${x.Status || "UNKNOWN"}</small>
-</div>
-`).join("");
+ let q=(document.getElementById('search').value||'').toLowerCase();
 
+ document.getElementById('list').innerHTML =
+ DB.filter(x=>(x.Name||'').toLowerCase().includes(q))
+   .map(x=>`
+   <div class="card">
+   <b>${x.Name||''}</b><br>
+   <span class="small">${x.Status||''}</span>
+   </div>`).join("");
 }
 
+document.getElementById('search').addEventListener('input',render);
 load();
-
 </script>
-
 </body>
 </html>
