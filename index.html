@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS – Long Term Core</title>
+<title>TTM OS – Stable Core</title>
 
 <style>
 body{
@@ -60,6 +60,7 @@ button{cursor:pointer}
   background:#222;
   border-radius:6px;
   font-size:11px;
+  margin-left:6px;
 }
 </style>
 </head>
@@ -67,25 +68,26 @@ button{cursor:pointer}
 <body>
 
 <header>
-<h2>TTM OS – Long Term System</h2>
+<h2>TTM OS – Stable Intelligence Core</h2>
 <input id="search" placeholder="Search targets...">
 </header>
 
 <div class="grid" id="stats"></div>
 
-<!-- ADD TARGETS -->
+<!-- ADD -->
 <div class="card">
 <h3>➕ Add Targets</h3>
 <textarea id="bulk" placeholder="One name per line"></textarea>
 <button onclick="addTargets()">Add</button>
 </div>
 
-<!-- UPDATE STATUS -->
+<!-- UPDATE -->
 <div class="card">
 <h3>📌 Update Status</h3>
-<input id="nameUpdate" placeholder="Name">
-<select id="statusUpdate">
+<input id="updateName" placeholder="Target name">
+<select id="updateStatus">
 <option>PENDING</option>
+<option>SENT</option>
 <option>SUCCESS</option>
 <option>RTS</option>
 <option>LOGGED</option>
@@ -93,13 +95,13 @@ button{cursor:pointer}
 <button onclick="updateStatus()">Update</button>
 </div>
 
-<!-- JSON BACKUP -->
+<!-- BACKUP -->
 <div class="card">
 <h3>💾 Backup / Restore</h3>
 <input type="file" id="file">
-<button onclick="importData()">Import JSON</button>
-<button onclick="exportData()">Export JSON</button>
-<div id="backupStatus" class="small"></div>
+<button onclick="importJSON()">Import JSON</button>
+<button onclick="exportJSON()">Export JSON</button>
+<div id="status" class="small"></div>
 </div>
 
 <!-- QUEUE -->
@@ -108,41 +110,92 @@ button{cursor:pointer}
 <div id="queue"></div>
 </div>
 
-<!-- NEWS -->
-<div class="card">
-<h3>📰 Activity Signals</h3>
-<div id="news"></div>
-</div>
-
-<!-- GRAPH -->
-<div class="card">
-<h3>📊 Performance Trend</h3>
-<canvas id="graph" width="400" height="160" style="width:100%;background:#0a0a0a;border-radius:8px"></canvas>
-</div>
-
 <!-- LIST -->
 <div class="card">
-<h3>All Targets</h3>
+<h3>📋 All Targets</h3>
 <div id="list"></div>
 </div>
 
 <script>
 
 /* =========================
-   CORE VAULT (NO VERSIONING)
+   CORE DATABASE (STABLE)
 ========================= */
 
-const KEY="ttm_vault_core";
+const KEY = "ttm_os_stable_v1";
 
-let DB=load();
+let DB = load();
 
 function load(){
-  const d=JSON.parse(localStorage.getItem(KEY)||"{}");
-  return d.records ? d : {records:[],meta:{created:Date.now()}};
+  const raw = JSON.parse(localStorage.getItem(KEY) || "{}");
+  return raw.records ? raw : {records:[],meta:{}};
 }
 
 function save(){
-  localStorage.setItem(KEY,JSON.stringify(DB));
+  localStorage.setItem(KEY, JSON.stringify(DB));
+}
+
+/* =========================
+   STATUS NORMALISATION
+========================= */
+
+function normaliseStatus(s){
+  if(!s) return "PENDING";
+
+  s = String(s).trim().toUpperCase();
+
+  if(s.includes("PEND")) return "PENDING";
+  if(s.includes("SUCCESS")) return "SUCCESS";
+  if(s.includes("RTS") || s.includes("FAIL")) return "RTS";
+  if(s.includes("LOG")) return "LOGGED";
+  if(s.includes("SENT")) return "SENT";
+
+  return "PENDING";
+}
+
+/* =========================
+   CLEAN IMPORT PIPELINE
+========================= */
+
+function importJSON(){
+  const file = document.getElementById("file").files[0];
+  if(!file) return alert("Select file");
+
+  const reader = new FileReader();
+
+  reader.onload = e=>{
+    const data = JSON.parse(e.target.result);
+
+    const records = Array.isArray(data) ? data : data.records || [];
+
+    DB.records = records.map(r=>({
+      id: r.ID || r.id || Date.now()+Math.random(),
+      name: r.Name || r.name || "",
+      status: normaliseStatus(r.Status || r.status),
+      history: r.history || []
+    }));
+
+    dedupe();
+    save();
+    render();
+
+    document.getElementById("status").innerText =
+      "Loaded " + DB.records.length + " records";
+  };
+
+  reader.readAsText(file);
+}
+
+/* =========================
+   EXPORT
+========================= */
+
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "ttm_backup.json";
+  a.click();
 }
 
 /* =========================
@@ -150,15 +203,15 @@ function save(){
 ========================= */
 
 function addTargets(){
-  const lines=document.getElementById("bulk").value
+  const lines = document.getElementById("bulk").value
     .split("\n").map(x=>x.trim()).filter(Boolean);
 
   lines.forEach(n=>{
     DB.records.push({
-      id:Date.now()+Math.random(),
-      name:n,
-      status:"PENDING",
-      history:[]
+      id: Date.now()+Math.random(),
+      name: n,
+      status: "PENDING",
+      history: []
     });
   });
 
@@ -168,16 +221,16 @@ function addTargets(){
 }
 
 /* =========================
-   STATUS UPDATE
+   UPDATE STATUS
 ========================= */
 
 function updateStatus(){
-  const name=document.getElementById("nameUpdate").value.toLowerCase();
-  const status=document.getElementById("statusUpdate").value;
+  const name = document.getElementById("updateName").value.toLowerCase();
+  const status = normaliseStatus(document.getElementById("updateStatus").value);
 
   DB.records.forEach(r=>{
-    if(r.name.toLowerCase()===name){
-      r.status=status;
+    if(r.name.toLowerCase() === name){
+      r.status = status;
     }
   });
 
@@ -186,157 +239,93 @@ function updateStatus(){
 }
 
 /* =========================
-   INTELLIGENCE ENGINE
+   DUPLICATE FIX (IMPORTANT)
+========================= */
+
+function dedupe(){
+  const map = new Map();
+
+  DB.records.forEach(r=>{
+    const key = r.name.trim().toLowerCase();
+
+    if(!map.has(key)){
+      map.set(key,r);
+    } else {
+      const existing = map.get(key);
+
+      // keep best status
+      if(r.status === "SUCCESS") existing.status = "SUCCESS";
+      if(r.status === "RTS" && existing.status !== "SUCCESS") existing.status = "RTS";
+    }
+  });
+
+  DB.records = [...map.values()];
+}
+
+/* =========================
+   INTELLIGENCE (SIMPLE BUT STABLE)
 ========================= */
 
 function score(r){
-  let s=50;
-  const n=(r.name||"").toLowerCase();
+  let s = 50;
 
-  if(r.status==="SUCCESS") s+=30;
-  if(r.status==="RTS") s-=30;
-  if(r.status==="PENDING") s+=10;
+  if(r.status === "SUCCESS") s += 30;
+  if(r.status === "SENT") s += 10;
+  if(r.status === "RTS") s -= 25;
 
-  if(n.includes("official")) s+=10;
-  if(n.includes("event")) s+=8;
+  const n = r.name.toLowerCase();
+  if(n.includes("event")) s += 5;
+  if(n.includes("training")) s -= 5;
 
   return Math.max(0,Math.min(100,s));
 }
 
-function learn(r){
-  if(!r.history) r.history=[];
-  r.history.push(score(r));
-  if(r.history.length>10) r.history.shift();
-}
-
-function trend(r){
-  const h=r.history||[];
-  if(h.length<2) return 0;
-  return h[h.length-1]-h[0];
-}
-
-function predict(r){
-  return Math.max(0,Math.min(100,score(r)+trend(r)*1.5));
-}
-
 /* =========================
-   DAILY QUEUE (IMPORTANT)
+   QUEUE
 ========================= */
 
 function queue(){
   return DB.records
-    .filter(r=>r.status==="PENDING")
-    .sort((a,b)=>(predict(b))-(predict(a)))
+    .filter(r=>r.status === "PENDING")
+    .sort((a,b)=>score(b)-score(a))
     .slice(0,10);
 }
 
 /* =========================
-   SIGNALS (NEWS)
-========================= */
-
-function signals(){
-  return queue().slice(0,5).map(r=>({
-    text:`${r.name} activity signal rising`,
-    score:predict(r).toFixed(0)
-  }));
-}
-
-/* =========================
-   GRAPH
-========================= */
-
-function graph(){
-  const c=document.getElementById("graph");
-  const ctx=c.getContext("2d");
-
-  ctx.clearRect(0,0,c.width,c.height);
-
-  const data=DB.records
-    .map(r=>r.history?.slice(-1)[0]||50)
-    .slice(-20);
-
-  ctx.beginPath();
-  ctx.moveTo(0,150);
-
-  data.forEach((v,i)=>{
-    ctx.lineTo(i*20,150-(v*1.2));
-  });
-
-  ctx.strokeStyle="#4ade80";
-  ctx.stroke();
-}
-
-/* =========================
-   IMPORT / EXPORT (CRITICAL)
-========================= */
-
-function exportData(){
-  const blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="ttm_backup.json";
-  a.click();
-}
-
-function importData(){
-  const file=document.getElementById("file").files[0];
-  if(!file) return;
-
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const data=JSON.parse(e.target.result);
-
-    DB.records = Array.isArray(data) ? data : data.records || [];
-
-    save();
-    render();
-
-    document.getElementById("backupStatus").innerText=
-      "Loaded " + DB.records.length + " records";
-  };
-
-  reader.readAsText(file);
-}
-
-/* =========================
-   RENDER LOOP (DAILY USE CORE)
+   RENDER
 ========================= */
 
 function render(){
 
-  DB.records.forEach(learn);
+  dedupe();
 
-  const total=DB.records.length;
-  const pending=DB.records.filter(r=>r.status==="PENDING").length;
-  const success=DB.records.filter(r=>r.status==="SUCCESS").length;
+  const total = DB.records.length;
+  const pending = DB.records.filter(r=>r.status==="PENDING").length;
+  const success = DB.records.filter(r=>r.status==="SUCCESS").length;
+  const sent = DB.records.filter(r=>r.status==="SENT").length;
+  const rts = DB.records.filter(r=>r.status==="RTS").length;
+  const logged = DB.records.filter(r=>r.status==="LOGGED").length;
 
-  document.getElementById("stats").innerHTML=`
+  document.getElementById("stats").innerHTML = `
     <div class="card"><h2>${total}</h2>Total</div>
     <div class="card"><h2>${pending}</h2>Pending</div>
+    <div class="card"><h2>${sent}</h2>Sent</div>
     <div class="card"><h2>${success}</h2>Success</div>
+    <div class="card"><h2>${rts}</h2>RTS</div>
+    <div class="card"><h2>${logged}</h2>Logged</div>
   `;
 
-  const q=queue();
-
-  document.getElementById("queue").innerHTML=
-    q.map(r=>`
+  document.getElementById("queue").innerHTML =
+    queue().map(r=>`
       🎯 ${r.name}
-      <span class="badge">${predict(r).toFixed(0)}%</span>
+      <span class="badge">${score(r).toFixed(0)}%</span>
     `).join("<br>");
 
-  const s=signals();
+  const q = (document.getElementById("search").value||"").toLowerCase();
 
-  document.getElementById("news").innerHTML=
-    s.map(n=>`
-      📰 ${n.text}
-      <span class="badge">${n.score}%</span>
-    `).join("<br>");
-
-  const filter=(document.getElementById("search").value||"").toLowerCase();
-
-  document.getElementById("list").innerHTML=
+  document.getElementById("list").innerHTML =
     DB.records
-      .filter(r=>r.name.toLowerCase().includes(filter))
+      .filter(r=>r.name.toLowerCase().includes(q))
       .map(r=>`
         <div class="record">
           <b>${r.name}</b><br>
@@ -344,7 +333,6 @@ function render(){
         </div>
       `).join("");
 
-  graph();
   save();
 }
 
