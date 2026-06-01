@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS v8 AI Engine</title>
+<title>VaultOS v9 Predictive Engine</title>
 
 <style>
 body{
@@ -36,7 +36,7 @@ header{
   margin:10px;
 }
 
-input,select,button,textarea{
+input,textarea,button{
   width:100%;
   padding:10px;
   margin-top:6px;
@@ -68,7 +68,7 @@ button{cursor:pointer}
 <body>
 
 <header>
-<h2>VaultOS v8 AI Engine</h2>
+<h2>VaultOS v9 Predictive Engine</h2>
 <input id="search" placeholder="Search records...">
 </header>
 
@@ -82,13 +82,13 @@ button{cursor:pointer}
 </div>
 
 <div class="card">
-<h3>🧠 AI Intelligence (Self Learning)</h3>
+<h3>🔮 Predictive Intelligence</h3>
 <div id="intel"></div>
 </div>
 
 <div class="card">
-<h3>📊 Performance Graph</h3>
-<canvas id="chart" width="400" height="150" style="width:100%;background:#0a0a0a;border-radius:8px"></canvas>
+<h3>📈 Next Best Targets</h3>
+<div id="next"></div>
 </div>
 
 <div class="card">
@@ -98,7 +98,7 @@ button{cursor:pointer}
 
 <script>
 
-const KEY = "vaultos_v8_ai";
+const KEY = "vaultos_v9_predict";
 let DB = [];
 
 /* ---------------- STORAGE ---------------- */
@@ -123,76 +123,96 @@ function bulkAdd(){
   const text = document.getElementById('bulkNames').value.trim();
   if(!text) return alert("No input");
 
-  const lines = text.split("\n").map(x => x.trim()).filter(Boolean);
+  const lines = text.split("\n").map(x=>x.trim()).filter(Boolean);
 
-  lines.forEach(name => {
+  lines.forEach(name=>{
     DB.push({
-      ID: Date.now() + Math.random(),
+      ID: Date.now()+Math.random(),
       Name: name,
       Status: "PENDING",
-      HistoryScore: 50
+      History: []
     });
   });
 
-  document.getElementById('bulkNames').value = "";
+  document.getElementById('bulkNames').value="";
   document.getElementById('bulkResult').innerText =
     `Added ${lines.length} targets`;
 
   save();
 }
 
-/* ---------------- AI CORE ---------------- */
+/* ---------------- CORE MODELS ---------------- */
 
-/* SELF-LEARNING SCORE MODEL */
-function aiScore(r){
+function category(n){
+  n=(n||"").toLowerCase();
 
-  let base = r.HistoryScore ?? 50;
-  const n = (r.Name || "").toLowerCase();
-
-  // status learning feedback loop
-  if(r.Status === "SUCCESS") base += 20;
-  if(r.Status === "RTS") base -= 25;
-  if(r.Status === "PENDING") base += 5;
-
-  // pattern intelligence
-  if(n.includes("official")) base += 10;
-  if(n.includes("academy")) base -= 10;
-  if(n.includes("trial")) base -= 15;
-  if(n.includes("event")) base += 8;
-  if(n.includes("tour")) base += 10;
-
-  // clamp
-  return Math.max(0, Math.min(100, base));
-}
-
-/* CATEGORY ENGINE */
-function category(name){
-  const n = (name||"").toLowerCase();
-
-  if(/football|england|barcelona|liverpool/.test(n)) return "Football";
+  if(/football|england|liverpool|barcelona/.test(n)) return "Football";
   if(/nba|lakers|celtics/.test(n)) return "NBA";
-  if(/film|actor|movie|tv/.test(n)) return "Entertainment";
+  if(/actor|movie|film|tv/.test(n)) return "Entertainment";
   if(/event|tour|show/.test(n)) return "Events";
   return "Other";
 }
 
-/* DUPLICATE CLUSTER */
-function dedupe(){
-  const map = {};
-  DB.forEach(r=>{
-    const k = (r.Name||"").trim().toLowerCase();
-    map[k] = (map[k]||0)+1;
-  });
-  return Object.entries(map).filter(x=>x[1]>1);
+/* AI SCORE */
+function aiScore(r){
+  let s = 50;
+  const n = (r.Name||"").toLowerCase();
+
+  if(r.Status==="SUCCESS") s += 25;
+  if(r.Status==="RTS") s -= 20;
+  if(r.Status==="PENDING") s += 10;
+
+  if(/official|verified/.test(n)) s += 15;
+  if(/academy|trial/.test(n)) s -= 15;
+  if(/event|tour/.test(n)) s += 10;
+
+  return Math.max(0,Math.min(100,s));
+}
+
+/* TREND ENGINE (NEW) */
+function trendScore(r){
+
+  const hist = r.History || [];
+  if(hist.length < 2) return 0;
+
+  const last = hist[hist.length-1];
+  const prev = hist[hist.length-2];
+
+  return last - prev;
+}
+
+/* PREDICTION ENGINE (NEW CORE) */
+function predict(r){
+
+  const base = aiScore(r);
+  const trend = trendScore(r);
+
+  const cat = category(r.Name);
+
+  let prediction = base;
+
+  // trend influence
+  prediction += trend * 1.5;
+
+  // category weighting (system-wide bias)
+  if(cat === "Football") prediction += 8;
+  if(cat === "NBA") prediction += 5;
+  if(cat === "Events") prediction += 6;
+
+  // randomness removed (stability focus)
+
+  return Math.max(0,Math.min(100,prediction));
 }
 
 /* ---------------- RENDER ---------------- */
 
 function render(){
 
-  /* update learning memory */
+  /* update history snapshot */
   DB.forEach(r=>{
-    r.HistoryScore = aiScore(r);
+    if(!r.History) r.History = [];
+    r.History.push(aiScore(r));
+    if(r.History.length > 5) r.History.shift();
   });
 
   const total = DB.length;
@@ -205,22 +225,34 @@ function render(){
     <div class="card"><h2>${success}</h2>Success</div>
   `;
 
-  /* INTELLIGENCE CORE */
-  const top = DB
+  /* INTELLIGENCE (CURRENT STATE) */
+  const intel = DB
     .filter(x=>x.Status==="PENDING")
-    .sort((a,b)=>aiScore(b)-aiScore(a))
+    .sort((a,b)=>predict(b)-predict(a))
     .slice(0,10);
 
   document.getElementById('intel').innerHTML =
-    top.length
-      ? top.map(x=>`
+    intel.length
+      ? intel.map(x=>`
         <div>
           ⚡ <b>${x.Name}</b>
-          <span class="badge">${aiScore(x).toFixed(0)}%</span>
+          <span class="badge">${predict(x).toFixed(0)}%</span>
           <span class="small">${category(x.Name)}</span>
         </div>
       `).join("")
-      : "No active intelligence";
+      : "No predictive signals";
+
+  /* NEXT BEST TARGETS (NEW FEATURE) */
+  const next = DB
+    .filter(x=>x.Status==="PENDING")
+    .sort((a,b)=>predict(b)-predict(a))
+    .slice(0,5);
+
+  document.getElementById('next').innerHTML =
+    next.map(x=>`
+      🚀 ${x.Name}
+      <span class="badge">P:${predict(x).toFixed(0)}%</span>
+    `).join("<br>");
 
   /* LIST */
   const q = (document.getElementById('search').value||"").toLowerCase();
@@ -234,32 +266,6 @@ function render(){
           <span class="small">${x.Status}</span>
         </div>
       `).join("");
-
-  drawChart();
-}
-
-/* ---------------- SIMPLE ANALYTICS GRAPH ---------------- */
-
-function drawChart(){
-  const c = document.getElementById("chart");
-  if(!c) return;
-  const ctx = c.getContext("2d");
-
-  ctx.clearRect(0,0,c.width,c.height);
-
-  const data = DB.slice(-20).map(x=>aiScore(x));
-
-  ctx.beginPath();
-  ctx.moveTo(0,100);
-
-  data.forEach((v,i)=>{
-    const x = (i/data.length)*400;
-    const y = 150 - (v*1.2);
-    ctx.lineTo(x,y);
-  });
-
-  ctx.strokeStyle = "#4ade80";
-  ctx.stroke();
 }
 
 /* ---------------- SEARCH ---------------- */
