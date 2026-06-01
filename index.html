@@ -1,77 +1,99 @@
 
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS v5 Ultimate</title>
+<title>VaultOS v6 Core</title>
+
 <style>
-body{font-family:Arial,sans-serif;background:#0b0b0b;color:#fff;margin:0}
-header{background:#111;padding:12px;position:sticky;top:0}
-.card{background:#111;border:1px solid #222;border-radius:10px;padding:12px;margin:10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:10px}
-input,select,button{padding:10px;border-radius:8px;border:1px solid #333;background:#181818;color:#fff}
-#search{width:100%}
-.record{padding:8px;border-bottom:1px solid #222}
+body{
+  font-family:Arial,sans-serif;
+  background:#0b0b0b;
+  color:#fff;
+  margin:0;
+}
+
+header{
+  background:#111;
+  padding:12px;
+  position:sticky;
+  top:0;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:10px;
+  padding:10px;
+}
+
+.card{
+  background:#111;
+  border:1px solid #222;
+  border-radius:10px;
+  padding:12px;
+  margin:10px;
+}
+
+input,select,button,textarea{
+  width:100%;
+  padding:10px;
+  margin-top:6px;
+  border-radius:8px;
+  border:1px solid #333;
+  background:#181818;
+  color:#fff;
+}
+
+button{
+  cursor:pointer;
+}
+
+.record{
+  padding:8px;
+  border-bottom:1px solid #222;
+}
+
 .small{font-size:12px;color:#aaa}
 </style>
 </head>
+
 <body>
+
 <header>
-<h2>VaultOS v5 Ultimate</h2>
+<h2>VaultOS v6 Core</h2>
 <input id="search" placeholder="Search records...">
 </header>
 
 <div class="grid" id="stats"></div>
 
 <div class="card">
-<h3>Backup & Restore</h3>
+<h3>Backup Tools</h3>
 <input type="file" id="jsonFile">
-<button onclick="loadFile()">Load Backup File</button>
+<button onclick="loadFile()">Load Backup</button>
 <button onclick="exportJSON()">Export Backup</button>
 </div>
 
 <div class="card">
-<div class="card">
-
-<h3>📥 Quick Paste Targets</h3>
-
-<textarea
-id="bulkNames"
-placeholder="One target per line..."
-style="width:100%;height:180px;padding:10px;background:#181818;color:#fff;border:1px solid #333;border-radius:8px">
-</textarea>
-
+<h3>Bulk Add (Pending)</h3>
+<textarea id="bulkNames" placeholder="One name per line..."></textarea>
 <button onclick="bulkAdd()">Add All As PENDING</button>
-
 <div id="bulkResult" class="small"></div>
-
-<hr style="margin:20px 0">
-
-<h3>Add Single Record</h3>
-
-<input id="newName" placeholder="Name">
-
-<select id="newStatus">
-<option>PENDING</option>
-<option>SUCCESS</option>
-<option>RTS</option>
-<option>LOGGED</option>
-<option>Sent</option>
-</select>
-
-<button onclick="addRecord()">Add Record</button>
-
 </div>
 
-<div class="card"><h3>🧠 Intelligence</h3><div id="intel"></div></div>
-<div class="card"><h3>📬 Awaiting Response</h3><div id="awaiting"></div></div>
-<div class="card"><h3>🏆 Hall of Fame</h3><div id="hof"></div></div>
-<div class="card"><h3>📊 Success Analytics</h3><div id="analytics"></div></div>
-<div class="card"><h3>⚠ Duplicate Detector</h3><div id="duplicates"></div></div>
-<div class="card"><h3>📰 Vault News</h3><div id="news"></div></div>
+<div class="card">
+<h3>Add Single Record</h3>
+<input id="newName" placeholder="Name">
+<select id="newStatus">
+  <option>PENDING</option>
+  <option>SUCCESS</option>
+  <option>RTS</option>
+  <option>LOGGED</option>
+  <option>SENT</option>
+</select>
+<button onclick="addRecord()">Add</button>
+</div>
 
 <div class="card">
 <h3>Records</h3>
@@ -79,118 +101,136 @@ style="width:100%;height:180px;padding:10px;background:#181818;color:#fff;border
 </div>
 
 <script>
-const KEY="vaultos_v5_ultimate";
-let DB=[];
 
-function save(){localStorage.setItem(KEY,JSON.stringify(DB));render();}
-function load(){DB=JSON.parse(localStorage.getItem(KEY)||"[]");render();}
+const KEY = "vaultos_v6_core";
+let DB = [];
+
+/* ---------- STORAGE ---------- */
+
+function save(){
+  localStorage.setItem(KEY, JSON.stringify(DB));
+  render();
+}
+
+function load(){
+  try{
+    DB = JSON.parse(localStorage.getItem(KEY) || "[]");
+  }catch(e){
+    DB = [];
+    console.error("Storage reset (invalid JSON)");
+  }
+  render();
+}
+
+/* ---------- FILE ---------- */
 
 function loadFile(){
- const file=document.getElementById('jsonFile').files[0];
- if(!file){alert('Choose a JSON file');return;}
- const reader=new FileReader();
- reader.onload=function(e){
-   try{
-      DB=JSON.parse(e.target.result);
+  const file = document.getElementById('jsonFile').files[0];
+  if(!file) return alert("Select a file");
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+    try{
+      DB = JSON.parse(e.target.result);
       save();
-      alert('Loaded '+DB.length+' records');
-   }catch(err){alert('Invalid JSON');}
- };
- reader.readAsText(file);
+      alert("Loaded " + DB.length + " records");
+    }catch(err){
+      alert("Invalid JSON file");
+    }
+  };
+
+  reader.readAsText(file);
 }
 
 function exportJSON(){
- const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
- const a=document.createElement('a');
- a.href=URL.createObjectURL(blob);
- a.download='vault_backup.json';
- a.click();
+  const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "vault_backup.json";
+  a.click();
 }
+
+/* ---------- CORE ACTIONS ---------- */
 
 function addRecord(){
- const n=document.getElementById('newName').value.trim();
- if(!n)return;
- DB.push({ID:Date.now(),Name:n,Status:document.getElementById('newStatus').value});
- save();
- document.getElementById('newName').value='';
+  const name = document.getElementById('newName').value.trim();
+  const status = document.getElementById('newStatus').value;
+
+  if(!name) return;
+
+  DB.push({
+    ID: Date.now(),
+    Name: name,
+    Status: status
+  });
+
+  document.getElementById('newName').value = "";
+  save();
 }
 
-function score(r){
- let s=50;
- const n=(r.Name||"").toLowerCase();
- if((r.Status||"").toUpperCase()==="PENDING") s+=20;
- if(n.includes("home")) s+=30;
- if(n.includes("podcast")) s+=20;
- if(n.includes("theatre")) s+=15;
- if(n.includes("event")) s+=10;
- if(n.includes("training")) s-=20;
- if(n.includes("camp")) s-=15;
- if(n.includes("cast")) s-=15;
- return Math.max(0,Math.min(100,s));
+/* FIXED BULK FUNCTION */
+function bulkAdd(){
+  const text = document.getElementById('bulkNames').value.trim();
+  if(!text) return alert("No names entered");
+
+  const lines = text.split("\n").map(x => x.trim()).filter(Boolean);
+
+  lines.forEach(name => {
+    DB.push({
+      ID: Date.now() + Math.random(),
+      Name: name,
+      Status: "PENDING"
+    });
+  });
+
+  document.getElementById('bulkNames').value = "";
+  document.getElementById('bulkResult').innerText =
+    `Added ${lines.length} pending records`;
+
+  save();
 }
 
-function category(name){
- const n=(name||"").toLowerCase();
- if(/arsenal|england|kane|graham|shearer|wright|barcelona|liverpool|football/.test(n)) return "Football";
- if(/nba|lakers|sochan|banchero|grant hill|sabonis|parish|smits/.test(n)) return "NBA";
- if(/oldman|stone|fiennes|brosnan|jackman|sheen|laurie|comer/.test(n)) return "Actors";
- if(/ross|fry|mack|carr|bridges|widdicombe/.test(n)) return "TV/Comedy";
- return "Other";
-}
+/* ---------- UI ---------- */
 
 function render(){
- const total=DB.length;
- const success=DB.filter(x=>x.Status==="SUCCESS").length;
- const pending=DB.filter(x=>x.Status==="PENDING").length;
- const rts=DB.filter(x=>(x.Status||"").includes("RTS")).length;
 
- document.getElementById('stats').innerHTML=`
- <div class="card"><h2>${total}</h2>Total</div>
- <div class="card"><h2>${success}</h2>Success</div>
- <div class="card"><h2>${pending}</h2>Pending</div>
- <div class="card"><h2>${rts}</h2>RTS</div>`;
+  const total = DB.length;
+  const pending = DB.filter(x => x.Status === "PENDING").length;
+  const success = DB.filter(x => x.Status === "SUCCESS").length;
+  const rts = DB.filter(x => (x.Status||"").includes("RTS")).length;
 
- const top=DB.filter(x=>x.Status==="PENDING").sort((a,b)=>score(b)-score(a)).slice(0,10);
- document.getElementById('intel').innerHTML=top.length?
- "<ol>"+top.map(x=>`<li>${x.Name} (${score(x)}%)</li>`).join("")+"</ol>":"No pending records";
+  document.getElementById('stats').innerHTML = `
+    <div class="card"><h2>${total}</h2>Total</div>
+    <div class="card"><h2>${pending}</h2>Pending</div>
+    <div class="card"><h2>${success}</h2>Success</div>
+    <div class="card"><h2>${rts}</h2>RTS</div>
+  `;
 
- document.getElementById('awaiting').innerHTML=top.map(x=>"📬 "+x.Name).join("<br>");
+  const q = (document.getElementById('search').value || "").toLowerCase();
 
- const hof=DB.filter(x=>x.Status==="SUCCESS").slice(0,20);
- document.getElementById('hof').innerHTML=hof.map(x=>"🏆 "+x.Name).join("<br>");
-
- const cats={};
- DB.forEach(r=>{
-   const c=category(r.Name);
-   cats[c]=(cats[c]||0)+1;
- });
- document.getElementById('analytics').innerHTML=Object.entries(cats).map(([k,v])=>`${k}: ${v}`).join("<br>");
-
- const map={};
- DB.forEach(r=>{
-   const k=(r.Name||"").trim().toLowerCase();
-   map[k]=(map[k]||0)+1;
- });
- const dups=Object.keys(map).filter(k=>map[k]>1);
- document.getElementById('duplicates').innerHTML=dups.length?dups.join("<br>"):"No duplicates found";
-
- document.getElementById('news').innerHTML=`
- 🏆 ${success} successful returns<br>
- 📬 ${pending} active pending requests<br>
- ⚠ ${dups.length} duplicate targets detected<br>
- ⚽ Football remains strongest category candidate<br>
- 🎭 Film & TV projects active
- `;
-
- const q=(document.getElementById('search').value||"").toLowerCase();
- document.getElementById('list').innerHTML=DB
- .filter(x=>(x.Name||"").toLowerCase().includes(q))
- .map(x=>`<div class="record"><b>${x.Name}</b><br><span class="small">${x.Status}</span></div>`)
- .join("");
+  document.getElementById('list').innerHTML =
+    DB
+    .filter(x => (x.Name||"").toLowerCase().includes(q))
+    .map(x => `
+      <div class="record">
+        <b>${x.Name}</b><br>
+        <span class="small">${x.Status}</span>
+      </div>
+    `)
+    .join("");
 }
 
-document.getElementById('search').addEventListener('input',render);
+/* ---------- SEARCH ---------- */
+
+document.getElementById('search').addEventListener('input', render);
+
+/* ---------- INIT ---------- */
+
 load();
+
 </script>
+
 </body>
 </html>
+
