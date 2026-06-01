@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Stable Core</title>
+<title>VaultOS Stable Core + Recovery</title>
 
 <style>
 body{
@@ -36,7 +36,7 @@ header{
   margin:10px;
 }
 
-input,textarea,button,select{
+input,textarea,button{
   width:100%;
   padding:10px;
   margin-top:6px;
@@ -68,12 +68,13 @@ button{cursor:pointer}
 <body>
 
 <header>
-<h2>VaultOS Stable Core</h2>
+<h2>VaultOS Stable Core + Recovery</h2>
 <input id="search" placeholder="Search records...">
 </header>
 
 <div class="grid" id="stats"></div>
 
+<!-- BULK ADD -->
 <div class="card">
 <h3>Bulk Add</h3>
 <textarea id="bulkNames" placeholder="One name per line..."></textarea>
@@ -81,11 +82,21 @@ button{cursor:pointer}
 <div id="bulkResult" class="small"></div>
 </div>
 
+<!-- INTELLIGENCE -->
 <div class="card">
 <h3>Intelligence</h3>
 <div id="intel"></div>
 </div>
 
+<!-- RECOVERY TOOL -->
+<div class="card">
+<h3>📂 Recovery Console (JSON Import)</h3>
+<input type="file" id="jsonFile">
+<button onclick="importFile()">Load JSON Backup</button>
+<div id="recoverStatus" class="small"></div>
+</div>
+
+<!-- RECORDS -->
 <div class="card">
 <h3>Records</h3>
 <div id="list"></div>
@@ -94,50 +105,71 @@ button{cursor:pointer}
 <script>
 
 /* =========================
-   🧱 STABLE DATABASE CORE
+   🧱 SINGLE SOURCE OF TRUTH
 ========================= */
 
 const KEY = "vaultos_core_db";
 
 let DB = loadDB();
 
-/* load with migration support */
+/* =========================
+   LOAD + AUTO MIGRATION
+========================= */
+
 function loadDB(){
 
   const core = JSON.parse(localStorage.getItem(KEY) || "null");
 
-  if(core && core.records) return core;
+  if(core && core.records){
+    return core;
+  }
 
-  // MIGRATION from old versions
-  const legacy =
-    JSON.parse(localStorage.getItem("vaultos_v10_auto") || "[]");
+  // legacy scan
+  const legacyKeys = [
+    "vaultos_v7_intel",
+    "vaultos_v8_ai",
+    "vaultos_v9_predict",
+    "vaultos_v10_auto"
+  ];
 
-  const migrated = legacy.map(r => ({
-    id: r.ID || Date.now() + Math.random(),
-    name: r.Name || "",
-    status: r.Status || "PENDING",
+  let merged = [];
+
+  legacyKeys.forEach(k=>{
+    try{
+      const data = JSON.parse(localStorage.getItem(k) || "[]");
+      if(Array.isArray(data)) merged = merged.concat(data);
+    }catch(e){}
+  });
+
+  const migrated = merged.map(r => ({
+    id: r.id || r.ID || Date.now()+Math.random(),
+    name: r.name || r.Name || "",
+    status: r.status || r.Status || "PENDING",
     created: r.created || Date.now(),
-    history: r.History || []
+    history: r.history || r.History || []
   }));
 
   return {
     records: migrated,
     meta: {
-      version: "stable-core-1",
+      version: "stable-recovery-core",
       created: Date.now(),
       lastUpdated: Date.now()
     }
   };
 }
 
-/* save */
+/* =========================
+   SAVE
+========================= */
+
 function saveDB(){
   DB.meta.lastUpdated = Date.now();
   localStorage.setItem(KEY, JSON.stringify(DB));
 }
 
 /* =========================
-   ➕ BULK ADD
+   BULK ADD
 ========================= */
 
 function bulkAdd(){
@@ -169,57 +201,106 @@ function bulkAdd(){
    🧠 INTELLIGENCE ENGINE
 ========================= */
 
-function baseScore(r){
+function score(r){
 
   let s = 50;
-  const n = (r.name || "").toLowerCase();
+  const n = (r.name||"").toLowerCase();
 
-  if(r.status === "SUCCESS") s += 25;
-  if(r.status === "RTS") s -= 25;
-  if(r.status === "PENDING") s += 10;
+  if(r.status==="SUCCESS") s += 25;
+  if(r.status==="RTS") s -= 25;
+  if(r.status==="PENDING") s += 10;
 
   if(n.includes("official")) s += 10;
   if(n.includes("event")) s += 8;
   if(n.includes("academy")) s -= 10;
 
-  return Math.max(0, Math.min(100, s));
+  return Math.max(0,Math.min(100,s));
 }
 
-/* learning memory */
-function updateHistory(r){
+/* history learning */
+function learn(r){
 
   if(!r.history) r.history = [];
 
-  r.history.push(baseScore(r));
+  r.history.push(score(r));
 
   if(r.history.length > 8){
     r.history.shift();
   }
 }
 
-/* trend engine */
+/* trend */
 function trend(r){
   const h = r.history || [];
   if(h.length < 2) return 0;
   return h[h.length-1] - h[0];
 }
 
-/* predictive score */
+/* prediction */
 function predict(r){
-
-  const base = baseScore(r);
-  const t = trend(r);
-
-  return Math.max(0, Math.min(100, base + t * 1.5));
+  return Math.max(0, Math.min(100, score(r) + trend(r)*1.5));
 }
 
 /* =========================
-   📊 RENDER
+   📂 JSON IMPORT (FIXED)
+========================= */
+
+function loadJSONFile(file){
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+
+    try{
+      const data = JSON.parse(e.target.result);
+
+      let records = [];
+
+      if(Array.isArray(data)){
+        records = data;
+      } else if(data.records){
+        records = data.records;
+      } else {
+        alert("Invalid JSON format");
+        return;
+      }
+
+      DB.records = records.map(r => ({
+        id: r.id || r.ID || Date.now()+Math.random(),
+        name: r.name || r.Name || "",
+        status: r.status || r.Status || "PENDING",
+        created: r.created || Date.now(),
+        history: r.history || r.History || []
+      }));
+
+      saveDB();
+      render();
+
+      document.getElementById('recoverStatus').innerText =
+        "Recovered " + DB.records.length + " records";
+
+    }catch(err){
+      console.error(err);
+      alert("Invalid JSON file");
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function importFile(){
+  const file = document.getElementById("jsonFile").files[0];
+  if(!file) return alert("Select a file first");
+  loadJSONFile(file);
+}
+
+/* =========================
+   RENDER
 ========================= */
 
 function render(){
 
-  DB.records.forEach(updateHistory);
+  DB.records.forEach(learn);
 
   const total = DB.records.length;
   const pending = DB.records.filter(x=>x.status==="PENDING").length;
@@ -258,13 +339,12 @@ function render(){
 }
 
 /* =========================
-   🔎 SEARCH
+   SEARCH
 ========================= */
 
-document.getElementById('search')
-  .addEventListener('input', render);
+document.getElementById('search').addEventListener('input',render);
 
-/* init */
+/* INIT */
 render();
 
 </script>
