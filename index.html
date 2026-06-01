@@ -109,6 +109,47 @@ function render(){
  top.map(x=>`<li>${x.Name} (${score(x)}%)</li>`).join("")+
  "</ol>";
 
+ // SEND NEXT
+
+let next = DB
+.filter(x => (x.Status || "").toUpperCase() === "PENDING")
+.sort((a,b)=>score(b)-score(a))
+.slice(0,10);
+
+document.getElementById("sendNext").innerHTML =
+next.length
+? next.map(x=>`🎯 ${x.Name}`).join("<br>")
+: "No pending targets found";
+
+
+// DUPLICATES
+
+let nameMap = {};
+
+DB.forEach(r=>{
+ let key=(r.Name||"").trim().toLowerCase();
+ nameMap[key]=(nameMap[key]||0)+1;
+});
+
+let dups = Object.keys(nameMap)
+.filter(x=>nameMap[x]>1);
+
+document.getElementById("duplicates").innerHTML =
+dups.length
+? dups.map(x=>`⚠ ${x}`).join("<br>")
+: "No duplicates found";
+
+
+// NEWS
+
+document.getElementById("news").innerHTML = `
+⚽ ${st.pending} active pending requests<br>
+🏆 ${st.success} successful returns<br>
+📬 ${st.total} total targets tracked<br>
+🎭 Film & TV cast mailings active<br>
+🏀 NBA offseason signing opportunities
+`;
+
  let q=(document.getElementById('search').value||'').toLowerCase();
 
  document.getElementById('list').innerHTML =
