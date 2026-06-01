@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Hobby Command Centre</title>
+<title>TTM OS v2</title>
 
 <style>
 body{
@@ -68,39 +68,53 @@ button{cursor:pointer}
 <body>
 
 <header>
-<h2>VaultOS Hobby Command Centre</h2>
+<h2>TTM OS v2 Command Centre</h2>
 <input id="search" placeholder="Search records...">
 </header>
 
 <div class="grid" id="stats"></div>
 
+<!-- BULK -->
 <div class="card">
 <h3>Bulk Add</h3>
 <textarea id="bulkNames" placeholder="One name per line..."></textarea>
 <button onclick="bulkAdd()">Add All</button>
-<div id="bulkResult" class="small"></div>
 </div>
 
+<!-- JSON RESTORE (IMPORTANT - RESTORED) -->
+<div class="card">
+<h3>📂 JSON Restore</h3>
+<input type="file" id="jsonFile">
+<button onclick="importJSON()">Upload JSON Backup</button>
+<button onclick="exportJSON()">Export Backup</button>
+<div id="jsonStatus" class="small"></div>
+</div>
+
+<!-- INTEL -->
 <div class="card">
 <h3>🧠 Intelligence</h3>
 <div id="intel"></div>
 </div>
 
+<!-- NEXT -->
 <div class="card">
 <h3>🎯 Where to Send Next</h3>
 <div id="next"></div>
 </div>
 
+<!-- NEWS -->
 <div class="card">
-<h3>📰 TTM News Feed</h3>
+<h3>📰 TTM Feed</h3>
 <div id="news"></div>
 </div>
 
+<!-- GRAPH -->
 <div class="card">
-<h3>📊 Performance Graph</h3>
+<h3>📊 Performance</h3>
 <canvas id="graph" width="400" height="160" style="width:100%;background:#0a0a0a;border-radius:8px"></canvas>
 </div>
 
+<!-- LIST -->
 <div class="card">
 <h3>Records</h3>
 <div id="list"></div>
@@ -112,11 +126,11 @@ button{cursor:pointer}
    CORE DB
 ========================= */
 
-const KEY = "vaultos_hobby_core";
+const KEY = "ttm_os_v2";
 
-let DB = loadDB();
+let DB = load();
 
-function loadDB(){
+function load(){
   const raw = JSON.parse(localStorage.getItem(KEY) || "{}");
 
   if(raw.records) return raw;
@@ -127,7 +141,7 @@ function loadDB(){
   };
 }
 
-function saveDB(){
+function save(){
   DB.meta.updated = Date.now();
   localStorage.setItem(KEY, JSON.stringify(DB));
 }
@@ -137,9 +151,8 @@ function saveDB(){
 ========================= */
 
 function bulkAdd(){
-
   const text = document.getElementById('bulkNames').value.trim();
-  if(!text) return alert("No input");
+  if(!text) return;
 
   const lines = text.split("\n").map(x=>x.trim()).filter(Boolean);
 
@@ -153,18 +166,78 @@ function bulkAdd(){
   });
 
   document.getElementById('bulkNames').value="";
-  document.getElementById('bulkResult').innerText =
-    `Added ${lines.length}`;
-
-  saveDB();
+  save();
   render();
 }
 
 /* =========================
-   INTELLIGENCE CORE
+   JSON IMPORT (RESTORED)
 ========================= */
 
-function baseScore(r){
+function importJSON(){
+
+  const file = document.getElementById("jsonFile").files[0];
+  if(!file) return alert("Select a file");
+
+  const reader = new FileReader();
+
+  reader.onload = e => {
+    try{
+      const data = JSON.parse(e.target.result);
+
+      let records = [];
+
+      if(Array.isArray(data)){
+        records = data;
+      } else if(data.records){
+        records = data.records;
+      } else {
+        alert("Invalid JSON format");
+        return;
+      }
+
+      DB.records = records.map(r=>({
+        id:r.id||Date.now()+Math.random(),
+        name:r.name||r.Name||"",
+        status:r.status||r.Status||"PENDING",
+        history:r.history||r.History||[]
+      }));
+
+      save();
+      render();
+
+      document.getElementById("jsonStatus").innerText =
+        "Loaded " + DB.records.length + " records";
+
+    }catch(err){
+      alert("Invalid JSON file");
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+/* =========================
+   EXPORT
+========================= */
+
+function exportJSON(){
+  const blob = new Blob(
+    [JSON.stringify(DB,null,2)],
+    {type:"application/json"}
+  );
+
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="ttm_backup.json";
+  a.click();
+}
+
+/* =========================
+   INTELLIGENCE
+========================= */
+
+function score(r){
   let s=50;
   const n=(r.name||"").toLowerCase();
 
@@ -181,7 +254,7 @@ function baseScore(r){
 
 function learn(r){
   if(!r.history) r.history=[];
-  r.history.push(baseScore(r));
+  r.history.push(score(r));
   if(r.history.length>8) r.history.shift();
 }
 
@@ -192,38 +265,32 @@ function trend(r){
 }
 
 function predict(r){
-  return Math.max(0,Math.min(100,baseScore(r)+trend(r)*1.5));
-}
-
-function confidence(r){
-  const h=r.history||[];
-  if(h.length<3) return 40;
-  return Math.max(0,100-Math.abs(trend(r))*5);
+  return Math.max(0,Math.min(100,score(r)+trend(r)*1.5));
 }
 
 /* =========================
-   NEWS ENGINE (TTM FEED)
+   NEWS
 ========================= */
 
-function generateNews(){
+function news(){
   return DB.records
     .filter(r=>r.status==="PENDING")
     .sort((a,b)=>predict(b)-predict(a))
     .slice(0,5)
     .map(r=>({
-      text:`${r.name} showing activity trend`,
+      text:`${r.name} activity rising`,
       score:predict(r).toFixed(0)
     }));
 }
 
 /* =========================
-   NEXT TARGETS ENGINE
+   NEXT TARGETS
 ========================= */
 
-function nextTargets(){
+function next(){
   return DB.records
     .filter(r=>r.status==="PENDING")
-    .sort((a,b)=>(predict(b)+confidence(b))-(predict(a)+confidence(a)))
+    .sort((a,b)=>predict(b)-predict(a))
     .slice(0,10);
 }
 
@@ -231,7 +298,7 @@ function nextTargets(){
    GRAPH
 ========================= */
 
-function drawGraph(){
+function graph(){
   const c=document.getElementById("graph");
   const ctx=c.getContext("2d");
 
@@ -245,9 +312,7 @@ function drawGraph(){
   ctx.moveTo(0,150);
 
   data.forEach((v,i)=>{
-    const x=i*20;
-    const y=150-(v*1.2);
-    ctx.lineTo(x,y);
+    ctx.lineTo(i*20,150-(v*1.2));
   });
 
   ctx.strokeStyle="#4ade80";
@@ -266,7 +331,7 @@ function render(){
   const pending=DB.records.filter(x=>x.status==="PENDING").length;
   const success=DB.records.filter(x=>x.status==="SUCCESS").length;
 
-  document.getElementById('stats').innerHTML=`
+  document.getElementById("stats").innerHTML=`
     <div class="card"><h2>${total}</h2>Total</div>
     <div class="card"><h2>${pending}</h2>Pending</div>
     <div class="card"><h2>${success}</h2>Success</div>
@@ -277,31 +342,31 @@ function render(){
     .sort((a,b)=>predict(b)-predict(a))
     .slice(0,10);
 
-  document.getElementById('intel').innerHTML=
+  document.getElementById("intel").innerHTML=
     intel.map(x=>`
       ⚡ <b>${x.name}</b>
       <span class="badge">${predict(x).toFixed(0)}%</span>
     `).join("");
 
-  const next=nextTargets();
+  const nextList=next();
 
-  document.getElementById('next').innerHTML=
-    next.map(x=>`
+  document.getElementById("next").innerHTML=
+    nextList.map(x=>`
       🎯 ${x.name}
-      <span class="badge">${(predict(x)+confidence(x)).toFixed(0)}</span>
+      <span class="badge">${predict(x).toFixed(0)}%</span>
     `).join("<br>");
 
-  const news=generateNews();
+  const newsList=news();
 
-  document.getElementById('news').innerHTML=
-    news.map(n=>`
+  document.getElementById("news").innerHTML=
+    newsList.map(n=>`
       📰 ${n.text}
       <span class="badge">${n.score}%</span>
     `).join("<br>");
 
-  const q=(document.getElementById('search').value||"").toLowerCase();
+  const q=(document.getElementById("search").value||"").toLowerCase();
 
-  document.getElementById('list').innerHTML=
+  document.getElementById("list").innerHTML=
     DB.records
       .filter(x=>(x.name||"").toLowerCase().includes(q))
       .map(x=>`
@@ -311,17 +376,16 @@ function render(){
         </div>
       `).join("");
 
-  drawGraph();
-  saveDB();
+  graph();
+  save();
 }
 
 /* =========================
-   SEARCH
+   INIT
 ========================= */
 
-document.getElementById('search').addEventListener('input',render);
+document.getElementById("search").addEventListener("input",render);
 
-/* INIT */
 render();
 
 </script>
