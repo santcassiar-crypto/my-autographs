@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Stable Core + Recovery</title>
+<title>VaultOS Hobby Command Centre</title>
 
 <style>
 body{
@@ -68,13 +68,12 @@ button{cursor:pointer}
 <body>
 
 <header>
-<h2>VaultOS Stable Core + Recovery</h2>
+<h2>VaultOS Hobby Command Centre</h2>
 <input id="search" placeholder="Search records...">
 </header>
 
 <div class="grid" id="stats"></div>
 
-<!-- BULK ADD -->
 <div class="card">
 <h3>Bulk Add</h3>
 <textarea id="bulkNames" placeholder="One name per line..."></textarea>
@@ -82,21 +81,26 @@ button{cursor:pointer}
 <div id="bulkResult" class="small"></div>
 </div>
 
-<!-- INTELLIGENCE -->
 <div class="card">
-<h3>Intelligence</h3>
+<h3>🧠 Intelligence</h3>
 <div id="intel"></div>
 </div>
 
-<!-- RECOVERY TOOL -->
 <div class="card">
-<h3>📂 Recovery Console (JSON Import)</h3>
-<input type="file" id="jsonFile">
-<button onclick="importFile()">Load JSON Backup</button>
-<div id="recoverStatus" class="small"></div>
+<h3>🎯 Where to Send Next</h3>
+<div id="next"></div>
 </div>
 
-<!-- RECORDS -->
+<div class="card">
+<h3>📰 TTM News Feed</h3>
+<div id="news"></div>
+</div>
+
+<div class="card">
+<h3>📊 Performance Graph</h3>
+<canvas id="graph" width="400" height="160" style="width:100%;background:#0a0a0a;border-radius:8px"></canvas>
+</div>
+
 <div class="card">
 <h3>Records</h3>
 <div id="list"></div>
@@ -105,66 +109,26 @@ button{cursor:pointer}
 <script>
 
 /* =========================
-   🧱 SINGLE SOURCE OF TRUTH
+   CORE DB
 ========================= */
 
-const KEY = "vaultos_core_db";
+const KEY = "vaultos_hobby_core";
 
 let DB = loadDB();
 
-/* =========================
-   LOAD + AUTO MIGRATION
-========================= */
-
 function loadDB(){
+  const raw = JSON.parse(localStorage.getItem(KEY) || "{}");
 
-  const core = JSON.parse(localStorage.getItem(KEY) || "null");
-
-  if(core && core.records){
-    return core;
-  }
-
-  // legacy scan
-  const legacyKeys = [
-    "vaultos_v7_intel",
-    "vaultos_v8_ai",
-    "vaultos_v9_predict",
-    "vaultos_v10_auto"
-  ];
-
-  let merged = [];
-
-  legacyKeys.forEach(k=>{
-    try{
-      const data = JSON.parse(localStorage.getItem(k) || "[]");
-      if(Array.isArray(data)) merged = merged.concat(data);
-    }catch(e){}
-  });
-
-  const migrated = merged.map(r => ({
-    id: r.id || r.ID || Date.now()+Math.random(),
-    name: r.name || r.Name || "",
-    status: r.status || r.Status || "PENDING",
-    created: r.created || Date.now(),
-    history: r.history || r.History || []
-  }));
+  if(raw.records) return raw;
 
   return {
-    records: migrated,
-    meta: {
-      version: "stable-recovery-core",
-      created: Date.now(),
-      lastUpdated: Date.now()
-    }
+    records: [],
+    meta:{created:Date.now(),updated:Date.now()}
   };
 }
 
-/* =========================
-   SAVE
-========================= */
-
 function saveDB(){
-  DB.meta.lastUpdated = Date.now();
+  DB.meta.updated = Date.now();
   localStorage.setItem(KEY, JSON.stringify(DB));
 }
 
@@ -181,117 +145,113 @@ function bulkAdd(){
 
   lines.forEach(name=>{
     DB.records.push({
-      id: Date.now()+Math.random(),
+      id:Date.now()+Math.random(),
       name,
-      status: "PENDING",
-      created: Date.now(),
-      history: []
+      status:"PENDING",
+      history:[]
     });
   });
 
   document.getElementById('bulkNames').value="";
   document.getElementById('bulkResult').innerText =
-    `Added ${lines.length} records`;
+    `Added ${lines.length}`;
 
   saveDB();
   render();
 }
 
 /* =========================
-   🧠 INTELLIGENCE ENGINE
+   INTELLIGENCE CORE
 ========================= */
 
-function score(r){
+function baseScore(r){
+  let s=50;
+  const n=(r.name||"").toLowerCase();
 
-  let s = 50;
-  const n = (r.name||"").toLowerCase();
+  if(r.status==="SUCCESS") s+=25;
+  if(r.status==="RTS") s-=25;
+  if(r.status==="PENDING") s+=10;
 
-  if(r.status==="SUCCESS") s += 25;
-  if(r.status==="RTS") s -= 25;
-  if(r.status==="PENDING") s += 10;
-
-  if(n.includes("official")) s += 10;
-  if(n.includes("event")) s += 8;
-  if(n.includes("academy")) s -= 10;
+  if(n.includes("official")) s+=10;
+  if(n.includes("event")) s+=8;
+  if(n.includes("academy")) s-=10;
 
   return Math.max(0,Math.min(100,s));
 }
 
-/* history learning */
 function learn(r){
-
-  if(!r.history) r.history = [];
-
-  r.history.push(score(r));
-
-  if(r.history.length > 8){
-    r.history.shift();
-  }
+  if(!r.history) r.history=[];
+  r.history.push(baseScore(r));
+  if(r.history.length>8) r.history.shift();
 }
 
-/* trend */
 function trend(r){
-  const h = r.history || [];
-  if(h.length < 2) return 0;
-  return h[h.length-1] - h[0];
+  const h=r.history||[];
+  if(h.length<2) return 0;
+  return h[h.length-1]-h[0];
 }
 
-/* prediction */
 function predict(r){
-  return Math.max(0, Math.min(100, score(r) + trend(r)*1.5));
+  return Math.max(0,Math.min(100,baseScore(r)+trend(r)*1.5));
+}
+
+function confidence(r){
+  const h=r.history||[];
+  if(h.length<3) return 40;
+  return Math.max(0,100-Math.abs(trend(r))*5);
 }
 
 /* =========================
-   📂 JSON IMPORT (FIXED)
+   NEWS ENGINE (TTM FEED)
 ========================= */
 
-function loadJSONFile(file){
-
-  const reader = new FileReader();
-
-  reader.onload = e => {
-
-    try{
-      const data = JSON.parse(e.target.result);
-
-      let records = [];
-
-      if(Array.isArray(data)){
-        records = data;
-      } else if(data.records){
-        records = data.records;
-      } else {
-        alert("Invalid JSON format");
-        return;
-      }
-
-      DB.records = records.map(r => ({
-        id: r.id || r.ID || Date.now()+Math.random(),
-        name: r.name || r.Name || "",
-        status: r.status || r.Status || "PENDING",
-        created: r.created || Date.now(),
-        history: r.history || r.History || []
-      }));
-
-      saveDB();
-      render();
-
-      document.getElementById('recoverStatus').innerText =
-        "Recovered " + DB.records.length + " records";
-
-    }catch(err){
-      console.error(err);
-      alert("Invalid JSON file");
-    }
-  };
-
-  reader.readAsText(file);
+function generateNews(){
+  return DB.records
+    .filter(r=>r.status==="PENDING")
+    .sort((a,b)=>predict(b)-predict(a))
+    .slice(0,5)
+    .map(r=>({
+      text:`${r.name} showing activity trend`,
+      score:predict(r).toFixed(0)
+    }));
 }
 
-function importFile(){
-  const file = document.getElementById("jsonFile").files[0];
-  if(!file) return alert("Select a file first");
-  loadJSONFile(file);
+/* =========================
+   NEXT TARGETS ENGINE
+========================= */
+
+function nextTargets(){
+  return DB.records
+    .filter(r=>r.status==="PENDING")
+    .sort((a,b)=>(predict(b)+confidence(b))-(predict(a)+confidence(a)))
+    .slice(0,10);
+}
+
+/* =========================
+   GRAPH
+========================= */
+
+function drawGraph(){
+  const c=document.getElementById("graph");
+  const ctx=c.getContext("2d");
+
+  ctx.clearRect(0,0,c.width,c.height);
+
+  const data=DB.records
+    .map(r=>r.history?.slice(-1)[0]||50)
+    .slice(-20);
+
+  ctx.beginPath();
+  ctx.moveTo(0,150);
+
+  data.forEach((v,i)=>{
+    const x=i*20;
+    const y=150-(v*1.2);
+    ctx.lineTo(x,y);
+  });
+
+  ctx.strokeStyle="#4ade80";
+  ctx.stroke();
 }
 
 /* =========================
@@ -302,30 +262,46 @@ function render(){
 
   DB.records.forEach(learn);
 
-  const total = DB.records.length;
-  const pending = DB.records.filter(x=>x.status==="PENDING").length;
-  const success = DB.records.filter(x=>x.status==="SUCCESS").length;
+  const total=DB.records.length;
+  const pending=DB.records.filter(x=>x.status==="PENDING").length;
+  const success=DB.records.filter(x=>x.status==="SUCCESS").length;
 
-  document.getElementById('stats').innerHTML = `
+  document.getElementById('stats').innerHTML=`
     <div class="card"><h2>${total}</h2>Total</div>
     <div class="card"><h2>${pending}</h2>Pending</div>
     <div class="card"><h2>${success}</h2>Success</div>
   `;
 
-  const top = DB.records
+  const intel=DB.records
     .filter(x=>x.status==="PENDING")
     .sort((a,b)=>predict(b)-predict(a))
     .slice(0,10);
 
-  document.getElementById('intel').innerHTML =
-    top.length ? top.map(x=>`
+  document.getElementById('intel').innerHTML=
+    intel.map(x=>`
       ⚡ <b>${x.name}</b>
       <span class="badge">${predict(x).toFixed(0)}%</span>
-    `).join("") : "No intelligence data";
+    `).join("");
 
-  const q = (document.getElementById('search').value||"").toLowerCase();
+  const next=nextTargets();
 
-  document.getElementById('list').innerHTML =
+  document.getElementById('next').innerHTML=
+    next.map(x=>`
+      🎯 ${x.name}
+      <span class="badge">${(predict(x)+confidence(x)).toFixed(0)}</span>
+    `).join("<br>");
+
+  const news=generateNews();
+
+  document.getElementById('news').innerHTML=
+    news.map(n=>`
+      📰 ${n.text}
+      <span class="badge">${n.score}%</span>
+    `).join("<br>");
+
+  const q=(document.getElementById('search').value||"").toLowerCase();
+
+  document.getElementById('list').innerHTML=
     DB.records
       .filter(x=>(x.name||"").toLowerCase().includes(q))
       .map(x=>`
@@ -335,6 +311,7 @@ function render(){
         </div>
       `).join("");
 
+  drawGraph();
   saveDB();
 }
 
