@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS – Autonomous Scheduler</title>
+<title>TTM OS – Learning Engine</title>
 
 <style>
 body{
@@ -51,34 +51,28 @@ input,textarea,button,select{
 }
 
 .small{font-size:12px;color:#aaa}
-
-.badge{
-  padding:2px 6px;
-  background:#222;
-  border-radius:6px;
-  font-size:11px;
-}
+.badge{background:#222;padding:2px 6px;border-radius:6px;font-size:11px}
 </style>
 </head>
 
 <body>
 
 <header>
-<h2>TTM OS – Autonomous Scheduler</h2>
-<input id="search" placeholder="Search targets...">
+<h2>TTM OS – Learning Engine</h2>
+<input id="search" placeholder="Search...">
 </header>
 
 <div class="grid" id="stats"></div>
 
 <div class="card">
 <h3>➕ Add Targets</h3>
-<textarea id="bulk" placeholder="One target per line"></textarea>
+<textarea id="bulk"></textarea>
 <button onclick="add()">Add</button>
 </div>
 
 <div class="card">
-<h3>📌 Update Status</h3>
-<input id="u_name" placeholder="Target name">
+<h3>📌 Update Status (Engine Learns Here)</h3>
+<input id="u_name">
 <select id="u_status">
 <option>PENDING</option>
 <option>SENT</option>
@@ -86,17 +80,17 @@ input,textarea,button,select{
 <option>RTS</option>
 <option>LOGGED</option>
 </select>
-<button onclick="update()">Update</button>
+<button onclick="update()">Update + Learn</button>
 </div>
 
 <div class="card">
-<h3>⚡ TODAY’S AUTONOMOUS SEND LIST</h3>
+<h3>🧠 LEARNED CATEGORY WEIGHTS</h3>
+<div id="weights"></div>
+</div>
+
+<div class="card">
+<h3>⚡ SMART TODAY QUEUE</h3>
 <div id="today"></div>
-</div>
-
-<div class="card">
-<h3>🧠 SYSTEM STATES</h3>
-<div id="states"></div>
 </div>
 
 <div class="card">
@@ -106,19 +100,16 @@ input,textarea,button,select{
 
 <script>
 
-/* =========================
-   CORE DB
-========================= */
+const KEY="ttm_learning_v1";
 
-const KEY = "ttm_autonomous_v1";
 let DB = load();
 
 function load(){
   try{
     const raw = JSON.parse(localStorage.getItem(KEY)||"{}");
-    return raw.records ? raw : {records:[]};
+    return raw.records ? raw : {records:[], weights:{}};
   }catch{
-    return {records:[]};
+    return {records:[], weights:{}};
   }
 }
 
@@ -127,24 +118,69 @@ function save(){
 }
 
 /* =========================
-   NORMALISE STATUS
+   CATEGORY DETECTION
 ========================= */
 
-function norm(s){
-  if(!s) return "PENDING";
-  s = String(s).trim().toUpperCase();
+function category(name){
+  const n = name.toLowerCase();
 
-  if(s.includes("PEND")) return "PENDING";
-  if(s.includes("SUCCESS")) return "SUCCESS";
-  if(s.includes("RTS") || s.includes("FAIL")) return "RTS";
-  if(s.includes("LOG")) return "LOGGED";
-  if(s.includes("SENT")) return "SENT";
+  if(/football|england|arsenal|liverpool|kane|shearer/.test(n)) return "football";
+  if(/nba|lakers|sabonis|banchero|parish|smits/.test(n)) return "nba";
+  if(/oldman|fiennes|brosnan|jackman|comer/.test(n)) return "actors";
+  if(/tv|podcast|show|theatre/.test(n)) return "tv";
 
-  return "PENDING";
+  return "other";
 }
 
 /* =========================
-   CORE ACTIONS
+   INITIAL WEIGHTS
+========================= */
+
+function getWeight(cat){
+  if(DB.weights[cat] === undefined){
+    DB.weights[cat] = 1.0;
+  }
+  return DB.weights[cat];
+}
+
+/* =========================
+   SCORE (NOW LEARNING-BASED)
+========================= */
+
+function score(r){
+  const cat = category(r.name);
+  const w = getWeight(cat);
+
+  let base = 50;
+
+  if(r.status==="SUCCESS") base += 30;
+  if(r.status==="RTS") base -= 25;
+  if(r.status==="SENT") base += 5;
+
+  return Math.max(0,Math.min(100, base * w));
+}
+
+/* =========================
+   LEARNING SYSTEM
+========================= */
+
+function learn(r, oldStatus, newStatus){
+
+  const cat = category(r.name);
+
+  if(newStatus === "SUCCESS"){
+    DB.weights[cat] = (DB.weights[cat] || 1.0) + 0.05;
+  }
+
+  if(newStatus === "RTS"){
+    DB.weights[cat] = (DB.weights[cat] || 1.0) - 0.07;
+  }
+
+  DB.weights[cat] = Math.max(0.5, Math.min(1.8, DB.weights[cat]));
+}
+
+/* =========================
+   ACTIONS
 ========================= */
 
 function add(){
@@ -153,103 +189,68 @@ function add(){
 
   lines.forEach(n=>{
     DB.records.push({
-      id: Date.now()+Math.random(),
+      id:Date.now()+Math.random(),
       name:n,
-      status:"PENDING",
-      history:[],
-      created:Date.now()
+      status:"PENDING"
     });
   });
 
   document.getElementById("bulk").value="";
-  cycle();
+  render();
+  save();
 }
 
 function update(){
   const name = document.getElementById("u_name").value.toLowerCase();
-  const status = norm(document.getElementById("u_status").value);
+  const status = document.getElementById("u_status").value.toUpperCase();
 
   DB.records.forEach(r=>{
     if(r.name.toLowerCase() === name){
+
+      const old = r.status;
       r.status = status;
+
+      learn(r, old, status);
     }
   });
 
-  cycle();
+  render();
+  save();
 }
 
 /* =========================
-   SCORING ENGINE
+   SMART QUEUE
 ========================= */
 
-function score(r){
-  let s = 50;
-
-  if(r.status === "SUCCESS") s += 40;
-  if(r.status === "RTS") s -= 30;
-  if(r.status === "SENT") s += 10;
-
-  const n = r.name.toLowerCase();
-  if(n.includes("event")) s += 5;
-  if(n.includes("training")) s -= 5;
-
-  return Math.max(0,Math.min(100,s));
-}
-
-/* =========================
-   AUTONOMOUS SCHEDULER CORE
-========================= */
-
-function todayList(){
+function today(){
   return DB.records
-    .filter(r => r.status === "PENDING")
+    .filter(r=>r.status==="PENDING")
     .sort((a,b)=>score(b)-score(a))
     .slice(0,12);
 }
 
 /* =========================
-   STATE BREAKDOWN
-========================= */
-
-function states(){
-  return {
-    pending: DB.records.filter(r=>r.status==="PENDING").length,
-    sent: DB.records.filter(r=>r.status==="SENT").length,
-    success: DB.records.filter(r=>r.status==="SUCCESS").length,
-    rts: DB.records.filter(r=>r.status==="RTS").length,
-    logged: DB.records.filter(r=>r.status==="LOGGED").length
-  };
-}
-
-/* =========================
-   RENDER ENGINE
+   RENDER
 ========================= */
 
 function render(){
 
-  const s = states();
-
   document.getElementById("stats").innerHTML = `
     <div class="card"><h2>${DB.records.length}</h2>Total</div>
-    <div class="card"><h2>${s.pending}</h2>Pending</div>
-    <div class="card"><h2>${s.sent}</h2>Sent</div>
-    <div class="card"><h2>${s.success}</h2>Success</div>
-    <div class="card"><h2>${s.rts}</h2>RTS</div>
+    <div class="card"><h2>${DB.records.filter(r=>r.status==="PENDING").length}</h2>Pending</div>
+    <div class="card"><h2>${DB.records.filter(r=>r.status==="SUCCESS").length}</h2>Success</div>
+    <div class="card"><h2>${DB.records.filter(r=>r.status==="RTS").length}</h2>RTS</div>
   `;
 
-  /* ⚡ AUTONOMOUS OUTPUT */
-  document.getElementById("today").innerHTML =
-    todayList().map(r=>`
-      ⚡ ${r.name}
-      <span class="badge">${score(r)}%</span>
+  document.getElementById("weights").innerHTML =
+    Object.entries(DB.weights).map(([k,v])=>`
+      ${k}: <b>${v.toFixed(2)}</b>
     `).join("<br>");
 
-  document.getElementById("states").innerHTML = `
-    READY (PENDING): ${s.pending}<br>
-    IN PROGRESS (SENT): ${s.sent}<br>
-    COMPLETED (SUCCESS): ${s.success}<br>
-    FAILED / RETRY (RTS): ${s.rts}
-  `;
+  document.getElementById("today").innerHTML =
+    today().map(r=>`
+      ⚡ ${r.name} <span class="badge">${score(r).toFixed(0)}%</span>
+    `).join("<br>");
 
   const q = (document.getElementById("search").value||"").toLowerCase();
 
@@ -266,17 +267,7 @@ function render(){
   save();
 }
 
-/* =========================
-   CYCLE
-========================= */
-
-function cycle(){
-  save();
-  render();
-}
-
 /* INIT */
-document.getElementById("search").addEventListener("input",render);
 render();
 
 </script>
