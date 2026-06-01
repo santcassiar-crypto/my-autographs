@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS PRO – Real System</title>
+<title>TTM OS PRO+</title>
 
 <style>
 body{
@@ -66,7 +66,7 @@ button{cursor:pointer}
 <body>
 
 <header>
-<h2>TTM OS PRO – Real System</h2>
+<h2>TTM OS PRO+ — Decision Engine</h2>
 <input id="search" placeholder="Search targets...">
 </header>
 
@@ -75,7 +75,7 @@ button{cursor:pointer}
 <div class="card">
 <h3>➕ Add Targets</h3>
 <textarea id="bulk" placeholder="One target per line"></textarea>
-<button onclick="addTargets()">Add Targets</button>
+<button onclick="addTargets()">Add</button>
 </div>
 
 <div class="card">
@@ -92,21 +92,26 @@ button{cursor:pointer}
 </div>
 
 <div class="card">
-<h3>💾 Backup System</h3>
-<input type="file" id="file">
-<button onclick="importJSON()">Import</button>
-<button onclick="exportJSON()">Export</button>
-<div id="backup" class="small"></div>
+<h3>📊 7-Day Priority Plan</h3>
+<div id="plan"></div>
 </div>
 
 <div class="card">
-<h3>🎯 Daily Priority Queue</h3>
+<h3>🎯 Live Send Queue</h3>
 <div id="queue"></div>
 </div>
 
 <div class="card">
-<h3>📊 System Intelligence</h3>
+<h3>🧠 Intelligence Layer</h3>
 <div id="intel"></div>
+</div>
+
+<div class="card">
+<h3>💾 Backup</h3>
+<input type="file" id="file">
+<button onclick="importJSON()">Import</button>
+<button onclick="exportJSON()">Export</button>
+<div id="backup" class="small"></div>
 </div>
 
 <div class="card">
@@ -117,10 +122,10 @@ button{cursor:pointer}
 <script>
 
 /* =========================
-   CORE DATA MODEL (REAL SYSTEM)
+   CORE SYSTEM
 ========================= */
 
-const KEY = "ttm_os_pro_core";
+const KEY = "ttm_os_pro_plus";
 
 let DB = load();
 
@@ -134,7 +139,7 @@ function save(){
 }
 
 /* =========================
-   STATE MACHINE (IMPORTANT)
+   NORMALISATION LAYER
 ========================= */
 
 function norm(s){
@@ -151,20 +156,20 @@ function norm(s){
 }
 
 /* =========================
-   ADD TARGETS
+   ADD / UPDATE
 ========================= */
 
 function addTargets(){
   const lines = document.getElementById("bulk").value
     .split("\n").map(x=>x.trim()).filter(Boolean);
 
-  lines.forEach(name=>{
+  lines.forEach(n=>{
     DB.records.push({
       id: Date.now()+Math.random(),
-      name,
-      status: "PENDING",
-      history: [],
-      created: Date.now()
+      name:n,
+      status:"PENDING",
+      history:[],
+      created:Date.now()
     });
   });
 
@@ -172,10 +177,6 @@ function addTargets(){
   save();
   render();
 }
-
-/* =========================
-   UPDATE STATUS
-========================= */
 
 function updateStatus(){
   const name = document.getElementById("u_name").value.toLowerCase();
@@ -192,24 +193,22 @@ function updateStatus(){
 }
 
 /* =========================
-   INTELLIGENCE ENGINE (REAL)
+   ENGINE CORE
 ========================= */
 
-function score(r){
+function baseScore(r){
   let s = 50;
 
-  const n = r.name.toLowerCase();
-
-  if(r.status === "SUCCESS") s += 35;
+  if(r.status === "SUCCESS") s += 40;
   if(r.status === "SENT") s += 15;
-  if(r.status === "RTS") s -= 30;
+  if(r.status === "RTS") s -= 35;
   if(r.status === "LOGGED") s += 5;
 
-  if(n.includes("event")) s += 8;
+  const n = r.name.toLowerCase();
+  if(n.includes("event")) s += 10;
   if(n.includes("training")) s -= 5;
-  if(n.includes("academy")) s -= 8;
 
-  return Math.max(0,Math.min(100,s));
+  return s;
 }
 
 function trend(r){
@@ -217,24 +216,28 @@ function trend(r){
   return r.history[r.history.length-1] - r.history[0];
 }
 
-function predict(r){
-  return Math.max(0,Math.min(100, score(r) + trend(r)*1.2));
+/* FINAL PRO+ SCORING */
+function score(r){
+  const s = baseScore(r);
+  const t = trend(r);
+
+  return Math.max(0,Math.min(100, s + t * 1.3));
 }
 
 /* =========================
-   LEARNING LOOP (CRITICAL)
+   LEARNING LOOP
 ========================= */
 
 function learn(){
   DB.records.forEach(r=>{
-    if(!r.history) r.history = [];
-    r.history.push(score(r));
-    if(r.history.length > 10) r.history.shift();
+    if(!r.history) r.history=[];
+    r.history.push(baseScore(r));
+    if(r.history.length > 12) r.history.shift();
   });
 }
 
 /* =========================
-   DEDUPLICATION ENGINE
+   DEDUPE ENGINE
 ========================= */
 
 function dedupe(){
@@ -246,10 +249,10 @@ function dedupe(){
     if(!map.has(k)){
       map.set(k,r);
     } else {
-      const existing = map.get(k);
+      const ex = map.get(k);
 
-      if(r.status === "SUCCESS") existing.status = "SUCCESS";
-      if(r.status === "RTS" && existing.status !== "SUCCESS") existing.status = "RTS";
+      if(r.status === "SUCCESS") ex.status = "SUCCESS";
+      if(r.status === "RTS" && ex.status !== "SUCCESS") ex.status = "RTS";
     }
   });
 
@@ -257,18 +260,76 @@ function dedupe(){
 }
 
 /* =========================
-   PRIORITY QUEUE (REAL SYSTEM CORE)
+   LIVE QUEUE
 ========================= */
 
 function queue(){
   return DB.records
-    .filter(r=>r.status === "PENDING")
-    .sort((a,b)=>predict(b)-predict(a))
-    .slice(0,12);
+    .filter(r=>r.status==="PENDING")
+    .sort((a,b)=>score(b)-score(a))
+    .slice(0,10);
 }
 
 /* =========================
-   RENDER
+   7-DAY PLAN ENGINE (PRO+ FEATURE)
+========================= */
+
+function plan(){
+  return DB.records
+    .filter(r=>r.status==="PENDING")
+    .sort((a,b)=>score(b)-score(a))
+    .slice(0,7);
+}
+
+/* =========================
+   INTELLIGENCE
+========================= */
+
+function intel(){
+  return queue().slice(0,5);
+}
+
+/* =========================
+   IMPORT / EXPORT
+========================= */
+
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="ttm_pro_plus.json";
+  a.click();
+}
+
+function importJSON(){
+  const file=document.getElementById("file").files[0];
+  if(!file) return;
+
+  const reader=new FileReader();
+
+  reader.onload=e=>{
+    const data=JSON.parse(e.target.result);
+    const records = Array.isArray(data)?data:data.records||[];
+
+    DB.records = records.map(r=>({
+      id:r.id||Date.now()+Math.random(),
+      name:r.name||r.Name||"",
+      status:norm(r.status||r.Status),
+      history:r.history||[],
+      created:r.created||Date.now()
+    }));
+
+    save();
+    render();
+    document.getElementById("backup").innerText =
+      "Loaded " + DB.records.length + " targets";
+  };
+
+  reader.readAsText(file);
+}
+
+/* =========================
+   RENDER ENGINE
 ========================= */
 
 function render(){
@@ -281,7 +342,6 @@ function render(){
   const success = DB.records.filter(r=>r.status==="SUCCESS").length;
   const sent = DB.records.filter(r=>r.status==="SENT").length;
   const rts = DB.records.filter(r=>r.status==="RTS").length;
-  const logged = DB.records.filter(r=>r.status==="LOGGED").length;
 
   document.getElementById("stats").innerHTML = `
     <div class="card"><h2>${total}</h2>Total</div>
@@ -289,21 +349,26 @@ function render(){
     <div class="card"><h2>${sent}</h2>Sent</div>
     <div class="card"><h2>${success}</h2>Success</div>
     <div class="card"><h2>${rts}</h2>RTS</div>
-    <div class="card"><h2>${logged}</h2>Logged</div>
   `;
 
   document.getElementById("queue").innerHTML =
     queue().map(r=>`
-      🎯 <b>${r.name}</b>
-      <span class="badge">${predict(r).toFixed(0)}%</span>
+      🎯 ${r.name}
+      <span class="badge">${score(r).toFixed(0)}%</span>
+    `).join("<br>");
+
+  document.getElementById("plan").innerHTML =
+    plan().map(r=>`
+      📅 ${r.name}
+      <span class="badge">${score(r).toFixed(0)}</span>
     `).join("<br>");
 
   document.getElementById("intel").innerHTML =
-    queue().slice(0,5).map(r=>`
-      ⚡ ${r.name} → ${score(r)} / ${predict(r).toFixed(0)}
+    intel().map(r=>`
+      ⚡ ${r.name} → ${score(r).toFixed(0)}
     `).join("<br>");
 
-  const q = (document.getElementById("search").value||"").toLowerCase();
+  const q=(document.getElementById("search").value||"").toLowerCase();
 
   document.getElementById("list").innerHTML =
     DB.records
@@ -318,51 +383,7 @@ function render(){
   save();
 }
 
-/* =========================
-   IMPORT / EXPORT
-========================= */
-
-function exportJSON(){
-  const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "ttm_os_pro_backup.json";
-  a.click();
-}
-
-function importJSON(){
-  const file = document.getElementById("file").files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-
-  reader.onload = e=>{
-    const data = JSON.parse(e.target.result);
-
-    const records = Array.isArray(data) ? data : data.records || [];
-
-    DB.records = records.map(r=>({
-      id: r.id || Date.now()+Math.random(),
-      name: r.name || r.Name || "",
-      status: norm(r.status || r.Status),
-      history: r.history || [],
-      created: r.created || Date.now()
-    }));
-
-    save();
-    render();
-
-    document.getElementById("backup").innerText =
-      "Loaded " + DB.records.length + " targets";
-  };
-
-  reader.readAsText(file);
-}
-
-/* =========================
-   INIT
-========================= */
-
+/* INIT */
 render();
 
 </script>
