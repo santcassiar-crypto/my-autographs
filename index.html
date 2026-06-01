@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS v7 Intelligence Core</title>
+<title>VaultOS v8 AI Engine</title>
 
 <style>
 body{
@@ -56,11 +56,10 @@ button{cursor:pointer}
 .small{font-size:12px;color:#aaa}
 
 .badge{
-  display:inline-block;
   padding:2px 6px;
-  font-size:11px;
   background:#222;
   border-radius:6px;
+  font-size:11px;
   margin-left:6px;
 }
 </style>
@@ -69,7 +68,7 @@ button{cursor:pointer}
 <body>
 
 <header>
-<h2>VaultOS v7 Intelligence Core</h2>
+<h2>VaultOS v8 AI Engine</h2>
 <input id="search" placeholder="Search records...">
 </header>
 
@@ -83,13 +82,13 @@ button{cursor:pointer}
 </div>
 
 <div class="card">
-<h3>Intelligence Engine</h3>
+<h3>🧠 AI Intelligence (Self Learning)</h3>
 <div id="intel"></div>
 </div>
 
 <div class="card">
-<h3>Awaiting Queue</h3>
-<div id="awaiting"></div>
+<h3>📊 Performance Graph</h3>
+<canvas id="chart" width="400" height="150" style="width:100%;background:#0a0a0a;border-radius:8px"></canvas>
 </div>
 
 <div class="card">
@@ -99,10 +98,10 @@ button{cursor:pointer}
 
 <script>
 
-const KEY = "vaultos_v7_intel";
+const KEY = "vaultos_v8_ai";
 let DB = [];
 
-/* ---------- LOAD / SAVE ---------- */
+/* ---------------- STORAGE ---------------- */
 
 function save(){
   localStorage.setItem(KEY, JSON.stringify(DB));
@@ -118,7 +117,7 @@ function load(){
   render();
 }
 
-/* ---------- ADD ---------- */
+/* ---------------- BULK ---------------- */
 
 function bulkAdd(){
   const text = document.getElementById('bulkNames').value.trim();
@@ -130,67 +129,75 @@ function bulkAdd(){
     DB.push({
       ID: Date.now() + Math.random(),
       Name: name,
-      Status: "PENDING"
+      Status: "PENDING",
+      HistoryScore: 50
     });
   });
 
   document.getElementById('bulkNames').value = "";
   document.getElementById('bulkResult').innerText =
-    `Added ${lines.length} pending targets`;
+    `Added ${lines.length} targets`;
 
   save();
 }
 
-/* ---------- FIXED INTELLIGENCE SYSTEM ---------- */
+/* ---------------- AI CORE ---------------- */
 
+/* SELF-LEARNING SCORE MODEL */
+function aiScore(r){
+
+  let base = r.HistoryScore ?? 50;
+  const n = (r.Name || "").toLowerCase();
+
+  // status learning feedback loop
+  if(r.Status === "SUCCESS") base += 20;
+  if(r.Status === "RTS") base -= 25;
+  if(r.Status === "PENDING") base += 5;
+
+  // pattern intelligence
+  if(n.includes("official")) base += 10;
+  if(n.includes("academy")) base -= 10;
+  if(n.includes("trial")) base -= 15;
+  if(n.includes("event")) base += 8;
+  if(n.includes("tour")) base += 10;
+
+  // clamp
+  return Math.max(0, Math.min(100, base));
+}
+
+/* CATEGORY ENGINE */
 function category(name){
-  const n = (name || "").toLowerCase();
+  const n = (name||"").toLowerCase();
 
-  if(/football|arsenal|england|liverpool|barcelona|madrid/.test(n)) return "Football";
-  if(/nba|lakers|celtics|suns|spurs/.test(n)) return "NBA";
-  if(/actor|film|movie|tv|comedy|netflix/.test(n)) return "Entertainment";
-  if(/event|festival|tour|show|appearance/.test(n)) return "Events";
-  if(/training|camp|academy/.test(n)) return "Training";
+  if(/football|england|barcelona|liverpool/.test(n)) return "Football";
+  if(/nba|lakers|celtics/.test(n)) return "NBA";
+  if(/film|actor|movie|tv/.test(n)) return "Entertainment";
+  if(/event|tour|show/.test(n)) return "Events";
   return "Other";
 }
 
-/* REAL SCORING MODEL */
-function score(r){
-  let s = 50;
-
-  const n = (r.Name || "").toLowerCase();
-  const c = category(r.Name);
-
-  // status weighting
-  if(r.Status === "PENDING") s += 15;
-  if(r.Status === "SUCCESS") s -= 40;
-
-  // category weighting (useful targeting bias)
-  if(c === "Football") s += 20;
-  if(c === "NBA") s += 15;
-  if(c === "Events") s += 10;
-  if(c === "Entertainment") s += 8;
-
-  // quality signals (clean + realistic)
-  if(n.includes("official")) s += 10;
-  if(n.includes("academy")) s -= 10;
-  if(n.includes("youth")) s -= 15;
-  if(n.includes("trial")) s -= 10;
-  if(n.includes("private")) s += 5;
-
-  // penalty for low-quality noise
-  if(n.length < 4) s -= 20;
-
-  return Math.max(0, Math.min(100, s));
+/* DUPLICATE CLUSTER */
+function dedupe(){
+  const map = {};
+  DB.forEach(r=>{
+    const k = (r.Name||"").trim().toLowerCase();
+    map[k] = (map[k]||0)+1;
+  });
+  return Object.entries(map).filter(x=>x[1]>1);
 }
 
-/* ---------- RENDER ---------- */
+/* ---------------- RENDER ---------------- */
 
 function render(){
 
+  /* update learning memory */
+  DB.forEach(r=>{
+    r.HistoryScore = aiScore(r);
+  });
+
   const total = DB.length;
-  const pending = DB.filter(x => x.Status === "PENDING").length;
-  const success = DB.filter(x => x.Status === "SUCCESS").length;
+  const pending = DB.filter(x=>x.Status==="PENDING").length;
+  const success = DB.filter(x=>x.Status==="SUCCESS").length;
 
   document.getElementById('stats').innerHTML = `
     <div class="card"><h2>${total}</h2>Total</div>
@@ -198,47 +205,68 @@ function render(){
     <div class="card"><h2>${success}</h2>Success</div>
   `;
 
-  /* INTELLIGENCE (FIXED PRIORITY ENGINE) */
+  /* INTELLIGENCE CORE */
   const top = DB
-    .filter(x => x.Status === "PENDING")
-    .sort((a,b) => score(b) - score(a))
+    .filter(x=>x.Status==="PENDING")
+    .sort((a,b)=>aiScore(b)-aiScore(a))
     .slice(0,10);
 
   document.getElementById('intel').innerHTML =
     top.length
-      ? top.map(x => `
-          <div>
-            🔥 <b>${x.Name}</b>
-            <span class="badge">${score(x)}%</span>
-            <span class="small">(${category(x.Name)})</span>
-          </div>
-        `).join("")
-      : "No pending intelligence targets";
-
-  /* QUEUE */
-  document.getElementById('awaiting').innerHTML =
-    top.map(x => "📬 " + x.Name).join("<br>");
+      ? top.map(x=>`
+        <div>
+          ⚡ <b>${x.Name}</b>
+          <span class="badge">${aiScore(x).toFixed(0)}%</span>
+          <span class="small">${category(x.Name)}</span>
+        </div>
+      `).join("")
+      : "No active intelligence";
 
   /* LIST */
-  const q = (document.getElementById('search').value || "").toLowerCase();
+  const q = (document.getElementById('search').value||"").toLowerCase();
 
   document.getElementById('list').innerHTML =
     DB
-      .filter(x => (x.Name || "").toLowerCase().includes(q))
-      .map(x => `
+      .filter(x=>(x.Name||"").toLowerCase().includes(q))
+      .map(x=>`
         <div class="record">
           <b>${x.Name}</b><br>
           <span class="small">${x.Status}</span>
         </div>
-      `)
-      .join("");
+      `).join("");
+
+  drawChart();
 }
 
-/* ---------- SEARCH ---------- */
+/* ---------------- SIMPLE ANALYTICS GRAPH ---------------- */
 
-document.getElementById('search').addEventListener('input', render);
+function drawChart(){
+  const c = document.getElementById("chart");
+  if(!c) return;
+  const ctx = c.getContext("2d");
 
-/* ---------- INIT ---------- */
+  ctx.clearRect(0,0,c.width,c.height);
+
+  const data = DB.slice(-20).map(x=>aiScore(x));
+
+  ctx.beginPath();
+  ctx.moveTo(0,100);
+
+  data.forEach((v,i)=>{
+    const x = (i/data.length)*400;
+    const y = 150 - (v*1.2);
+    ctx.lineTo(x,y);
+  });
+
+  ctx.strokeStyle = "#4ade80";
+  ctx.stroke();
+}
+
+/* ---------------- SEARCH ---------------- */
+
+document.getElementById('search').addEventListener('input',render);
+
+/* ---------------- INIT ---------------- */
 
 load();
 
