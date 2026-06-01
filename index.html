@@ -1,258 +1,172 @@
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Pro v4</title>
+<title>VaultOS v5 Ultimate</title>
 <style>
-body{font-family:Arial;margin:0;background:#0b0b0b;color:#fff}
-header{padding:12px;background:#111;position:sticky;top:0}
-input,select,textarea,button{width:100%;padding:10px;margin:6px 0;background:#181818;color:#fff;border:1px solid #333;border-radius:8px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:10px}
-.card{background:#111;border:1px solid #222;border-radius:10px;padding:10px}
+body{font-family:Arial,sans-serif;background:#0b0b0b;color:#fff;margin:0}
+header{background:#111;padding:12px;position:sticky;top:0}
+.card{background:#111;border:1px solid #222;border-radius:10px;padding:12px;margin:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:10px}
+input,select,button{padding:10px;border-radius:8px;border:1px solid #333;background:#181818;color:#fff}
+#search{width:100%}
+.record{padding:8px;border-bottom:1px solid #222}
 .small{font-size:12px;color:#aaa}
-.list{padding:10px}
 </style>
 </head>
 <body>
 <header>
-<h2>VaultOS Pro v4</h2>
-<input id="search" placeholder="Search...">
+<h2>VaultOS v5 Ultimate</h2>
+<input id="search" placeholder="Search records...">
 </header>
 
 <div class="grid" id="stats"></div>
 
+<div class="card">
+<h3>Backup & Restore</h3>
 <input type="file" id="jsonFile">
 <button onclick="loadFile()">Load Backup File</button>
-
- function loadFile() {
-  const file = document.getElementById('jsonFile').files[0];
-  if (!file) return alert("Choose a JSON file");
-
-  const reader = new FileReader();
-
-  reader.onload = function(e) {
-    try {
-      DB = JSON.parse(e.target.result);
-      save();
-      alert("Loaded " + DB.length + " records");
-    } catch(err) {
-      alert("JSON file invalid");
-      console.error(err);
-    }
-  };
-
-  reader.readAsText(file);
-}
-
-<div class="card">
-<h3>Intelligence</h3>
-<div id="intel"></div>
-</div>
-
- <div class="card">
-<h3>🎯 Awaiting Response</h3>
-<div id="sendNext"></div>
+<button onclick="exportJSON()">Export Backup</button>
 </div>
 
 <div class="card">
-<h3>⚠ Duplicate Detector</h3>
-<div id="duplicates"></div>
+<h3>Add Record</h3>
+<input id="newName" placeholder="Name">
+<select id="newStatus">
+<option>PENDING</option>
+<option>SUCCESS</option>
+<option>RTS</option>
+<option>LOGGED</option>
+<option>Sent</option>
+</select>
+<button onclick="addRecord()">Add Record</button>
 </div>
+
+<div class="card"><h3>🧠 Intelligence</h3><div id="intel"></div></div>
+<div class="card"><h3>📬 Awaiting Response</h3><div id="awaiting"></div></div>
+<div class="card"><h3>🏆 Hall of Fame</h3><div id="hof"></div></div>
+<div class="card"><h3>📊 Success Analytics</h3><div id="analytics"></div></div>
+<div class="card"><h3>⚠ Duplicate Detector</h3><div id="duplicates"></div></div>
+<div class="card"><h3>📰 Vault News</h3><div id="news"></div></div>
 
 <div class="card">
-<h3>📰 Vault News</h3>
-<div id="news"></div>
+<h3>Records</h3>
+<div id="list"></div>
 </div>
-
-<div class="list" id="list"></div>
 
 <script>
-const KEY="vaultos_v4";
+const KEY="vaultos_v5_ultimate";
 let DB=[];
 
 function save(){localStorage.setItem(KEY,JSON.stringify(DB));render();}
 function load(){DB=JSON.parse(localStorage.getItem(KEY)||"[]");render();}
 
-function importJSON(){
- try{
-  DB=JSON.parse(document.getElementById('jsonBox').value);
-  save();
-  alert("Imported "+DB.length+" records");
- }catch(e){alert("Invalid JSON");}
+function loadFile(){
+ const file=document.getElementById('jsonFile').files[0];
+ if(!file){alert('Choose a JSON file');return;}
+ const reader=new FileReader();
+ reader.onload=function(e){
+   try{
+      DB=JSON.parse(e.target.result);
+      save();
+      alert('Loaded '+DB.length+' records');
+   }catch(err){alert('Invalid JSON');}
+ };
+ reader.readAsText(file);
 }
 
 function exportJSON(){
- const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+ const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
  const a=document.createElement('a');
- a.href=URL.createObjectURL(b);
+ a.href=URL.createObjectURL(blob);
  a.download='vault_backup.json';
  a.click();
 }
 
-function stats(){
- return {
- total:DB.length,
- success:DB.filter(x=>x.Status==="SUCCESS").length,
- pending:DB.filter(x=>x.Status==="PENDING").length,
- rts:DB.filter(x=>(x.Status||"").includes("RTS")).length
- }
+function addRecord(){
+ const n=document.getElementById('newName').value.trim();
+ if(!n)return;
+ DB.push({ID:Date.now(),Name:n,Status:document.getElementById('newStatus').value});
+ save();
+ document.getElementById('newName').value='';
 }
 
 function score(r){
-
- let s = 50;
- let n = (r.Name || "").toLowerCase();
-
- if((r.Status||"").toUpperCase()==="PENDING") s += 20;
-
- if(n.includes("home")) s += 30;
- if(n.includes("podcast")) s += 20;
- if(n.includes("theatre")) s += 15;
- if(n.includes("event")) s += 10;
-
- if(n.includes("training")) s -= 20;
- if(n.includes("camp")) s -= 15;
- if(n.includes("cast")) s -= 15;
- if(n.includes("production")) s -= 10;
-
+ let s=50;
+ const n=(r.Name||"").toLowerCase();
+ if((r.Status||"").toUpperCase()==="PENDING") s+=20;
+ if(n.includes("home")) s+=30;
+ if(n.includes("podcast")) s+=20;
+ if(n.includes("theatre")) s+=15;
+ if(n.includes("event")) s+=10;
+ if(n.includes("training")) s-=20;
+ if(n.includes("camp")) s-=15;
+ if(n.includes("cast")) s-=15;
  return Math.max(0,Math.min(100,s));
 }
 
-function render(){
-function render(){
-
- let st = stats();
-
- document.getElementById('stats').innerHTML=`
- <div class="card"><h2>${st.total}</h2>Total</div>
- <div class="card"><h2>${st.success}</h2>Success</div>
- <div class="card"><h2>${st.pending}</h2>Pending</div>
- <div class="card"><h2>${st.rts}</h2>RTS</div>`;
-
- let top = DB
- .filter(x=>(x.Status||"").toUpperCase()==="PENDING")
- .sort((a,b)=>score(b)-score(a))
- .slice(0,10);
-
- document.getElementById('intel').innerHTML =
- `
- <b>Top 10 Likely Returns</b>
- <ol>
- ${top.map(x=>`<li>${x.Name} (${score(x)}%)</li>`).join("")}
- </ol>
-
- <hr>
-
- Success Rate:
- ${Math.round((st.success/st.total)*100)||0}%<br>
-
- Pending:
- ${st.pending}<br>
-
- Success:
- ${st.success}
- `;
-
- let next = DB
- .filter(x=>(x.Status||"").toUpperCase()==="PENDING")
- .filter(x=>!/training|camp|cast/i.test(x.Name||""))
- .sort((a,b)=>score(b)-score(a))
- .slice(0,10);
-
- document.getElementById("sendNext").innerHTML =
- next.length
- ? next.map(x=>`🎯 ${x.Name}`).join("<br>")
- : "No pending targets found";
-
- let nameMap = {};
-
- DB.forEach(r=>{
-  let key=(r.Name||"").trim().toLowerCase();
-  nameMap[key]=(nameMap[key]||0)+1;
- });
-
- let dups = Object.keys(nameMap)
- .filter(x=>nameMap[x]>1);
-
- document.getElementById("duplicates").innerHTML =
- dups.length
- ? dups.map(x=>`⚠ ${x}`).join("<br>")
- : "No duplicates found";
-
- document.getElementById("news").innerHTML = `
- 📬 ${st.pending} active requests<br>
- 🏆 ${st.success} successful returns<br>
- ⚠ ${dups.length} duplicate targets detected<br>
- 🎭 Film & TV projects active<br>
- ⚽ Football remains strongest category<br>
- 🏀 NBA opportunities still pending
- `;
-
- let q=(document.getElementById('search').value||'').toLowerCase();
-
- document.getElementById('list').innerHTML =
- DB.filter(x=>(x.Name||'').toLowerCase().includes(q))
- .map(x=>`
- <div class="card">
- <b>${x.Name||''}</b><br>
- <span class="small">${x.Status||''}</span>
- </div>
- `).join("");
+function category(name){
+ const n=(name||"").toLowerCase();
+ if(/arsenal|england|kane|graham|shearer|wright|barcelona|liverpool|football/.test(n)) return "Football";
+ if(/nba|lakers|sochan|banchero|grant hill|sabonis|parish|smits/.test(n)) return "NBA";
+ if(/oldman|stone|fiennes|brosnan|jackman|sheen|laurie|comer/.test(n)) return "Actors";
+ if(/ross|fry|mack|carr|bridges|widdicombe/.test(n)) return "TV/Comedy";
+ return "Other";
 }
 
- // SEND NEXT
+function render(){
+ const total=DB.length;
+ const success=DB.filter(x=>x.Status==="SUCCESS").length;
+ const pending=DB.filter(x=>x.Status==="PENDING").length;
+ const rts=DB.filter(x=>(x.Status||"").includes("RTS")).length;
 
-let next = DB
-.filter(x => (x.Status || "").toUpperCase() === "PENDING")
-.sort((a,b)=>score(b)-score(a))
-.slice(0,10);
+ document.getElementById('stats').innerHTML=`
+ <div class="card"><h2>${total}</h2>Total</div>
+ <div class="card"><h2>${success}</h2>Success</div>
+ <div class="card"><h2>${pending}</h2>Pending</div>
+ <div class="card"><h2>${rts}</h2>RTS</div>`;
 
-document.getElementById("sendNext").innerHTML =
-next.length
-? next.map(x=>`🎯 ${x.Name}`).join("<br>")
-: "No pending targets found";
+ const top=DB.filter(x=>x.Status==="PENDING").sort((a,b)=>score(b)-score(a)).slice(0,10);
+ document.getElementById('intel').innerHTML=top.length?
+ "<ol>"+top.map(x=>`<li>${x.Name} (${score(x)}%)</li>`).join("")+"</ol>":"No pending records";
 
+ document.getElementById('awaiting').innerHTML=top.map(x=>"📬 "+x.Name).join("<br>");
 
-// DUPLICATES
+ const hof=DB.filter(x=>x.Status==="SUCCESS").slice(0,20);
+ document.getElementById('hof').innerHTML=hof.map(x=>"🏆 "+x.Name).join("<br>");
 
-let nameMap = {};
+ const cats={};
+ DB.forEach(r=>{
+   const c=category(r.Name);
+   cats[c]=(cats[c]||0)+1;
+ });
+ document.getElementById('analytics').innerHTML=Object.entries(cats).map(([k,v])=>`${k}: ${v}`).join("<br>");
 
-DB.forEach(r=>{
- let key=(r.Name||"").trim().toLowerCase();
- nameMap[key]=(nameMap[key]||0)+1;
-});
+ const map={};
+ DB.forEach(r=>{
+   const k=(r.Name||"").trim().toLowerCase();
+   map[k]=(map[k]||0)+1;
+ });
+ const dups=Object.keys(map).filter(k=>map[k]>1);
+ document.getElementById('duplicates').innerHTML=dups.length?dups.join("<br>"):"No duplicates found";
 
-let dups = Object.keys(nameMap)
-.filter(x=>nameMap[x]>1);
+ document.getElementById('news').innerHTML=`
+ 🏆 ${success} successful returns<br>
+ 📬 ${pending} active pending requests<br>
+ ⚠ ${dups.length} duplicate targets detected<br>
+ ⚽ Football remains strongest category candidate<br>
+ 🎭 Film & TV projects active
+ `;
 
-document.getElementById("duplicates").innerHTML =
-dups.length
-? dups.map(x=>`⚠ ${x}`).join("<br>")
-: "No duplicates found";
-
-
-// NEWS
-
-document.getElementById("news").innerHTML = `
-⚽ ${st.pending} active pending requests<br>
-🏆 ${st.success} successful returns<br>
-📬 ${st.total} total targets tracked<br>
-🎭 Film & TV cast mailings active<br>
-🏀 NBA offseason signing opportunities
-`;
-
- let q=(document.getElementById('search').value||'').toLowerCase();
-
- document.getElementById('list').innerHTML =
- DB.filter(x=>(x.Name||'').toLowerCase().includes(q))
-   .map(x=>`
-   <div class="card">
-   <b>${x.Name||''}</b><br>
-   <span class="small">${x.Status||''}</span>
-   </div>`).join("");
+ const q=(document.getElementById('search').value||"").toLowerCase();
+ document.getElementById('list').innerHTML=DB
+ .filter(x=>(x.Name||"").toLowerCase().includes(q))
+ .map(x=>`<div class="record"><b>${x.Name}</b><br><span class="small">${x.Status}</span></div>`)
+ .join("");
 }
 
 document.getElementById('search').addEventListener('input',render);
