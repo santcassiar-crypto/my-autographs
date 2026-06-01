@@ -24,12 +24,28 @@ input,select,textarea,button{width:100%;padding:10px;margin:6px 0;background:#18
 
 <div class="grid" id="stats"></div>
 
-<div class="card">
-<h3>Import / Export</h3>
-<textarea id="jsonBox" placeholder="Paste JSON array here"></textarea>
-<button onclick="importJSON()">Import JSON</button>
-<button onclick="exportJSON()">Export JSON</button>
-</div>
+<input type="file" id="jsonFile">
+<button onclick="loadFile()">Load Backup File</button>
+
+ function loadFile() {
+  const file = document.getElementById('jsonFile').files[0];
+  if (!file) return alert("Choose a JSON file");
+
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    try {
+      DB = JSON.parse(e.target.result);
+      save();
+      alert("Loaded " + DB.length + " records");
+    } catch(err) {
+      alert("JSON file invalid");
+      console.error(err);
+    }
+  };
+
+  reader.readAsText(file);
+}
 
 <div class="card">
 <h3>Intelligence</h3>
