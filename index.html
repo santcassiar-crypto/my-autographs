@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS – Self Optimising Engine</title>
+<title>TTM OS – Self Optimising Engine (Stable)</title>
 
 <style>
 body{
@@ -59,7 +59,7 @@ input,textarea,button,select{
 
 <header>
 <h2>TTM OS – Self Optimising Engine</h2>
-<input id="search" placeholder="Search database...">
+<input id="search" placeholder="Search...">
 </header>
 
 <div class="grid" id="stats"></div>
@@ -72,7 +72,7 @@ input,textarea,button,select{
 
 <div class="card">
 <h3>📌 Update Status</h3>
-<input id="u_name">
+<input id="u_name" placeholder="Exact name">
 <select id="u_status">
 <option>PENDING</option>
 <option>SENT</option>
@@ -84,7 +84,15 @@ input,textarea,button,select{
 </div>
 
 <div class="card">
-<h3>🧠 CATEGORY STRATEGY MAP</h3>
+<h3>💾 Backup (JSON)</h3>
+<input type="file" id="file">
+<button onclick="importJSON()">Import JSON</button>
+<button onclick="exportJSON()">Export JSON</button>
+<div class="small" id="backupStatus"></div>
+</div>
+
+<div class="card">
+<h3>🧠 CATEGORY STRATEGY</h3>
 <div id="strategy"></div>
 </div>
 
@@ -94,15 +102,19 @@ input,textarea,button,select{
 </div>
 
 <div class="card">
-<h3>📋 FULL DATA</h3>
+<h3>📋 ALL RECORDS</h3>
 <div id="list"></div>
 </div>
 
 <script>
 
-const KEY="ttm_self_opt_v1";
+const KEY="ttm_self_engine_v2";
 
 let DB = load();
+
+/* =========================
+   LOAD / SAVE
+========================= */
 
 function load(){
   try{
@@ -118,7 +130,7 @@ function save(){
 }
 
 /* =========================
-   CATEGORY SYSTEM
+   CATEGORY
 ========================= */
 
 function category(n){
@@ -126,14 +138,14 @@ function category(n){
 
   if(/football|arsenal|england|kane|shearer/.test(n)) return "football";
   if(/nba|lakers|sabonis|banchero/.test(n)) return "nba";
-  if(/actor|oldman|fiennes|brosnan|comer/.test(n)) return "actors";
+  if(/oldman|fiennes|brosnan|comer|jackman/.test(n)) return "actors";
   if(/tv|podcast|show|theatre/.test(n)) return "tv";
 
   return "other";
 }
 
 /* =========================
-   INITIAL VALUES
+   INIT VALUES
 ========================= */
 
 function get(cat){
@@ -143,22 +155,22 @@ function get(cat){
 }
 
 /* =========================
-   HEAT DECAY (SELF BALANCE)
+   HEAT DECAY
 ========================= */
 
 function decay(){
   Object.keys(DB.heat).forEach(k=>{
-    DB.heat[k] *= 0.95; // natural cooling
+    DB.heat[k] *= 0.95;
   });
 }
 
 /* =========================
-   SCORE ENGINE (SELF-OPTIMISING)
+   SCORE ENGINE
 ========================= */
 
 function score(r){
   const cat = category(r.name);
-  let w = get(cat);
+  const w = get(cat);
 
   let base = 50;
 
@@ -166,43 +178,38 @@ function score(r){
   if(r.status==="RTS") base -= 30;
   if(r.status==="SENT") base += 5;
 
-  /* 🔥 SATURATION PENALTY */
   const heat = DB.heat[cat] || 0;
   const fatigue = Math.min(0.4, heat * 0.02);
 
-  /* 📈 COOLDOWN BOOST */
-  const cooldown = heat < 3 ? 0.1 : 0;
-
   let final = base * w;
 
-  final = final * (1 - fatigue) + (cooldown * 10);
+  final = final * (1 - fatigue);
 
   return Math.max(0, Math.min(100, final));
 }
 
 /* =========================
-   LEARNING + STRATEGY ADJUSTMENT
+   LEARNING
 ========================= */
 
-function learn(r, newStatus){
+function learn(r, status){
   const cat = category(r.name);
 
-  /* update heat (usage tracking) */
   DB.heat[cat] = (DB.heat[cat] || 0) + 1;
 
-  if(newStatus === "SUCCESS"){
-    DB.weights[cat] = (DB.weights[cat] || 1.0) + 0.04;
+  if(status==="SUCCESS"){
+    DB.weights[cat] += 0.04;
   }
 
-  if(newStatus === "RTS"){
-    DB.weights[cat] = (DB.weights[cat] || 1.0) - 0.06;
+  if(status==="RTS"){
+    DB.weights[cat] -= 0.06;
   }
 
   DB.weights[cat] = Math.max(0.5, Math.min(1.8, DB.weights[cat]));
 }
 
 /* =========================
-   CORE ACTIONS
+   ADD
 ========================= */
 
 function add(){
@@ -222,6 +229,10 @@ function add(){
   save();
 }
 
+/* =========================
+   UPDATE
+========================= */
+
 function update(){
   const name = document.getElementById("u_name").value.toLowerCase();
   const status = document.getElementById("u_status").value.toUpperCase();
@@ -238,7 +249,7 @@ function update(){
 }
 
 /* =========================
-   OPTIMISED OUTPUT
+   OPTIMISED ACTIONS
 ========================= */
 
 function actions(){
@@ -254,15 +265,65 @@ function actions(){
 ========================= */
 
 function strategy(){
-  const cats = {};
+  const out = {};
 
   DB.records.forEach(r=>{
     const c = category(r.name);
-    cats[c] = cats[c] || {count:0, heat:DB.heat[c]||0};
-    cats[c].count++;
+    out[c] = out[c] || {count:0, heat:DB.heat[c]||0, weight:DB.weights[c]||1};
+    out[c].count++;
   });
 
-  return cats;
+  return out;
+}
+
+/* =========================
+   JSON IMPORT
+========================= */
+
+function importJSON(){
+  const file = document.getElementById("file").files[0];
+  if(!file) return alert("Select JSON file");
+
+  const reader = new FileReader();
+
+  reader.onload = e=>{
+    try{
+      const data = JSON.parse(e.target.result);
+
+      DB.records = data.records || [];
+      DB.weights = data.weights || {};
+      DB.heat = data.heat || {};
+
+      DB.records = DB.records.map(r=>({
+        id:r.id||Date.now()+Math.random(),
+        name:r.name||r.Name,
+        status:(r.status||r.Status||"PENDING").toUpperCase()
+      }));
+
+      save();
+      render();
+
+      document.getElementById("backupStatus").innerText =
+        "Imported " + DB.records.length + " records";
+
+    }catch(err){
+      alert("Invalid JSON");
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+/* =========================
+   JSON EXPORT
+========================= */
+
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "ttm_self_optimising_backup.json";
+  a.click();
 }
 
 /* =========================
@@ -273,16 +334,20 @@ function render(){
 
   decay();
 
+  const pending = DB.records.filter(r=>r.status==="PENDING").length;
+  const success = DB.records.filter(r=>r.status==="SUCCESS").length;
+  const rts = DB.records.filter(r=>r.status==="RTS").length;
+
   document.getElementById("stats").innerHTML = `
     <div class="card"><h2>${DB.records.length}</h2>Total</div>
-    <div class="card"><h2>${DB.records.filter(r=>r.status==="PENDING").length}</h2>Pending</div>
-    <div class="card"><h2>${DB.records.filter(r=>r.status==="SUCCESS").length}</h2>Success</div>
-    <div class="card"><h2>${DB.records.filter(r=>r.status==="RTS").length}</h2>RTS</div>
+    <div class="card"><h2>${pending}</h2>Pending</div>
+    <div class="card"><h2>${success}</h2>Success</div>
+    <div class="card"><h2>${rts}</h2>RTS</div>
   `;
 
   document.getElementById("strategy").innerHTML =
     Object.entries(strategy()).map(([k,v])=>`
-      ${k} → uses: ${v.count}, heat: ${(v.heat||0).toFixed(1)}, weight: ${(DB.weights[k]||1).toFixed(2)}
+      ${k}: count=${v.count}, heat=${v.heat.toFixed(1)}, weight=${v.weight.toFixed(2)}
     `).join("<br>");
 
   document.getElementById("actions").innerHTML =
@@ -305,7 +370,6 @@ function render(){
   save();
 }
 
-/* INIT */
 render();
 
 </script>
