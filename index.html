@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS – Learning Engine</title>
+<title>TTM OS – Autonomous Decision Engine</title>
 
 <style>
 body{
@@ -51,15 +51,21 @@ input,textarea,button,select{
 }
 
 .small{font-size:12px;color:#aaa}
-.badge{background:#222;padding:2px 6px;border-radius:6px;font-size:11px}
+
+.badge{
+  background:#222;
+  padding:2px 6px;
+  border-radius:6px;
+  font-size:11px;
+}
 </style>
 </head>
 
 <body>
 
 <header>
-<h2>TTM OS – Learning Engine</h2>
-<input id="search" placeholder="Search...">
+<h2>TTM OS – Autonomous Decision Engine</h2>
+<input id="search" placeholder="Search full database...">
 </header>
 
 <div class="grid" id="stats"></div>
@@ -71,7 +77,7 @@ input,textarea,button,select{
 </div>
 
 <div class="card">
-<h3>📌 Update Status (Engine Learns Here)</h3>
+<h3>📌 Update Status</h3>
 <input id="u_name">
 <select id="u_status">
 <option>PENDING</option>
@@ -84,23 +90,23 @@ input,textarea,button,select{
 </div>
 
 <div class="card">
-<h3>🧠 LEARNED CATEGORY WEIGHTS</h3>
+<h3>🧠 CATEGORY HEALTH</h3>
 <div id="weights"></div>
 </div>
 
 <div class="card">
-<h3>⚡ SMART TODAY QUEUE</h3>
-<div id="today"></div>
+<h3>⚡ AUTONOMOUS DECISION LIST (ONLY HIGH VALUE)</h3>
+<div id="decisions"></div>
 </div>
 
 <div class="card">
-<h3>📋 ALL RECORDS</h3>
+<h3>📋 FULL DATABASE</h3>
 <div id="list"></div>
 </div>
 
 <script>
 
-const KEY="ttm_learning_v1";
+const KEY="ttm_decision_engine_v1";
 
 let DB = load();
 
@@ -124,8 +130,8 @@ function save(){
 function category(name){
   const n = name.toLowerCase();
 
-  if(/football|england|arsenal|liverpool|kane|shearer/.test(n)) return "football";
-  if(/nba|lakers|sabonis|banchero|parish|smits/.test(n)) return "nba";
+  if(/football|england|arsenal|kane|shearer/.test(n)) return "football";
+  if(/nba|lakers|sabonis|banchero/.test(n)) return "nba";
   if(/oldman|fiennes|brosnan|jackman|comer/.test(n)) return "actors";
   if(/tv|podcast|show|theatre/.test(n)) return "tv";
 
@@ -133,10 +139,10 @@ function category(name){
 }
 
 /* =========================
-   INITIAL WEIGHTS
+   CATEGORY WEIGHTS
 ========================= */
 
-function getWeight(cat){
+function weight(cat){
   if(DB.weights[cat] === undefined){
     DB.weights[cat] = 1.0;
   }
@@ -144,43 +150,42 @@ function getWeight(cat){
 }
 
 /* =========================
-   SCORE (NOW LEARNING-BASED)
+   SCORE ENGINE (FILTERED)
 ========================= */
 
 function score(r){
   const cat = category(r.name);
-  const w = getWeight(cat);
+  const w = weight(cat);
 
-  let base = 50;
+  let s = 50;
 
-  if(r.status==="SUCCESS") base += 30;
-  if(r.status==="RTS") base -= 25;
-  if(r.status==="SENT") base += 5;
+  if(r.status==="SUCCESS") s += 40;
+  if(r.status==="RTS") s -= 30;
+  if(r.status==="SENT") s += 5;
 
-  return Math.max(0,Math.min(100, base * w));
+  return s * w;
 }
 
 /* =========================
-   LEARNING SYSTEM
+   LEARNING ENGINE
 ========================= */
 
-function learn(r, oldStatus, newStatus){
-
+function learn(r, newStatus){
   const cat = category(r.name);
 
   if(newStatus === "SUCCESS"){
-    DB.weights[cat] = (DB.weights[cat] || 1.0) + 0.05;
+    DB.weights[cat] += 0.06;
   }
 
   if(newStatus === "RTS"){
-    DB.weights[cat] = (DB.weights[cat] || 1.0) - 0.07;
+    DB.weights[cat] -= 0.08;
   }
 
   DB.weights[cat] = Math.max(0.5, Math.min(1.8, DB.weights[cat]));
 }
 
 /* =========================
-   ACTIONS
+   ADD
 ========================= */
 
 function add(){
@@ -200,17 +205,18 @@ function add(){
   save();
 }
 
+/* =========================
+   UPDATE + LEARN
+========================= */
+
 function update(){
   const name = document.getElementById("u_name").value.toLowerCase();
   const status = document.getElementById("u_status").value.toUpperCase();
 
   DB.records.forEach(r=>{
     if(r.name.toLowerCase() === name){
-
-      const old = r.status;
       r.status = status;
-
-      learn(r, old, status);
+      learn(r, status);
     }
   });
 
@@ -219,14 +225,16 @@ function update(){
 }
 
 /* =========================
-   SMART QUEUE
+   DECISION FILTER
 ========================= */
 
-function today(){
+function decisions(){
   return DB.records
-    .filter(r=>r.status==="PENDING")
-    .sort((a,b)=>score(b)-score(a))
-    .slice(0,12);
+    .filter(r => r.status === "PENDING")
+    .map(r => ({...r, s:score(r)}))
+    .filter(r => r.s >= 60)
+    .sort((a,b)=>b.s-a.s)
+    .slice(0,15);
 }
 
 /* =========================
@@ -235,21 +243,25 @@ function today(){
 
 function render(){
 
+  const pending = DB.records.filter(r=>r.status==="PENDING").length;
+  const success = DB.records.filter(r=>r.status==="SUCCESS").length;
+  const rts = DB.records.filter(r=>r.status==="RTS").length;
+
   document.getElementById("stats").innerHTML = `
     <div class="card"><h2>${DB.records.length}</h2>Total</div>
-    <div class="card"><h2>${DB.records.filter(r=>r.status==="PENDING").length}</h2>Pending</div>
-    <div class="card"><h2>${DB.records.filter(r=>r.status==="SUCCESS").length}</h2>Success</div>
-    <div class="card"><h2>${DB.records.filter(r=>r.status==="RTS").length}</h2>RTS</div>
+    <div class="card"><h2>${pending}</h2>Pending</div>
+    <div class="card"><h2>${success}</h2>Success</div>
+    <div class="card"><h2>${rts}</h2>RTS</div>
   `;
 
   document.getElementById("weights").innerHTML =
-    Object.entries(DB.weights).map(([k,v])=>`
-      ${k}: <b>${v.toFixed(2)}</b>
-    `).join("<br>");
+    Object.entries(DB.weights)
+      .map(([k,v])=>`${k}: <b>${v.toFixed(2)}</b>`)
+      .join("<br>");
 
-  document.getElementById("today").innerHTML =
-    today().map(r=>`
-      ⚡ ${r.name} <span class="badge">${score(r).toFixed(0)}%</span>
+  document.getElementById("decisions").innerHTML =
+    decisions().map(r=>`
+      ⚡ ${r.name} <span class="badge">${r.s.toFixed(0)}</span>
     `).join("<br>");
 
   const q = (document.getElementById("search").value||"").toLowerCase();
