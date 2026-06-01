@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS v6 Core</title>
+<title>VaultOS v7 Intelligence Core</title>
 
 <style>
 body{
@@ -46,9 +46,7 @@ input,select,button,textarea{
   color:#fff;
 }
 
-button{
-  cursor:pointer;
-}
+button{cursor:pointer}
 
 .record{
   padding:8px;
@@ -56,43 +54,42 @@ button{
 }
 
 .small{font-size:12px;color:#aaa}
+
+.badge{
+  display:inline-block;
+  padding:2px 6px;
+  font-size:11px;
+  background:#222;
+  border-radius:6px;
+  margin-left:6px;
+}
 </style>
 </head>
 
 <body>
 
 <header>
-<h2>VaultOS v6 Core</h2>
+<h2>VaultOS v7 Intelligence Core</h2>
 <input id="search" placeholder="Search records...">
 </header>
 
 <div class="grid" id="stats"></div>
 
 <div class="card">
-<h3>Backup Tools</h3>
-<input type="file" id="jsonFile">
-<button onclick="loadFile()">Load Backup</button>
-<button onclick="exportJSON()">Export Backup</button>
-</div>
-
-<div class="card">
-<h3>Bulk Add (Pending)</h3>
+<h3>Bulk Add</h3>
 <textarea id="bulkNames" placeholder="One name per line..."></textarea>
 <button onclick="bulkAdd()">Add All As PENDING</button>
 <div id="bulkResult" class="small"></div>
 </div>
 
 <div class="card">
-<h3>Add Single Record</h3>
-<input id="newName" placeholder="Name">
-<select id="newStatus">
-  <option>PENDING</option>
-  <option>SUCCESS</option>
-  <option>RTS</option>
-  <option>LOGGED</option>
-  <option>SENT</option>
-</select>
-<button onclick="addRecord()">Add</button>
+<h3>Intelligence Engine</h3>
+<div id="intel"></div>
+</div>
+
+<div class="card">
+<h3>Awaiting Queue</h3>
+<div id="awaiting"></div>
 </div>
 
 <div class="card">
@@ -102,10 +99,10 @@ button{
 
 <script>
 
-const KEY = "vaultos_v6_core";
+const KEY = "vaultos_v7_intel";
 let DB = [];
 
-/* ---------- STORAGE ---------- */
+/* ---------- LOAD / SAVE ---------- */
 
 function save(){
   localStorage.setItem(KEY, JSON.stringify(DB));
@@ -117,62 +114,15 @@ function load(){
     DB = JSON.parse(localStorage.getItem(KEY) || "[]");
   }catch(e){
     DB = [];
-    console.error("Storage reset (invalid JSON)");
   }
   render();
 }
 
-/* ---------- FILE ---------- */
+/* ---------- ADD ---------- */
 
-function loadFile(){
-  const file = document.getElementById('jsonFile').files[0];
-  if(!file) return alert("Select a file");
-
-  const reader = new FileReader();
-
-  reader.onload = e => {
-    try{
-      DB = JSON.parse(e.target.result);
-      save();
-      alert("Loaded " + DB.length + " records");
-    }catch(err){
-      alert("Invalid JSON file");
-    }
-  };
-
-  reader.readAsText(file);
-}
-
-function exportJSON(){
-  const blob = new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "vault_backup.json";
-  a.click();
-}
-
-/* ---------- CORE ACTIONS ---------- */
-
-function addRecord(){
-  const name = document.getElementById('newName').value.trim();
-  const status = document.getElementById('newStatus').value;
-
-  if(!name) return;
-
-  DB.push({
-    ID: Date.now(),
-    Name: name,
-    Status: status
-  });
-
-  document.getElementById('newName').value = "";
-  save();
-}
-
-/* FIXED BULK FUNCTION */
 function bulkAdd(){
   const text = document.getElementById('bulkNames').value.trim();
-  if(!text) return alert("No names entered");
+  if(!text) return alert("No input");
 
   const lines = text.split("\n").map(x => x.trim()).filter(Boolean);
 
@@ -186,39 +136,102 @@ function bulkAdd(){
 
   document.getElementById('bulkNames').value = "";
   document.getElementById('bulkResult').innerText =
-    `Added ${lines.length} pending records`;
+    `Added ${lines.length} pending targets`;
 
   save();
 }
 
-/* ---------- UI ---------- */
+/* ---------- FIXED INTELLIGENCE SYSTEM ---------- */
+
+function category(name){
+  const n = (name || "").toLowerCase();
+
+  if(/football|arsenal|england|liverpool|barcelona|madrid/.test(n)) return "Football";
+  if(/nba|lakers|celtics|suns|spurs/.test(n)) return "NBA";
+  if(/actor|film|movie|tv|comedy|netflix/.test(n)) return "Entertainment";
+  if(/event|festival|tour|show|appearance/.test(n)) return "Events";
+  if(/training|camp|academy/.test(n)) return "Training";
+  return "Other";
+}
+
+/* REAL SCORING MODEL */
+function score(r){
+  let s = 50;
+
+  const n = (r.Name || "").toLowerCase();
+  const c = category(r.Name);
+
+  // status weighting
+  if(r.Status === "PENDING") s += 15;
+  if(r.Status === "SUCCESS") s -= 40;
+
+  // category weighting (useful targeting bias)
+  if(c === "Football") s += 20;
+  if(c === "NBA") s += 15;
+  if(c === "Events") s += 10;
+  if(c === "Entertainment") s += 8;
+
+  // quality signals (clean + realistic)
+  if(n.includes("official")) s += 10;
+  if(n.includes("academy")) s -= 10;
+  if(n.includes("youth")) s -= 15;
+  if(n.includes("trial")) s -= 10;
+  if(n.includes("private")) s += 5;
+
+  // penalty for low-quality noise
+  if(n.length < 4) s -= 20;
+
+  return Math.max(0, Math.min(100, s));
+}
+
+/* ---------- RENDER ---------- */
 
 function render(){
 
   const total = DB.length;
   const pending = DB.filter(x => x.Status === "PENDING").length;
   const success = DB.filter(x => x.Status === "SUCCESS").length;
-  const rts = DB.filter(x => (x.Status||"").includes("RTS")).length;
 
   document.getElementById('stats').innerHTML = `
     <div class="card"><h2>${total}</h2>Total</div>
     <div class="card"><h2>${pending}</h2>Pending</div>
     <div class="card"><h2>${success}</h2>Success</div>
-    <div class="card"><h2>${rts}</h2>RTS</div>
   `;
 
+  /* INTELLIGENCE (FIXED PRIORITY ENGINE) */
+  const top = DB
+    .filter(x => x.Status === "PENDING")
+    .sort((a,b) => score(b) - score(a))
+    .slice(0,10);
+
+  document.getElementById('intel').innerHTML =
+    top.length
+      ? top.map(x => `
+          <div>
+            🔥 <b>${x.Name}</b>
+            <span class="badge">${score(x)}%</span>
+            <span class="small">(${category(x.Name)})</span>
+          </div>
+        `).join("")
+      : "No pending intelligence targets";
+
+  /* QUEUE */
+  document.getElementById('awaiting').innerHTML =
+    top.map(x => "📬 " + x.Name).join("<br>");
+
+  /* LIST */
   const q = (document.getElementById('search').value || "").toLowerCase();
 
   document.getElementById('list').innerHTML =
     DB
-    .filter(x => (x.Name||"").toLowerCase().includes(q))
-    .map(x => `
-      <div class="record">
-        <b>${x.Name}</b><br>
-        <span class="small">${x.Status}</span>
-      </div>
-    `)
-    .join("");
+      .filter(x => (x.Name || "").toLowerCase().includes(q))
+      .map(x => `
+        <div class="record">
+          <b>${x.Name}</b><br>
+          <span class="small">${x.Status}</span>
+        </div>
+      `)
+      .join("");
 }
 
 /* ---------- SEARCH ---------- */
@@ -233,4 +246,3 @@ load();
 
 </body>
 </html>
-
