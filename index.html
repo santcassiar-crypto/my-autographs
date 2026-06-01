@@ -86,28 +86,106 @@ function stats(){
 }
 
 function score(r){
- let s=50;
- if((r.Status||"")==="PENDING") s+=20;
- if((r.Name||"").match(/England|Arsenal|training|cast/i)) s-=10;
- return s;
+
+ let s = 50;
+ let n = (r.Name || "").toLowerCase();
+
+ if((r.Status||"").toUpperCase()==="PENDING") s += 20;
+
+ if(n.includes("home")) s += 30;
+ if(n.includes("podcast")) s += 20;
+ if(n.includes("theatre")) s += 15;
+ if(n.includes("event")) s += 10;
+
+ if(n.includes("training")) s -= 20;
+ if(n.includes("camp")) s -= 15;
+ if(n.includes("cast")) s -= 15;
+ if(n.includes("production")) s -= 10;
+
+ return Math.max(0,Math.min(100,s));
 }
 
 function render(){
- let st=stats();
+function render(){
+
+ let st = stats();
+
  document.getElementById('stats').innerHTML=`
  <div class="card"><h2>${st.total}</h2>Total</div>
  <div class="card"><h2>${st.success}</h2>Success</div>
  <div class="card"><h2>${st.pending}</h2>Pending</div>
  <div class="card"><h2>${st.rts}</h2>RTS</div>`;
 
- let top=DB.filter(x=>x.Status==="PENDING")
-           .sort((a,b)=>score(b)-score(a))
-           .slice(0,10);
+ let top = DB
+ .filter(x=>(x.Status||"").toUpperCase()==="PENDING")
+ .sort((a,b)=>score(b)-score(a))
+ .slice(0,10);
 
  document.getElementById('intel').innerHTML =
- "<b>Top 10 Likely Returns</b><ol>"+
- top.map(x=>`<li>${x.Name} (${score(x)}%)</li>`).join("")+
- "</ol>";
+ `
+ <b>Top 10 Likely Returns</b>
+ <ol>
+ ${top.map(x=>`<li>${x.Name} (${score(x)}%)</li>`).join("")}
+ </ol>
+
+ <hr>
+
+ Success Rate:
+ ${Math.round((st.success/st.total)*100)||0}%<br>
+
+ Pending:
+ ${st.pending}<br>
+
+ Success:
+ ${st.success}
+ `;
+
+ let next = DB
+ .filter(x=>(x.Status||"").toUpperCase()==="PENDING")
+ .filter(x=>!/training|camp|cast/i.test(x.Name||""))
+ .sort((a,b)=>score(b)-score(a))
+ .slice(0,10);
+
+ document.getElementById("sendNext").innerHTML =
+ next.length
+ ? next.map(x=>`🎯 ${x.Name}`).join("<br>")
+ : "No pending targets found";
+
+ let nameMap = {};
+
+ DB.forEach(r=>{
+  let key=(r.Name||"").trim().toLowerCase();
+  nameMap[key]=(nameMap[key]||0)+1;
+ });
+
+ let dups = Object.keys(nameMap)
+ .filter(x=>nameMap[x]>1);
+
+ document.getElementById("duplicates").innerHTML =
+ dups.length
+ ? dups.map(x=>`⚠ ${x}`).join("<br>")
+ : "No duplicates found";
+
+ document.getElementById("news").innerHTML = `
+ 📬 ${st.pending} active requests<br>
+ 🏆 ${st.success} successful returns<br>
+ ⚠ ${dups.length} duplicate targets detected<br>
+ 🎭 Film & TV projects active<br>
+ ⚽ Football remains strongest category<br>
+ 🏀 NBA opportunities still pending
+ `;
+
+ let q=(document.getElementById('search').value||'').toLowerCase();
+
+ document.getElementById('list').innerHTML =
+ DB.filter(x=>(x.Name||'').toLowerCase().includes(q))
+ .map(x=>`
+ <div class="card">
+ <b>${x.Name||''}</b><br>
+ <span class="small">${x.Status||''}</span>
+ </div>
+ `).join("");
+}
 
  // SEND NEXT
 
