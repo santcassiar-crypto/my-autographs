@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS – Autonomous Decision Engine</title>
+<title>TTM OS – Self Optimising Engine</title>
 
 <style>
 body{
@@ -51,21 +51,15 @@ input,textarea,button,select{
 }
 
 .small{font-size:12px;color:#aaa}
-
-.badge{
-  background:#222;
-  padding:2px 6px;
-  border-radius:6px;
-  font-size:11px;
-}
+.badge{background:#222;padding:2px 6px;border-radius:6px;font-size:11px}
 </style>
 </head>
 
 <body>
 
 <header>
-<h2>TTM OS – Autonomous Decision Engine</h2>
-<input id="search" placeholder="Search full database...">
+<h2>TTM OS – Self Optimising Engine</h2>
+<input id="search" placeholder="Search database...">
 </header>
 
 <div class="grid" id="stats"></div>
@@ -90,32 +84,32 @@ input,textarea,button,select{
 </div>
 
 <div class="card">
-<h3>🧠 CATEGORY HEALTH</h3>
-<div id="weights"></div>
+<h3>🧠 CATEGORY STRATEGY MAP</h3>
+<div id="strategy"></div>
 </div>
 
 <div class="card">
-<h3>⚡ AUTONOMOUS DECISION LIST (ONLY HIGH VALUE)</h3>
-<div id="decisions"></div>
+<h3>⚡ OPTIMISED ACTION LIST</h3>
+<div id="actions"></div>
 </div>
 
 <div class="card">
-<h3>📋 FULL DATABASE</h3>
+<h3>📋 FULL DATA</h3>
 <div id="list"></div>
 </div>
 
 <script>
 
-const KEY="ttm_decision_engine_v1";
+const KEY="ttm_self_opt_v1";
 
 let DB = load();
 
 function load(){
   try{
     const raw = JSON.parse(localStorage.getItem(KEY)||"{}");
-    return raw.records ? raw : {records:[], weights:{}};
+    return raw.records ? raw : {records:[], weights:{}, heat:{}};
   }catch{
-    return {records:[], weights:{}};
+    return {records:[], weights:{}, heat:{}};
   }
 }
 
@@ -124,68 +118,91 @@ function save(){
 }
 
 /* =========================
-   CATEGORY DETECTION
+   CATEGORY SYSTEM
 ========================= */
 
-function category(name){
-  const n = name.toLowerCase();
+function category(n){
+  n = n.toLowerCase();
 
-  if(/football|england|arsenal|kane|shearer/.test(n)) return "football";
+  if(/football|arsenal|england|kane|shearer/.test(n)) return "football";
   if(/nba|lakers|sabonis|banchero/.test(n)) return "nba";
-  if(/oldman|fiennes|brosnan|jackman|comer/.test(n)) return "actors";
+  if(/actor|oldman|fiennes|brosnan|comer/.test(n)) return "actors";
   if(/tv|podcast|show|theatre/.test(n)) return "tv";
 
   return "other";
 }
 
 /* =========================
-   CATEGORY WEIGHTS
+   INITIAL VALUES
 ========================= */
 
-function weight(cat){
-  if(DB.weights[cat] === undefined){
-    DB.weights[cat] = 1.0;
-  }
+function get(cat){
+  if(DB.weights[cat] === undefined) DB.weights[cat]=1.0;
+  if(DB.heat[cat] === undefined) DB.heat[cat]=0;
   return DB.weights[cat];
 }
 
 /* =========================
-   SCORE ENGINE (FILTERED)
+   HEAT DECAY (SELF BALANCE)
+========================= */
+
+function decay(){
+  Object.keys(DB.heat).forEach(k=>{
+    DB.heat[k] *= 0.95; // natural cooling
+  });
+}
+
+/* =========================
+   SCORE ENGINE (SELF-OPTIMISING)
 ========================= */
 
 function score(r){
   const cat = category(r.name);
-  const w = weight(cat);
+  let w = get(cat);
 
-  let s = 50;
+  let base = 50;
 
-  if(r.status==="SUCCESS") s += 40;
-  if(r.status==="RTS") s -= 30;
-  if(r.status==="SENT") s += 5;
+  if(r.status==="SUCCESS") base += 40;
+  if(r.status==="RTS") base -= 30;
+  if(r.status==="SENT") base += 5;
 
-  return s * w;
+  /* 🔥 SATURATION PENALTY */
+  const heat = DB.heat[cat] || 0;
+  const fatigue = Math.min(0.4, heat * 0.02);
+
+  /* 📈 COOLDOWN BOOST */
+  const cooldown = heat < 3 ? 0.1 : 0;
+
+  let final = base * w;
+
+  final = final * (1 - fatigue) + (cooldown * 10);
+
+  return Math.max(0, Math.min(100, final));
 }
 
 /* =========================
-   LEARNING ENGINE
+   LEARNING + STRATEGY ADJUSTMENT
 ========================= */
 
 function learn(r, newStatus){
   const cat = category(r.name);
 
+  /* update heat (usage tracking) */
+  DB.heat[cat] = (DB.heat[cat] || 0) + 1;
+
   if(newStatus === "SUCCESS"){
-    DB.weights[cat] += 0.06;
+    DB.weights[cat] = (DB.weights[cat] || 1.0) + 0.04;
   }
 
   if(newStatus === "RTS"){
-    DB.weights[cat] -= 0.08;
+    DB.weights[cat] = (DB.weights[cat] || 1.0) - 0.06;
   }
 
   DB.weights[cat] = Math.max(0.5, Math.min(1.8, DB.weights[cat]));
 }
 
 /* =========================
-   ADD
+   CORE ACTIONS
 ========================= */
 
 function add(){
@@ -205,10 +222,6 @@ function add(){
   save();
 }
 
-/* =========================
-   UPDATE + LEARN
-========================= */
-
 function update(){
   const name = document.getElementById("u_name").value.toLowerCase();
   const status = document.getElementById("u_status").value.toUpperCase();
@@ -225,16 +238,31 @@ function update(){
 }
 
 /* =========================
-   DECISION FILTER
+   OPTIMISED OUTPUT
 ========================= */
 
-function decisions(){
+function actions(){
   return DB.records
-    .filter(r => r.status === "PENDING")
-    .map(r => ({...r, s:score(r)}))
-    .filter(r => r.s >= 60)
+    .filter(r=>r.status==="PENDING")
+    .map(r=>({r, s:score(r)}))
     .sort((a,b)=>b.s-a.s)
     .slice(0,15);
+}
+
+/* =========================
+   STRATEGY VIEW
+========================= */
+
+function strategy(){
+  const cats = {};
+
+  DB.records.forEach(r=>{
+    const c = category(r.name);
+    cats[c] = cats[c] || {count:0, heat:DB.heat[c]||0};
+    cats[c].count++;
+  });
+
+  return cats;
 }
 
 /* =========================
@@ -243,25 +271,23 @@ function decisions(){
 
 function render(){
 
-  const pending = DB.records.filter(r=>r.status==="PENDING").length;
-  const success = DB.records.filter(r=>r.status==="SUCCESS").length;
-  const rts = DB.records.filter(r=>r.status==="RTS").length;
+  decay();
 
   document.getElementById("stats").innerHTML = `
     <div class="card"><h2>${DB.records.length}</h2>Total</div>
-    <div class="card"><h2>${pending}</h2>Pending</div>
-    <div class="card"><h2>${success}</h2>Success</div>
-    <div class="card"><h2>${rts}</h2>RTS</div>
+    <div class="card"><h2>${DB.records.filter(r=>r.status==="PENDING").length}</h2>Pending</div>
+    <div class="card"><h2>${DB.records.filter(r=>r.status==="SUCCESS").length}</h2>Success</div>
+    <div class="card"><h2>${DB.records.filter(r=>r.status==="RTS").length}</h2>RTS</div>
   `;
 
-  document.getElementById("weights").innerHTML =
-    Object.entries(DB.weights)
-      .map(([k,v])=>`${k}: <b>${v.toFixed(2)}</b>`)
-      .join("<br>");
+  document.getElementById("strategy").innerHTML =
+    Object.entries(strategy()).map(([k,v])=>`
+      ${k} → uses: ${v.count}, heat: ${(v.heat||0).toFixed(1)}, weight: ${(DB.weights[k]||1).toFixed(2)}
+    `).join("<br>");
 
-  document.getElementById("decisions").innerHTML =
-    decisions().map(r=>`
-      ⚡ ${r.name} <span class="badge">${r.s.toFixed(0)}</span>
+  document.getElementById("actions").innerHTML =
+    actions().map(x=>`
+      ⚡ ${x.r.name} <span class="badge">${x.s.toFixed(0)}</span>
     `).join("<br>");
 
   const q = (document.getElementById("search").value||"").toLowerCase();
