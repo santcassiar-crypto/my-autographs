@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS COMMAND CENTER</title>
+<title>VaultOS DATA ENGINE V2 (Stable)</title>
 
 <style>
 body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
@@ -20,7 +20,7 @@ header {
 
 .container {
   display:grid;
-  grid-template-columns:340px 1fr;
+  grid-template-columns:320px 1fr;
   height:calc(100vh - 50px);
 }
 
@@ -51,10 +51,7 @@ button {
 
 button:hover { background:#00ddb3; }
 
-.main {
-  padding:10px;
-  overflow:auto;
-}
+.main { padding:10px; overflow:auto; }
 
 .ticker {
   background:#111;
@@ -84,7 +81,7 @@ button:hover { background:#00ddb3; }
 .SUCCESS { background:#00ff88; color:#000; }
 .RTS { background:#ff4d4d; color:#fff; }
 
-input, textarea {
+input {
   width:100%;
   padding:8px;
   background:#000;
@@ -92,19 +89,12 @@ input, textarea {
   color:#fff;
   border-radius:5px;
 }
-
-.log {
-  font-size:11px;
-  opacity:0.7;
-  max-height:120px;
-  overflow:auto;
-}
 </style>
 </head>
 
 <body>
 
-<header><b>VaultOS COMMAND CENTER</b></header>
+<header><b>VaultOS DATA ENGINE V2 (STABLE)</b></header>
 
 <div class="container">
 
@@ -112,12 +102,8 @@ input, textarea {
 <div class="sidebar">
 
   <div class="card">
-    <input id="commandInput" placeholder="Enter command..." onkeydown="if(event.key==='Enter') runCommand()">
-    <button onclick="runCommand()">RUN</button>
-  </div>
-
-  <div class="card">
     <button onclick="triggerImport()">IMPORT JSON</button>
+    <button onclick="markNext()">MARK NEXT AS SENT</button>
     <input type="file" id="file" style="display:none" accept="application/json">
   </div>
 
@@ -125,15 +111,12 @@ input, textarea {
     <div id="stats"></div>
   </div>
 
-  <div class="card log" id="log"></div>
-
 </div>
 
 <!-- MAIN -->
 <div class="main">
 
-  <div id="ticker" class="ticker">INITIALISING COMMAND ENGINE...</div>
-
+  <div id="ticker" class="ticker">INITIALISING...</div>
   <div id="view"></div>
 
 </div>
@@ -143,43 +126,32 @@ input, textarea {
 <script>
 
 // =========================
-// CORE DB
+// DB
 // =========================
 let DB = { records: [] };
-let pointer = 0;
-let history = [];
 
 // =========================
 // LOAD / SAVE
 // =========================
 function save(){
-  localStorage.setItem("vault_command", JSON.stringify(DB));
+  localStorage.setItem("vault_v2", JSON.stringify(DB));
 }
 
 function load(){
-  const d = localStorage.getItem("vault_command");
+  const d = localStorage.getItem("vault_v2");
   if(d) DB = JSON.parse(d);
 }
 load();
 
 // =========================
-// SAFE NORMALISER
+// NORMALISE (FIXES EVERYTHING)
 // =========================
 function norm(r){
   return {
     ID: r?.ID ?? Date.now(),
-    Name: r?.Name ?? "Untitled",
-    Status: r?.Status ?? "PENDING"
+    Name: (r?.Name ?? "Untitled").trim(),
+    Status: (r?.Status ?? "PENDING").toString().trim().toUpperCase()
   };
-}
-
-// =========================
-// LOG SYSTEM
-// =========================
-function log(msg){
-  history.unshift(msg);
-  history = history.slice(0,20);
-  document.getElementById("log").innerHTML = history.join("<br>");
 }
 
 // =========================
@@ -204,14 +176,25 @@ document.getElementById("file").addEventListener("change", e => {
         Array.isArray(data.records) ? data.records :
         [];
 
-      DB.records = arr.map(norm);
+      // CLEAN + NORMALISE
+      let cleaned = arr.map(norm);
+
+      // DEDUPE BY NAME (CRITICAL FIX)
+      const map = new Map();
+
+      for(const r of cleaned){
+        map.set(r.Name.toLowerCase(), r);
+      }
+
+      DB.records = [...map.values()];
 
       save();
       render();
-      log("IMPORT COMPLETE");
+
+      alert("Imported: " + DB.records.length);
 
     } catch {
-      log("IMPORT FAILED");
+      alert("Invalid JSON");
     }
   };
 
@@ -219,112 +202,40 @@ document.getElementById("file").addEventListener("change", e => {
 });
 
 // =========================
-// QUEUE ENGINE
+// TRUE NEXT ENGINE (NO INDEX BUGS)
 // =========================
-function queue(){
-  let arr = DB.records.map(norm);
+function getQueue(){
+  return DB.records
+    .map(norm)
+    .filter(r => r.Status === "PENDING");
+}
 
-  arr = arr.filter(r => r.Status === "PENDING");
-
-  const seen = new Set();
-  arr = arr.filter(r => {
-    const k = r.Name.toLowerCase().trim();
-    if(seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
-
-  return arr;
+function getNext(){
+  const q = getQueue();
+  return q.length ? q[0] : null;
 }
 
 // =========================
-// COMMAND ENGINE (AI RULES)
+// MARK NEXT
 // =========================
-function runCommand(){
+function markNext(){
+  const next = getNext();
+  if(!next) return;
 
-  const input = document.getElementById("commandInput");
-  const cmd = input.value.toLowerCase().trim();
-  input.value = "";
+  DB.records = DB.records.map(r =>
+    r.Name === next.Name
+      ? { ...norm(r), Status:"SENT" }
+      : r
+  );
 
-  const q = queue();
-
-  if(cmd === "import file"){
-    triggerImport();
-    log("COMMAND: IMPORT FILE");
-  }
-
-  else if(cmd === "next mission"){
-    const next = q[pointer] || q[0];
-    log("NEXT → " + (next?.Name || "NONE"));
-  }
-
-  else if(cmd === "mark done"){
-    const next = q[pointer] || q[0];
-    if(!next) return;
-
-    DB.records = DB.records.map(r =>
-      r.Name === next.Name ? {...r, Status:"SENT"} : r
-    );
-
-    pointer = 0;
-    save();
-    render();
-    log("MARKED DONE → " + next.Name);
-  }
-
-  else if(cmd === "show pending"){
-    log("PENDING COUNT: " + q.length);
-  }
-
-  else if(cmd === "clean duplicates"){
-    const seen = new Set();
-    DB.records = DB.records.filter(r => {
-      const k = r.Name.toLowerCase().trim();
-      if(seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-    save();
-    render();
-    log("DUPLICATES CLEANED");
-  }
-
-  else if(cmd === "reset system"){
-    DB = {records:[]};
-    save();
-    render();
-    log("SYSTEM RESET");
-  }
-
-  else {
-    log("UNKNOWN COMMAND");
-  }
-
+  save();
   render();
-}
-
-// =========================
-// TICKER
-// =========================
-function tickerUpdate(q){
-
-  if(q.length === 0){
-    document.getElementById("ticker").innerHTML =
-      "🧠 NO ACTIVE MISSIONS";
-    return;
-  }
-
-  const next = q[pointer] || q[0];
-
-  document.getElementById("ticker").innerHTML =
-    `🚀 NEXT → <b>${next.Name}</b> <span class="badge ${next.Status}">${next.Status}</span>`;
 }
 
 // =========================
 // STATS
 // =========================
 function stats(){
-
   const s = {PENDING:0,SENT:0,SUCCESS:0,RTS:0};
 
   DB.records.forEach(r=>{
@@ -345,20 +256,26 @@ function stats(){
 // =========================
 function render(){
 
-  const q = queue();
-  tickerUpdate(q);
+  const next = getNext();
+
+  document.getElementById("ticker").innerHTML =
+    next
+      ? `NEXT → <b>${next.Name}</b> <span class="badge ${next.Status}">${next.Status}</span>`
+      : "NO PENDING ITEMS";
+
   stats();
 
   const view = document.getElementById("view");
 
-  view.innerHTML = `<h3>QUEUE (${q.length})</h3>`;
+  view.innerHTML = `<h3>QUEUE</h3>`;
 
-  q.forEach(r=>{
+  getQueue().forEach(r=>{
+    const n = norm(r);
+
     view.innerHTML += `
       <div class="record">
-        <b>${r.Name}</b><br>
-        <span class="badge ${r.Status}">${r.Status}</span><br>
-        <small>ID: ${r.ID}</small>
+        <b>${n.Name}</b><br>
+        <span class="badge ${n.Status}">${n.Status}</span>
       </div>
     `;
   });
