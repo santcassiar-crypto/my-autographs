@@ -94,7 +94,7 @@ input {
 <body>
 
 <header>
-    <h1>VaultOS ULTIMATE ENGINE (FIXED IMPORTS)</h1>
+    <h1>VaultOS ULTIMATE ENGINE (FIXED IMPORT)</h1>
 </header>
 
 <div class="container">
@@ -104,7 +104,6 @@ input {
     <div class="card">
         <button onclick="setMode('records')">Records</button>
         <button onclick="setMode('timeline')">Timeline</button>
-        <button onclick="setMode('backups')">Backups</button>
         <button onclick="setMode('settings')">Settings</button>
     </div>
 
@@ -133,58 +132,48 @@ input {
 let mode = "records";
 
 // =========================
-// LOAD VAULT
+// SAFE STORAGE
 // =========================
 function getVault() {
-    return JSON.parse(localStorage.getItem("vaultos_ultimate") || "{}");
+    return JSON.parse(localStorage.getItem("vaultos") || "{}");
 }
 
 function saveVault(v) {
-    localStorage.setItem("vaultos_ultimate", JSON.stringify(v));
+    const safe = normalize(v);
+    localStorage.setItem("vaultos", JSON.stringify(safe));
     render();
 }
 
 // =========================
-// LEGACY COMPATIBILITY ENGINE (KEY FIX)
+// SCHEMA FIXER (CRITICAL)
 // =========================
-function normalizeVault(input) {
+function normalize(v) {
 
-    let v = input;
-
-    // unwrap all known formats
-    if (v.vaultos_ultimate) v = v.vaultos_ultimate;
-    if (v.vaultos_elite) v = v.vaultos_elite;
     if (v.vaultos) v = v.vaultos;
     if (v.data) v = v.data;
+    if (v.vaultos_ultimate) v = v.vaultos_ultimate;
 
-    // old format: array only
     if (Array.isArray(v)) v = { records: v };
 
     return {
-        version: v.version || "ULTIMATE-FIXED",
+        version: v.version || "ULTIMATE-FIX",
         created: v.created || new Date().toISOString(),
 
         records: Array.isArray(v.records) ? v.records : [],
-        snapshots: Array.isArray(v.snapshots) ? v.snapshots : [],
-
-        slots: v.slots || { A:null, B:null, C:null, D:null }
+        snapshots: Array.isArray(v.snapshots) ? v.snapshots : []
     };
 }
 
 // =========================
 // INIT
 // =========================
-if (!localStorage.getItem("vaultos_ultimate")) {
-    saveVault(normalizeVault({
+if (!localStorage.getItem("vaultos")) {
+    saveVault({
         records: [
-            {
-                id: 1,
-                title: "System Boot",
-                content: "VaultOS initialized",
-                created: new Date().toISOString()
-            }
-        ]
-    }));
+            { id: 1, title: "Boot", content: "VaultOS started", created: new Date().toISOString() }
+        ],
+        snapshots: []
+    });
 }
 
 // =========================
@@ -223,17 +212,6 @@ function deleteRecord(id) {
     saveVault(v);
 }
 
-function editRecord(id) {
-    const v = getVault();
-    const r = v.records.find(x => x.id === id);
-    if (!r) return;
-
-    const newVal = prompt("Edit:", r.content);
-    if (newVal !== null) r.content = newVal;
-
-    saveVault(v);
-}
-
 // =========================
 // SNAPSHOTS
 // =========================
@@ -242,17 +220,9 @@ function createSnapshot() {
 
     v.snapshots.push({
         time: new Date().toISOString(),
-        state: JSON.parse(JSON.stringify(v.records))
+        data: JSON.parse(JSON.stringify(v.records))
     });
 
-    saveVault(v);
-}
-
-function restoreSnapshot(i) {
-    const v = getVault();
-    if (!v.snapshots[i]) return;
-
-    v.records = JSON.parse(JSON.stringify(v.snapshots[i].state));
     saveVault(v);
 }
 
@@ -260,21 +230,21 @@ function restoreSnapshot(i) {
 // EXPORT
 // =========================
 function exportVault() {
-    const data = localStorage.getItem("vaultos_ultimate") || "{}";
+    const data = localStorage.getItem("vaultos") || "{}";
 
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = "VaultOS-ULTIMATE.json";
+    a.download = "VaultOS.json";
     a.click();
 
     URL.revokeObjectURL(url);
 }
 
 // =========================
-// IMPORT (FIXED + LEGACY SAFE)
+// IMPORT (FIXED + DEBUG SAFE)
 // =========================
 document.getElementById("importFile").addEventListener("change", e => {
     const file = e.target.files[0];
@@ -283,15 +253,25 @@ document.getElementById("importFile").addEventListener("change", e => {
     const reader = new FileReader();
 
     reader.onload = function(ev) {
+
         try {
-            const parsed = JSON.parse(ev.target.result);
+            const raw = ev.target.result;
+            const parsed = JSON.parse(raw);
 
+            console.log("RAW:", parsed);
+
+            const incoming = normalize(parsed);
             const current = getVault();
-            const incoming = normalizeVault(parsed);
 
-            const replace = confirm("OK = Replace FULL vault / Cancel = Merge records");
+            console.log("NORMALISED:", incoming);
 
-            if (replace) {
+            const ok = confirm(
+                "IMPORT READY\n\n" +
+                "Records: " + incoming.records.length + "\n\n" +
+                "OK = Replace\nCancel = Merge"
+            );
+
+            if (ok) {
                 saveVault(incoming);
             } else {
                 current.records = [
@@ -301,9 +281,11 @@ document.getElementById("importFile").addEventListener("change", e => {
                 saveVault(current);
             }
 
+            alert("Import successful");
+
         } catch (err) {
-            alert("Invalid VaultOS JSON file");
             console.error(err);
+            alert("Import failed — check console (F12)");
         }
     };
 
@@ -312,15 +294,17 @@ document.getElementById("importFile").addEventListener("change", e => {
 });
 
 // =========================
-// SEARCH
+// SEARCH SAFE
 // =========================
 function filtered() {
     const v = getVault();
     const q = document.getElementById("search").value.toLowerCase();
 
-    if (!q) return v.records;
+    const records = Array.isArray(v.records) ? v.records : [];
 
-    return v.records.filter(r =>
+    if (!q) return records;
+
+    return records.filter(r =>
         (r.title || "").toLowerCase().includes(q) ||
         (r.content || "").toLowerCase().includes(q)
     );
@@ -342,8 +326,7 @@ function render() {
                     <b>${r.title}</b><br>
                     <span class="small">${r.created}</span>
                     <p>${r.content}</p>
-                    <button onclick="editRecord(${r.id})">Edit</button>
-                    <button class="danger" onclick="deleteRecord(${r.id})">Delete</button>
+                    <button onclick="deleteRecord(${r.id})" class="danger">Delete</button>
                 </div>
             `;
         });
@@ -357,19 +340,14 @@ function render() {
                 <div class="record">
                     <b>Snapshot ${i}</b><br>
                     <span class="small">${s.time}</span>
-                    <button onclick="restoreSnapshot(${i})">Restore</button>
                 </div>
             `;
         });
     }
 
-    if (mode === "backups") {
-        view.innerHTML = "<h3>Backup System</h3><button onclick='exportVault()'>Export Vault</button>";
-    }
-
     if (mode === "settings") {
         view.innerHTML = `
-            <h3>Settings</h3>
+            <h3>System</h3>
             <pre>${JSON.stringify(v, null, 2)}</pre>
         `;
     }
@@ -381,5 +359,3 @@ render();
 
 </body>
 </html>
-
-
