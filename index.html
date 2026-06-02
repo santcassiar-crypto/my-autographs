@@ -6,7 +6,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS LIVE TICKER ENGINE</title>
+<title>VaultOS ULTIMATE AI ENGINE</title>
 
 <style>
 body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
@@ -25,7 +25,7 @@ header {
   height:calc(100vh - 50px);
 }
 
-/* LEFT */
+/* SIDEBAR */
 .sidebar {
   background:#0f0f0f;
   border-right:1px solid #222;
@@ -53,7 +53,7 @@ button {
 
 button:hover { background:#00ddb3; }
 
-/* RIGHT */
+/* MAIN */
 .main { padding:10px; overflow:auto; }
 
 .record {
@@ -68,32 +68,37 @@ button:hover { background:#00ddb3; }
   padding:3px 8px;
   border-radius:20px;
   font-size:11px;
-  margin-left:6px;
 }
 
 .PENDING { background:#ffcc00; color:#000; }
-.SENT { background:#4da6ff; color:#fff; }
 .SUCCESS { background:#00ff88; color:#000; }
 .RTS { background:#ff4d4d; color:#fff; }
+.SENT { background:#4da6ff; color:#fff; }
 .LOGGED { background:#888; color:#fff; }
 
 .ticker {
   background:#111;
   border:1px solid #222;
   padding:10px;
-  border-radius:8px;
   margin-bottom:10px;
-  font-size:14px;
+  border-radius:8px;
   color:#00ffcc;
+}
+
+input {
+  width:100%;
+  padding:7px;
+  background:#000;
+  border:1px solid #333;
+  color:#fff;
+  border-radius:5px;
 }
 </style>
 </head>
 
 <body>
 
-<header>
-<b>VaultOS LIVE TICKER ENGINE</b>
-</header>
+<header><b>VaultOS ULTIMATE AI ENGINE</b></header>
 
 <div class="container">
 
@@ -101,14 +106,13 @@ button:hover { background:#00ddb3; }
 <div class="sidebar">
 
   <div class="card">
-    <button onclick="markSent()">MARK CURRENT AS SENT</button>
-    <button onclick="loadSample()">LOAD SAMPLE DATA</button>
+    <button onclick="triggerImport()">IMPORT JSON</button>
+    <button onclick="markNext()">MARK NEXT AS SENT</button>
+    <input type="file" id="file" style="display:none" accept="application/json">
   </div>
 
   <div class="card">
-    <div style="font-size:12px;opacity:0.7">
-      NEXT QUEUE AUTO-GENERATED
-    </div>
+    <input id="search" placeholder="Search Name..." oninput="render()">
   </div>
 
 </div>
@@ -116,7 +120,7 @@ button:hover { background:#00ddb3; }
 <!-- MAIN -->
 <div class="main">
 
-  <div id="ticker" class="ticker">Loading queue...</div>
+  <div id="ticker" class="ticker">Loading...</div>
 
   <div id="view"></div>
 
@@ -126,28 +130,28 @@ button:hover { background:#00ddb3; }
 
 <script>
 
-// ======================
+// =========================
 // CORE DB
-// ======================
+// =========================
 let DB = { records: [] };
-let currentIndex = 0;
+let index = 0;
 
-// ======================
+// =========================
 // LOAD / SAVE
-// ======================
+// =========================
 function save(){
-  localStorage.setItem("vault_ticker", JSON.stringify(DB));
+  localStorage.setItem("vault_ai_v3", JSON.stringify(DB));
 }
 
 function load(){
-  const d = localStorage.getItem("vault_ticker");
+  const d = localStorage.getItem("vault_ai_v3");
   if(d) DB = JSON.parse(d);
 }
 load();
 
-// ======================
-// NORMALISER
-// ======================
+// =========================
+// NORMALISER (NO BREAKS EVER)
+// =========================
 function norm(r){
   return {
     ID: r?.ID ?? Date.now(),
@@ -156,113 +160,132 @@ function norm(r){
   };
 }
 
-// ======================
-// FILTER LOGIC (CORE ENGINE)
-// ======================
+// =========================
+// IMPORT SYSTEM
+// =========================
+function triggerImport(){
+  document.getElementById("file").click();
+}
+
+document.getElementById("file").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+
+      const arr = Array.isArray(data)
+        ? data
+        : (data.records || []);
+
+      DB.records = arr.map(norm);
+
+      save();
+      render();
+
+      alert("Imported: " + DB.records.length);
+
+    } catch {
+      alert("Invalid JSON");
+    }
+  };
+
+  reader.readAsText(file);
+});
+
+// =========================
+// AI ENGINE (FILTER QUEUE)
+// =========================
 function getQueue(){
 
   let arr = DB.records.map(norm);
 
-  // REMOVE CLOSED STATES
-  arr = arr.filter(r =>
-    r.Status === "PENDING"
-  );
+  // only PENDING
+  arr = arr.filter(r => r.Status === "PENDING");
 
-  // DEDUPE BY NAME
+  // dedupe
   const seen = new Set();
   arr = arr.filter(r => {
-    const key = r.Name.toLowerCase().trim();
-    if(seen.has(key)) return false;
-    seen.add(key);
+    const k = r.Name.toLowerCase().trim();
+    if(seen.has(k)) return false;
+    seen.add(k);
     return true;
   });
 
   return arr;
 }
 
-// ======================
-// TICKER ENGINE
-// ======================
+// =========================
+// TICKER
+// =========================
 function updateTicker(queue){
-
   if(queue.length === 0){
-    document.getElementById("ticker").innerHTML = "NO ITEMS IN QUEUE";
+    document.getElementById("ticker").innerHTML = "NO NEXT ITEMS";
     return;
   }
 
-  const current = queue[currentIndex] || queue[0];
+  const next = queue[index] || queue[0];
 
-  document.getElementById("ticker").innerHTML = `
-    NEXT SEND → <b>${current.Name}</b>
-    <span class="${current.Status} badge">${current.Status}</span>
-  `;
+  document.getElementById("ticker").innerHTML =
+    `NEXT SEND → <b>${next.Name}</b> <span class="${next.Status} badge">${next.Status}</span>`;
 }
 
-// ======================
-// MARK SENT (ADVANCE ENGINE)
-// ======================
-function markSent(){
+// =========================
+// MARK NEXT
+// =========================
+function markNext(){
 
   const queue = getQueue();
   if(queue.length === 0) return;
 
-  const current = queue[currentIndex] || queue[0];
+  const next = queue[index] || queue[0];
 
-  // update original DB record
   DB.records = DB.records.map(r => {
-    if(r.Name === current.Name){
-      return { ...r, Status:"SENT" };
+    if(r.Name === next.Name){
+      return {...r, Status:"SENT"};
     }
     return r;
   });
 
   save();
 
-  // reset index safely
-  currentIndex = 0;
-
+  index = 0;
   render();
 }
 
-// ======================
+// =========================
 // RENDER
-// ======================
+// =========================
 function render(){
+
+  const q = document.getElementById("search").value.toLowerCase();
+  let records = DB.records.map(norm);
+
+  if(q){
+    records = records.filter(r =>
+      r.Name.toLowerCase().includes(q)
+    );
+  }
 
   const queue = getQueue();
   updateTicker(queue);
 
   const view = document.getElementById("view");
 
-  view.innerHTML = `<h3>ACTIVE QUEUE (${queue.length})</h3>`;
+  view.innerHTML = `<h3>QUEUE (${queue.length})</h3>`;
 
-  queue.forEach((r,i)=>{
+  queue.forEach(r => {
     view.innerHTML += `
       <div class="record">
         <b>${r.Name}</b>
-        <span class="${r.Status} badge">${r.Status}</span>
-        <br>
+        <span class="badge ${r.Status}">${r.Status}</span><br>
         <small>ID: ${r.ID}</small>
       </div>
     `;
   });
-}
-
-// ======================
-// SAMPLE DATA LOADER
-// ======================
-function loadSample(){
-
-  DB.records = [
-    {ID:1, Name:"Test A", Status:"PENDING"},
-    {ID:2, Name:"Test B", Status:"PENDING"},
-    {ID:3, Name:"Test C", Status:"SENT"},
-    {ID:4, Name:"Test D", Status:"PENDING"},
-    {ID:5, Name:"Test A", Status:"PENDING"}
-  ];
-
-  save();
-  render();
 }
 
 // INIT
