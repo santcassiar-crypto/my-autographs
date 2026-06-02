@@ -1,255 +1,165 @@
 
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS CONTROL CENTER V4</title>
-
+<title>Vault Tracker V1</title>
 <style>
-body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
+body { font-family: Arial; background:#0b0b0b; color:#fff; margin:0; padding:20px; }
+h1 { margin-bottom:10px; }
 
-header {
-  padding:12px;
-  background:#111;
-  border-bottom:1px solid #222;
-  position:sticky;
-  top:0;
+input, select, button {
+  padding:8px;
+  margin:4px;
+  border-radius:6px;
+  border:none;
 }
 
-.container {
-  display:grid;
-  grid-template-columns:340px 1fr;
-  height:calc(100vh - 50px);
-}
+button { cursor:pointer; }
 
-.sidebar {
-  background:#0f0f0f;
-  padding:10px;
-  border-right:1px solid #222;
-  overflow:auto;
-}
-
-.main {
-  padding:10px;
-  overflow:auto;
-}
+.container { max-width:1000px; margin:auto; }
 
 .card {
-  background:#111;
-  border:1px solid #222;
+  background:#1a1a1a;
   padding:10px;
+  margin:10px 0;
   border-radius:8px;
-  margin-bottom:10px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
 }
 
-button {
-  width:100%;
-  padding:8px;
-  margin:4px 0;
-  background:#00ffcc;
-  border:0;
-  font-weight:bold;
-  cursor:pointer;
-}
+.status-PENDING { color:orange; }
+.status-SENT { color:cyan; }
+.status-RTS { color:red; }
+.status-SUCCESS { color:lime; }
+.status-LOGGED { color:#aaa; }
 
-button:hover { background:#00ddb3; }
+.small { font-size:12px; opacity:0.7; }
 
-input, textarea {
-  width:100%;
-  padding:8px;
-  background:#000;
-  border:1px solid #333;
-  color:#fff;
-  margin-top:5px;
-}
-
-.record {
-  background:#0d0d0d;
-  border:1px solid #222;
-  padding:10px;
-  margin:6px 0;
-  border-radius:6px;
-}
-
-.badge {
-  padding:3px 8px;
-  border-radius:12px;
-  font-size:11px;
-}
-
-.PENDING { background:#ffcc00; color:#000; }
-.SENT { background:#4da6ff; color:#fff; }
-.SUCCESS { background:#00ff88; color:#000; }
-.RTS { background:#ff4d4d; color:#fff; }
-
-.ticker {
-  background:#111;
-  border:1px solid #222;
-  padding:12px;
-  margin-bottom:10px;
-  color:#00ffcc;
-  border-radius:8px;
-}
+.row { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
 </style>
 </head>
 
 <body>
-
-<header><b>VaultOS CONTROL CENTER V4</b></header>
-
 <div class="container">
 
-<!-- SIDEBAR -->
-<div class="sidebar">
+<h1>Vault Tracker V1</h1>
 
-  <div class="card">
-    <b>Quick Add</b>
-    <input id="name" placeholder="Name">
-    <button onclick="addRecord()">ADD RECORD</button>
-  </div>
-
-  <div class="card">
-    <b>Bulk Import (paste JSON)</b>
-    <textarea id="bulk" placeholder='[{"ID":1,"Name":"Test","Status":"PENDING"}]'></textarea>
-    <button onclick="bulkImport()">IMPORT PASTE</button>
-  </div>
-
-  <div class="card">
-    <button onclick="markNext()">MARK NEXT SENT</button>
-  </div>
-
+<div class="row">
+  <input id="name" placeholder="Name / Target">
+  <select id="status">
+    <option>PENDING</option>
+    <option>SENT</option>
+    <option>RTS</option>
+    <option>SUCCESS</option>
+    <option>LOGGED</option>
+  </select>
+  <button onclick="addItem()">Add</button>
+  <button onclick="exportJSON()">Export JSON</button>
+  <input type="file" onchange="importJSON(event)">
 </div>
 
-<!-- MAIN -->
-<div class="main">
-
-  <div id="ticker" class="ticker"></div>
-
-  <div id="view"></div>
-
-</div>
+<div id="list"></div>
 
 </div>
 
 <script>
+let records = [];
 
-let DB = { records: [] };
-
-// LOAD
-function load(){
-  const d = localStorage.getItem("vault_v4");
-  if(d) DB = JSON.parse(d);
-}
-function save(){
-  localStorage.setItem("vault_v4", JSON.stringify(DB));
-}
-load();
-
-// NORMALISE
-function norm(r){
-  return {
-    ID: r?.ID ?? Date.now(),
-    Name: (r?.Name ?? "").trim(),
-    Status: (r?.Status ?? "PENDING").toUpperCase().trim()
-  };
+function save() {
+  localStorage.setItem("vault_data", JSON.stringify(records));
 }
 
-// ADD RECORD
-function addRecord(){
-  const name = document.getElementById("name").value.trim();
-  if(!name) return;
+function load() {
+  const data = localStorage.getItem("vault_data");
+  if (data) records = JSON.parse(data);
+}
 
-  DB.records.push({
-    ID: Date.now(),
-    Name: name,
-    Status: "PENDING"
+function render() {
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+
+  records.forEach((r, i) => {
+    const div = document.createElement("div");
+    div.className = "card";
+
+    div.innerHTML = `
+      <div>
+        <input value="${r.name}" onchange="editName(${i}, this.value)">
+        <select onchange="editStatus(${i}, this.value)">
+          <option ${r.status==="PENDING"?"selected":""}>PENDING</option>
+          <option ${r.status==="SENT"?"selected":""}>SENT</option>
+          <option ${r.status==="RTS"?"selected":""}>RTS</option>
+          <option ${r.status==="SUCCESS"?"selected":""}>SUCCESS</option>
+          <option ${r.status==="LOGGED"?"selected":""}>LOGGED</option>
+        </select>
+        <div class="small">ID: ${i}</div>
+      </div>
+
+      <button onclick="removeItem(${i})">Delete</button>
+    `;
+
+    list.appendChild(div);
   });
+}
 
+function addItem() {
+  const name = document.getElementById("name").value;
+  const status = document.getElementById("status").value;
+
+  if (!name) return;
+
+  records.push({ name, status });
   document.getElementById("name").value = "";
+
   save();
   render();
 }
 
-// BULK IMPORT
-function bulkImport(){
-  try {
-    const data = JSON.parse(document.getElementById("bulk").value);
+function editName(i, val) {
+  records[i].name = val;
+  save();
+}
 
-    if(!Array.isArray(data)) return alert("Must be array");
+function editStatus(i, val) {
+  records[i].status = val;
+  save();
+}
 
-    data.forEach(r=>{
-      DB.records.push(norm(r));
-    });
+function removeItem(i) {
+  records.splice(i, 1);
+  save();
+  render();
+}
 
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(records, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "vault_data.json";
+  a.click();
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    records = JSON.parse(e.target.result);
     save();
     render();
+  };
 
-  } catch {
-    alert("Invalid JSON");
-  }
-}
-
-// NEXT ENGINE
-function getNext(){
-  const list = DB.records
-    .map(norm)
-    .filter(r => r.Status === "PENDING");
-
-  return list[0] || null;
-}
-
-// MARK NEXT
-function markNext(){
-  const next = getNext();
-  if(!next) return;
-
-  DB.records = DB.records.map(r =>
-    r.Name === next.Name
-      ? {...r, Status:"SENT"}
-      : r
-  );
-
-  save();
-  render();
-}
-
-// TICKER (NEWS-LIKE FEED)
-function ticker(){
-  const next = getNext();
-
-  if(!next){
-    document.getElementById("ticker").innerHTML = "NO ACTIVE ITEMS";
-    return;
-  }
-
-  document.getElementById("ticker").innerHTML =
-    `🔥 NEXT → <b>${next.Name}</b> | STATUS: ${next.Status}`;
-}
-
-// RENDER
-function render(){
-  ticker();
-
-  const view = document.getElementById("view");
-
-  view.innerHTML = "<h3>QUEUE</h3>";
-
-  DB.records.forEach(r=>{
-    const n = norm(r);
-
-    view.innerHTML += `
-      <div class="record">
-        <b>${n.Name}</b><br>
-        <span class="badge ${n.Status}">${n.Status}</span>
-      </div>
-    `;
-  });
+  reader.readAsText(file);
 }
 
 load();
 render();
-
 </script>
 
 </body>
