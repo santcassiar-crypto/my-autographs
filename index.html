@@ -6,137 +6,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS Dashboard UI</title>
+<title>VaultOS LIVE TICKER ENGINE</title>
 
 <style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0b0b0b;
-  color: #fff;
-}
+body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
 
-/* HEADER */
 header {
-  position: sticky;
-  top: 0;
-  background: #111;
-  padding: 12px;
-  border-bottom: 1px solid #222;
-  z-index: 10;
+  padding:12px;
+  background:#111;
+  border-bottom:1px solid #222;
+  position:sticky;
+  top:0;
 }
 
-h1 {
-  margin: 0;
-  font-size: 16px;
-  color: #00ffcc;
-}
-
-/* LAYOUT */
 .container {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  height: calc(100vh - 50px);
+  display:grid;
+  grid-template-columns:320px 1fr;
+  height:calc(100vh - 50px);
 }
 
-/* SIDEBAR */
+/* LEFT */
 .sidebar {
-  background: #0f0f0f;
-  border-right: 1px solid #222;
-  padding: 10px;
+  background:#0f0f0f;
+  border-right:1px solid #222;
+  padding:10px;
 }
 
-/* MAIN */
-.main {
-  padding: 10px;
-  overflow: auto;
-}
-
-/* CARDS */
 .card {
-  background: #111;
-  border: 1px solid #222;
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 10px;
+  background:#111;
+  border:1px solid #222;
+  padding:10px;
+  margin-bottom:10px;
+  border-radius:8px;
 }
 
-/* BUTTONS */
 button {
-  width: 100%;
-  padding: 8px;
-  margin: 4px 0;
-  background: #00ffcc;
-  border: none;
-  border-radius: 5px;
-  font-weight: bold;
-  cursor: pointer;
+  width:100%;
+  padding:8px;
+  margin:4px 0;
+  background:#00ffcc;
+  border:0;
+  font-weight:bold;
+  border-radius:5px;
+  cursor:pointer;
 }
 
-button:hover {
-  background: #00ddb3;
-}
+button:hover { background:#00ddb3; }
 
-/* FILTER BUTTONS */
-.filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
+/* RIGHT */
+.main { padding:10px; overflow:auto; }
 
-.filter button {
-  width: auto;
-  flex: 1;
-  font-size: 12px;
-  padding: 6px;
-}
-
-/* RECORD CARD */
 .record {
-  background: #0d0d0d;
-  border: 1px solid #222;
-  padding: 10px;
-  margin: 6px 0;
-  border-radius: 8px;
-  transition: 0.2s;
+  background:#0d0d0d;
+  border:1px solid #222;
+  padding:10px;
+  margin:6px 0;
+  border-radius:8px;
 }
 
-.record:hover {
-  transform: scale(1.01);
-  border-color: #00ffcc;
-}
-
-/* STATUS BADGES */
 .badge {
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-size: 11px;
-  margin-left: 6px;
-  font-weight: bold;
+  padding:3px 8px;
+  border-radius:20px;
+  font-size:11px;
+  margin-left:6px;
 }
 
 .PENDING { background:#ffcc00; color:#000; }
+.SENT { background:#4da6ff; color:#fff; }
 .SUCCESS { background:#00ff88; color:#000; }
 .RTS { background:#ff4d4d; color:#fff; }
-.SENT { background:#4da6ff; color:#fff; }
 .LOGGED { background:#888; color:#fff; }
 
-/* SEARCH */
-input {
-  width: 100%;
-  padding: 7px;
-  background: #000;
-  border: 1px solid #333;
-  color: #fff;
-  border-radius: 5px;
-}
-
-/* STATS BAR */
-.stats {
-  display: flex;
-  gap: 10px;
-  font-size: 12px;
-  opacity: 0.8;
+.ticker {
+  background:#111;
+  border:1px solid #222;
+  padding:10px;
+  border-radius:8px;
+  margin-bottom:10px;
+  font-size:14px;
+  color:#00ffcc;
 }
 </style>
 </head>
@@ -144,7 +92,7 @@ input {
 <body>
 
 <header>
-  <h1>VaultOS DASHBOARD</h1>
+<b>VaultOS LIVE TICKER ENGINE</b>
 </header>
 
 <div class="container">
@@ -153,16 +101,14 @@ input {
 <div class="sidebar">
 
   <div class="card">
-    <input id="search" placeholder="Search Name..." oninput="render()">
+    <button onclick="markSent()">MARK CURRENT AS SENT</button>
+    <button onclick="loadSample()">LOAD SAMPLE DATA</button>
   </div>
 
-  <div class="card filter">
-    <button onclick="setFilter('ALL')">ALL</button>
-    <button onclick="setFilter('PENDING')">PENDING</button>
-    <button onclick="setFilter('SUCCESS')">SUCCESS</button>
-    <button onclick="setFilter('RTS')">RTS</button>
-    <button onclick="setFilter('SENT')">SENT</button>
-    <button onclick="setFilter('LOGGED')">LOGGED</button>
+  <div class="card">
+    <div style="font-size:12px;opacity:0.7">
+      NEXT QUEUE AUTO-GENERATED
+    </div>
   </div>
 
 </div>
@@ -170,7 +116,7 @@ input {
 <!-- MAIN -->
 <div class="main">
 
-  <div class="card stats" id="stats"></div>
+  <div id="ticker" class="ticker">Loading queue...</div>
 
   <div id="view"></div>
 
@@ -181,109 +127,146 @@ input {
 <script>
 
 // ======================
-// DATA
+// CORE DB
 // ======================
 let DB = { records: [] };
-let FILTER = "ALL";
+let currentIndex = 0;
 
 // ======================
-// LOAD
+// LOAD / SAVE
 // ======================
-function load() {
-  const raw = localStorage.getItem("vault_ui");
-  if (raw) DB = JSON.parse(raw);
+function save(){
+  localStorage.setItem("vault_ticker", JSON.stringify(DB));
+}
+
+function load(){
+  const d = localStorage.getItem("vault_ticker");
+  if(d) DB = JSON.parse(d);
 }
 load();
 
 // ======================
-// SAVE
+// NORMALISER
 // ======================
-function save() {
-  localStorage.setItem("vault_ui", JSON.stringify(DB));
-}
-
-// ======================
-// NORMALISER (YOUR DATA SAFE)
-// ======================
-function norm(r) {
+function norm(r){
   return {
-    id: r?.ID ?? Date.now(),
-    name: r?.Name ?? "Untitled",
-    status: r?.Status ?? "UNKNOWN"
+    ID: r?.ID ?? Date.now(),
+    Name: r?.Name ?? "Untitled",
+    Status: r?.Status ?? "PENDING"
   };
 }
 
 // ======================
-// FILTER CONTROL
+// FILTER LOGIC (CORE ENGINE)
 // ======================
-function setFilter(f) {
-  FILTER = f;
-  render();
+function getQueue(){
+
+  let arr = DB.records.map(norm);
+
+  // REMOVE CLOSED STATES
+  arr = arr.filter(r =>
+    r.Status === "PENDING"
+  );
+
+  // DEDUPE BY NAME
+  const seen = new Set();
+  arr = arr.filter(r => {
+    const key = r.Name.toLowerCase().trim();
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return arr;
 }
 
 // ======================
-// STATS
+// TICKER ENGINE
 // ======================
-function updateStats(records) {
-  const s = {};
-  records.forEach(r => {
-    s[r.status] = (s[r.status] || 0) + 1;
+function updateTicker(queue){
+
+  if(queue.length === 0){
+    document.getElementById("ticker").innerHTML = "NO ITEMS IN QUEUE";
+    return;
+  }
+
+  const current = queue[currentIndex] || queue[0];
+
+  document.getElementById("ticker").innerHTML = `
+    NEXT SEND → <b>${current.Name}</b>
+    <span class="${current.Status} badge">${current.Status}</span>
+  `;
+}
+
+// ======================
+// MARK SENT (ADVANCE ENGINE)
+// ======================
+function markSent(){
+
+  const queue = getQueue();
+  if(queue.length === 0) return;
+
+  const current = queue[currentIndex] || queue[0];
+
+  // update original DB record
+  DB.records = DB.records.map(r => {
+    if(r.Name === current.Name){
+      return { ...r, Status:"SENT" };
+    }
+    return r;
   });
 
-  document.getElementById("stats").innerHTML = `
-    TOTAL: ${records.length} |
-    PENDING: ${s.PENDING || 0} |
-    SUCCESS: ${s.SUCCESS || 0} |
-    RTS: ${s.RTS || 0} |
-    SENT: ${s.SENT || 0} |
-    LOGGED: ${s.LOGGED || 0}
-  `;
+  save();
+
+  // reset index safely
+  currentIndex = 0;
+
+  render();
 }
 
 // ======================
 // RENDER
 // ======================
-function render() {
-  const q = document.getElementById("search").value.toLowerCase();
+function render(){
 
-  let records = DB.records.map(norm);
-
-  if (FILTER !== "ALL") {
-    records = records.filter(r => r.status === FILTER);
-  }
-
-  if (q) {
-    records = records.filter(r =>
-      r.name.toLowerCase().includes(q)
-    );
-  }
-
-  updateStats(records);
+  const queue = getQueue();
+  updateTicker(queue);
 
   const view = document.getElementById("view");
 
-  view.innerHTML = `<h3>Records (${records.length})</h3>`;
+  view.innerHTML = `<h3>ACTIVE QUEUE (${queue.length})</h3>`;
 
-  records.forEach(r => {
+  queue.forEach((r,i)=>{
     view.innerHTML += `
       <div class="record">
-        <b>${r.name}</b>
-        <span class="badge ${r.status}">${r.status}</span>
+        <b>${r.Name}</b>
+        <span class="${r.Status} badge">${r.Status}</span>
         <br>
-        <span style="font-size:11px;opacity:0.6">ID: ${r.id}</span>
+        <small>ID: ${r.ID}</small>
       </div>
     `;
   });
 }
 
 // ======================
-// INIT SAMPLE LOAD (optional safety)
+// SAMPLE DATA LOADER
 // ======================
-if (!DB.records.length) {
-  DB.records = [];
+function loadSample(){
+
+  DB.records = [
+    {ID:1, Name:"Test A", Status:"PENDING"},
+    {ID:2, Name:"Test B", Status:"PENDING"},
+    {ID:3, Name:"Test C", Status:"SENT"},
+    {ID:4, Name:"Test D", Status:"PENDING"},
+    {ID:5, Name:"Test A", Status:"PENDING"}
+  ];
+
   save();
+  render();
 }
 
+// INIT
+load();
 render();
 
 </script>
