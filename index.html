@@ -5,15 +5,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS AUTONOMOUS OS</title>
+<title>VaultOS COMMAND CENTER</title>
 
 <style>
-body {
-  margin:0;
-  font-family:Arial;
-  background:#0b0b0b;
-  color:#fff;
-}
+body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
 
 header {
   padding:12px;
@@ -21,7 +16,6 @@ header {
   border-bottom:1px solid #222;
   position:sticky;
   top:0;
-  z-index:10;
 }
 
 .container {
@@ -30,7 +24,6 @@ header {
   height:calc(100vh - 50px);
 }
 
-/* LEFT PANEL */
 .sidebar {
   background:#0f0f0f;
   border-right:1px solid #222;
@@ -58,7 +51,6 @@ button {
 
 button:hover { background:#00ddb3; }
 
-/* MAIN */
 .main {
   padding:10px;
   overflow:auto;
@@ -91,24 +83,28 @@ button:hover { background:#00ddb3; }
 .SENT { background:#4da6ff; color:#fff; }
 .SUCCESS { background:#00ff88; color:#000; }
 .RTS { background:#ff4d4d; color:#fff; }
-.LOGGED { background:#888; color:#fff; }
 
-input {
+input, textarea {
   width:100%;
-  padding:7px;
+  padding:8px;
   background:#000;
   border:1px solid #333;
   color:#fff;
   border-radius:5px;
+}
+
+.log {
+  font-size:11px;
+  opacity:0.7;
+  max-height:120px;
+  overflow:auto;
 }
 </style>
 </head>
 
 <body>
 
-<header>
-<b>VaultOS AUTONOMOUS OS</b>
-</header>
+<header><b>VaultOS COMMAND CENTER</b></header>
 
 <div class="container">
 
@@ -116,25 +112,27 @@ input {
 <div class="sidebar">
 
   <div class="card">
-    <button onclick="triggerImport()">IMPORT JSON</button>
-    <button onclick="markNext()">COMPLETE NEXT MISSION</button>
-    <input type="file" id="file" style="display:none" accept="application/json">
+    <input id="commandInput" placeholder="Enter command..." onkeydown="if(event.key==='Enter') runCommand()">
+    <button onclick="runCommand()">RUN</button>
   </div>
 
   <div class="card">
-    <input id="search" placeholder="Search missions..." oninput="render()">
+    <button onclick="triggerImport()">IMPORT JSON</button>
+    <input type="file" id="file" style="display:none" accept="application/json">
   </div>
 
   <div class="card">
     <div id="stats"></div>
   </div>
 
+  <div class="card log" id="log"></div>
+
 </div>
 
 <!-- MAIN -->
 <div class="main">
 
-  <div id="ticker" class="ticker">INITIALISING AUTONOMOUS ENGINE...</div>
+  <div id="ticker" class="ticker">INITIALISING COMMAND ENGINE...</div>
 
   <div id="view"></div>
 
@@ -145,37 +143,47 @@ input {
 <script>
 
 // =========================
-// CORE DATABASE
+// CORE DB
 // =========================
 let DB = { records: [] };
-let index = 0;
+let pointer = 0;
+let history = [];
 
 // =========================
 // LOAD / SAVE
 // =========================
 function save(){
-  localStorage.setItem("vault_os", JSON.stringify(DB));
+  localStorage.setItem("vault_command", JSON.stringify(DB));
 }
 
 function load(){
-  const d = localStorage.getItem("vault_os");
+  const d = localStorage.getItem("vault_command");
   if(d) DB = JSON.parse(d);
 }
 load();
 
 // =========================
-// NORMALISER (SELF-HEALING)
+// SAFE NORMALISER
 // =========================
 function norm(r){
   return {
     ID: r?.ID ?? Date.now(),
-    Name: r?.Name ?? "Untitled Mission",
+    Name: r?.Name ?? "Untitled",
     Status: r?.Status ?? "PENDING"
   };
 }
 
 // =========================
-// IMPORT ENGINE (ROBUST)
+// LOG SYSTEM
+// =========================
+function log(msg){
+  history.unshift(msg);
+  history = history.slice(0,20);
+  document.getElementById("log").innerHTML = history.join("<br>");
+}
+
+// =========================
+// IMPORT (ROBUST)
 // =========================
 function triggerImport(){
   document.getElementById("file").click();
@@ -200,11 +208,10 @@ document.getElementById("file").addEventListener("change", e => {
 
       save();
       render();
-
-      alert("Autonomous import complete: " + DB.records.length);
+      log("IMPORT COMPLETE");
 
     } catch {
-      alert("Import failed - invalid JSON");
+      log("IMPORT FAILED");
     }
   };
 
@@ -212,16 +219,13 @@ document.getElementById("file").addEventListener("change", e => {
 });
 
 // =========================
-// AUTONOMOUS QUEUE ENGINE
+// QUEUE ENGINE
 // =========================
-function getQueue(){
-
+function queue(){
   let arr = DB.records.map(norm);
 
-  // ONLY ACTIVE WORK
   arr = arr.filter(r => r.Status === "PENDING");
 
-  // DEDUPE BY NAME
   const seen = new Set();
   arr = arr.filter(r => {
     const k = r.Name.toLowerCase().trim();
@@ -234,52 +238,94 @@ function getQueue(){
 }
 
 // =========================
-// TICKER ENGINE
+// COMMAND ENGINE (AI RULES)
 // =========================
-function updateTicker(queue){
+function runCommand(){
 
-  if(queue.length === 0){
-    document.getElementById("ticker").innerHTML =
-      "🧠 AUTONOMOUS ENGINE: NO ACTIVE MISSIONS";
-    return;
+  const input = document.getElementById("commandInput");
+  const cmd = input.value.toLowerCase().trim();
+  input.value = "";
+
+  const q = queue();
+
+  if(cmd === "import file"){
+    triggerImport();
+    log("COMMAND: IMPORT FILE");
   }
 
-  const next = queue[index] || queue[0];
+  else if(cmd === "next mission"){
+    const next = q[pointer] || q[0];
+    log("NEXT → " + (next?.Name || "NONE"));
+  }
 
-  document.getElementById("ticker").innerHTML =
-    `🚀 NEXT MISSION → <b>${next.Name}</b> 
-     <span class="${next.Status} badge">${next.Status}</span>`;
-}
+  else if(cmd === "mark done"){
+    const next = q[pointer] || q[0];
+    if(!next) return;
 
-// =========================
-// COMPLETE MISSION
-// =========================
-function markNext(){
+    DB.records = DB.records.map(r =>
+      r.Name === next.Name ? {...r, Status:"SENT"} : r
+    );
 
-  const queue = getQueue();
-  if(queue.length === 0) return;
+    pointer = 0;
+    save();
+    render();
+    log("MARKED DONE → " + next.Name);
+  }
 
-  const next = queue[index] || queue[0];
+  else if(cmd === "show pending"){
+    log("PENDING COUNT: " + q.length);
+  }
 
-  DB.records = DB.records.map(r => {
-    if(r.Name === next.Name){
-      return {...r, Status:"SENT"};
-    }
-    return r;
-  });
+  else if(cmd === "clean duplicates"){
+    const seen = new Set();
+    DB.records = DB.records.filter(r => {
+      const k = r.Name.toLowerCase().trim();
+      if(seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    save();
+    render();
+    log("DUPLICATES CLEANED");
+  }
 
-  save();
+  else if(cmd === "reset system"){
+    DB = {records:[]};
+    save();
+    render();
+    log("SYSTEM RESET");
+  }
 
-  index = 0;
+  else {
+    log("UNKNOWN COMMAND");
+  }
+
   render();
 }
 
 // =========================
-// STATS ENGINE
+// TICKER
 // =========================
-function updateStats(){
+function tickerUpdate(q){
 
-  const s = {PENDING:0,SENT:0,SUCCESS:0,RTS:0,LOGGED:0};
+  if(q.length === 0){
+    document.getElementById("ticker").innerHTML =
+      "🧠 NO ACTIVE MISSIONS";
+    return;
+  }
+
+  const next = q[pointer] || q[0];
+
+  document.getElementById("ticker").innerHTML =
+    `🚀 NEXT → <b>${next.Name}</b> <span class="badge ${next.Status}">${next.Status}</span>`;
+}
+
+// =========================
+// STATS
+// =========================
+function stats(){
+
+  const s = {PENDING:0,SENT:0,SUCCESS:0,RTS:0};
 
   DB.records.forEach(r=>{
     const n = norm(r);
@@ -290,34 +336,24 @@ function updateStats(){
     PENDING: ${s.PENDING}<br>
     SENT: ${s.SENT}<br>
     SUCCESS: ${s.SUCCESS}<br>
-    RTS: ${s.RTS}<br>
-    LOGGED: ${s.LOGGED}
+    RTS: ${s.RTS}
   `;
 }
 
 // =========================
-// RENDER ENGINE
+// RENDER
 // =========================
 function render(){
 
-  const q = document.getElementById("search").value.toLowerCase();
-
-  let queue = getQueue();
-
-  if(q){
-    queue = queue.filter(r =>
-      r.Name.toLowerCase().includes(q)
-    );
-  }
-
-  updateTicker(queue);
-  updateStats();
+  const q = queue();
+  tickerUpdate(q);
+  stats();
 
   const view = document.getElementById("view");
 
-  view.innerHTML = `<h3>ACTIVE AUTONOMOUS QUEUE (${queue.length})</h3>`;
+  view.innerHTML = `<h3>QUEUE (${q.length})</h3>`;
 
-  queue.forEach(r=>{
+  q.forEach(r=>{
     view.innerHTML += `
       <div class="record">
         <b>${r.Name}</b><br>
@@ -336,7 +372,3 @@ render();
 
 </body>
 </html>
-
-
-
-
