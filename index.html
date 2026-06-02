@@ -1,12 +1,14 @@
 
 
 
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS ELITE</title>
+<title>TTM OS ELITE PLUS</title>
 <style>
 body{font-family:Arial,sans-serif;background:#151923;color:#fff;margin:0}
 header{background:#1f2633;border-bottom:3px solid #4ea1ff;padding:12px;position:sticky;top:0}
@@ -17,12 +19,12 @@ button{cursor:pointer}
 button:hover{background:#4ea1ff}
 textarea{width:100%;height:100px}
 #search{width:100%}
-.record{padding:6px;border-bottom:1px solid #333}
+.record{padding:8px;border-bottom:1px solid #333}
 </style>
 </head>
 <body>
 <header>
-<h2>TTM OS ELITE</h2>
+<h2>TTM OS ELITE PLUS</h2>
 <input id="search" placeholder="Search records">
 </header>
 
@@ -44,55 +46,85 @@ textarea{width:100%;height:100px}
 </div>
 
 <div class="card"><h3>🎯 Recommended Next Sends</h3><div id="nextTargets"></div></div>
-<div class="card"><h3>📬 Active Portfolio</h3><div id="portfolio"></div></div>
 <div class="card"><h3>📅 Smart 7 Day Planner</h3><div id="planner"></div></div>
+<div class="card"><h3>📬 Active Portfolio</h3><div id="portfolio"></div></div>
 <div class="card"><h3>⚡ ROI Queue</h3><div id="roi"></div></div>
-<div class="card"><h3>🚫 Suppressed</h3><div id="suppressed"></div></div>
-<div class="card"><h3>📰 Hobby News</h3><div id="news"></div></div>
+<div class="card"><h3>📰 Hobby News Reel</h3><div id="news"></div></div>
 <div class="card"><h3>🔁 Duplicates</h3><div id="dupes"></div></div>
 <div class="card"><h3>Records</h3><div id="list"></div></div>
 
 <script>
-const KEY="TTM_OS_ELITE";
+const KEY="TTM_OS_ELITE_PLUS";
+
 let DB={records:[],opportunities:[
-{name:"Matt Le Tissier Event",score:92},
-{name:"England v New Zealand Test Match",score:90},
-{name:"Soccer Aid Participants",score:88},
-{name:"New Theatre Productions",score:84},
-{name:"Podcast Guest Opportunities",score:82}
+{name:"Matt Le Tissier / Rickie Lambert / Eden Hazard Evening",category:"Football Event",score:95,action:"SEND NOW"},
+{name:"England v New Zealand 1st Test (Lord's)",category:"Cricket",score:93,action:"SEND NOW"},
+{name:"England v New Zealand 2nd Test (The Oval)",category:"Cricket",score:92,action:"THIS WEEK"},
+{name:"England v New Zealand Trent Bridge Test",category:"Cricket",score:89,action:"THIS MONTH"},
+{name:"Soccer Aid Participants",category:"Football",score:88,action:"MONITOR"},
+{name:"Jonathan Ross Show Guests",category:"TV",score:86,action:"CHECK GUEST LIST"},
+{name:"Stick To Football Podcast",category:"Podcast",score:85,action:"SEND"},
+{name:"Footballers Football Podcast",category:"Podcast",score:84,action:"SEND"},
+{name:"West End Productions",category:"Theatre",score:83,action:"CHECK CAST"},
+{name:"Football Legends Dinners",category:"Events",score:82,action:"MONITOR"}
 ]};
 
-function norm(n){return (n||"").toLowerCase().replace(/\\([^)]*\\)/g,"").replace(/[^a-z0-9 ]/g,"").replace(/\\s+/g," ").trim();}
+function norm(n){
+ return (n||"").toLowerCase()
+ .replace(/\([^)]*\)/g,"")
+ .replace(/[^a-z0-9 ]/g,"")
+ .replace(/\s+/g," ")
+ .trim();
+}
+
+function alreadyTracked(name){
+ let target=norm(name);
+ return DB.records.some(r=>{
+   let existing=norm(r.name);
+   return existing.includes(target)||target.includes(existing);
+ });
+}
+
 function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
-function load(){let d=localStorage.getItem(KEY); if(d) DB=JSON.parse(d); render();}
+function load(){let d=localStorage.getItem(KEY);if(d)DB=JSON.parse(d);render();}
 
 function importJSON(){
- const f=file.files[0]; if(!f) return alert("Choose JSON");
+ const f=document.getElementById('file').files[0];
+ if(!f) return alert("Choose JSON");
  const r=new FileReader();
  r.onload=e=>{
   let data=JSON.parse(e.target.result);
   if(Array.isArray(data)){
-   DB.records=data.map(x=>({id:x.ID||x.id,name:x.Name||x.name,status:(x.Status||x.status||"PENDING").toUpperCase()}));
+   DB.records=data.map(x=>({
+    id:x.ID||x.id,
+    name:x.Name||x.name,
+    status:(x.Status||x.status||"PENDING").toUpperCase()
+   }));
   }else{
-   DB.records=(data.records||[]).map(x=>({id:x.ID||x.id,name:x.Name||x.name,status:(x.Status||x.status||"PENDING").toUpperCase()}));
+   DB.records=(data.records||[]).map(x=>({
+    id:x.ID||x.id,
+    name:x.Name||x.name,
+    status:(x.Status||x.status||"PENDING").toUpperCase()
+   }));
   }
   cleanupDatabase(false);
-  save(); render();
+  save();
+  render();
  };
  r.readAsText(f);
 }
 
 function exportJSON(){
- let a=document.createElement("a");
+ const a=document.createElement("a");
  a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:"application/json"}));
- a.download="TTM_OS_ELITE_Backup.json";
+ a.download="TTM_OS_ELITE_PLUS.json";
  a.click();
 }
 
 function bulkAdd(){
- bulk.value.split("\\n").map(x=>x.trim()).filter(Boolean).forEach(n=>{
-  DB.records.push({id:Date.now()+Math.random(),name:n,status:"PENDING"});
- });
+ document.getElementById("bulk").value.split("\n")
+ .map(x=>x.trim()).filter(Boolean)
+ .forEach(n=>DB.records.push({id:Date.now()+Math.random(),name:n,status:"PENDING"}));
  save(); render();
 }
 
@@ -108,17 +140,15 @@ function rank(s){
 function cleanupDatabase(alertUser=true){
  let best={};
  DB.records.forEach(r=>{
-   if(!r.name) return;
-   let k=norm(r.name);
-   if(!best[k] || rank(r.status)>rank(best[k].status)){
-      best[k]=r;
-   }
+  if(!r.name) return;
+  let k=norm(r.name);
+  if(!best[k] || rank(r.status)>rank(best[k].status)) best[k]=r;
  });
  let before=DB.records.length;
  DB.records=Object.values(best);
  let removed=before-DB.records.length;
  save(); render();
- if(alertUser) alert(removed+" duplicate/weak records removed");
+ if(alertUser) alert(removed+" duplicate / weaker records removed");
 }
 
 function roiScore(r){
@@ -129,7 +159,6 @@ function roiScore(r){
  if(n.includes("business")) s+=10;
  if(n.includes("parents")) s+=10;
  if(n.includes("training")) s-=20;
- if(n.includes("camp")) s-=15;
  return s;
 }
 
@@ -138,34 +167,49 @@ function render(){
  const pending=rec.filter(x=>x.status==="PENDING").length;
  const success=rec.filter(x=>x.status==="SUCCESS").length;
 
- stats.innerHTML=`<div class=card><h2>${rec.length}</h2>Total</div>
- <div class=card><h2>${pending}</h2>Pending</div>
- <div class=card><h2>${success}</h2>Success</div>`;
+ document.getElementById("stats").innerHTML=`
+ <div class="card"><h2>${rec.length}</h2>Total</div>
+ <div class="card"><h2>${pending}</h2>Pending</div>
+ <div class="card"><h2>${success}</h2>Success</div>`;
 
  let active=rec.filter(x=>x.status==="PENDING").sort((a,b)=>roiScore(b)-roiScore(a));
- roi.innerHTML=active.slice(0,20).map(x=>"⚡ "+x.name+" ("+roiScore(x)+")").join("<br>");
- portfolio.innerHTML=active.slice(0,20).map(x=>"📬 "+x.name).join("<br>");
 
- let days=[[],[],[],[],[],[],[]];
- DB.opportunities.forEach((o,i)=>days[i%7].push(o.name));
- planner.innerHTML=days.map((d,i)=>"<b>Day "+(i+1)+"</b><br>"+(d.join("<br>")||"Review Portfolio")).join("<hr>");
+ document.getElementById("portfolio").innerHTML=active.slice(0,20).map(x=>"📬 "+x.name).join("<br>");
+ document.getElementById("roi").innerHTML=active.slice(0,20).map(x=>"⚡ "+x.name+" ("+roiScore(x)+")").join("<br>");
 
- nextTargets.innerHTML=DB.opportunities.sort((a,b)=>b.score-a.score).map(x=>"🎯 "+x.name+" ("+x.score+")").join("<br>");
+ let available=DB.opportunities.filter(o=>!alreadyTracked(o.name)).sort((a,b)=>b.score-a.score);
 
- suppressed.innerHTML="Duplicates and weaker statuses are removed automatically during cleanup.";
+ document.getElementById("nextTargets").innerHTML=available.map(o=>`
+ <div class="record">
+ <b>🎯 ${o.name}</b><br>
+ ${o.category}<br>
+ ⭐ ${o.score}<br>
+ ${o.action}
+ </div>`).join("") || "All opportunities already tracked";
+
+ document.getElementById("planner").innerHTML=available.slice(0,7).map((o,i)=>`
+ <b>Day ${i+1}</b><br>${o.name}<br>${o.action}`
+ ).join("<hr>") || "Review active portfolio";
+
+ document.getElementById("news").innerHTML=`
+ 🏏 England v NZ Tests<br>
+ ⚽ Football Legends Events<br>
+ 🎙 Stick To Football Podcast<br>
+ 🎙 Footballers Football Podcast<br>
+ 🎭 West End Productions<br>
+ 🏆 Successes: ${success}<br>
+ 📬 Pending: ${pending}`;
 
  let map={};
- rec.forEach(r=>{let k=norm(r.name); map[k]=(map[k]||0)+1;});
- dupes.innerHTML=Object.keys(map).filter(k=>map[k]>1).join("<br>")||"No duplicates";
+ rec.forEach(r=>{let k=norm(r.name);map[k]=(map[k]||0)+1;});
+ document.getElementById("dupes").innerHTML=Object.keys(map).filter(k=>map[k]>1).join("<br>") || "No duplicates";
 
- news.innerHTML=`🏆 Successes: ${success}<br>📬 Active Pendings: ${pending}<br>🧹 Database cleanup available`;
-
- const q=(search.value||"").toLowerCase();
- list.innerHTML=rec.filter(r=>(r.name||"").toLowerCase().includes(q))
+ let q=(document.getElementById("search").value||"").toLowerCase();
+ document.getElementById("list").innerHTML=rec.filter(r=>(r.name||"").toLowerCase().includes(q))
  .map(r=>`<div class="record"><b>${r.name}</b><br>${r.status}</div>`).join("");
 }
 
-document.addEventListener("input",e=>{if(e.target.id==="search") render();});
+document.addEventListener("input",e=>{if(e.target.id==="search")render();});
 load();
 </script>
 </body>
