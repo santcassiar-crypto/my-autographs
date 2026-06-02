@@ -4,51 +4,116 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Vault Tracker V2 Safe Mode</title>
+<title>Vault Tracker V3</title>
 
 <style>
-body { font-family: Arial; background:#0b0b0b; color:#fff; margin:0; padding:20px; }
-h1 { margin-bottom:10px; }
-
-input, select, button {
-  padding:8px;
-  margin:4px;
-  border-radius:6px;
-  border:none;
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#0b0f14;
+  color:#fff;
 }
 
-button { cursor:pointer; }
+header {
+  padding:20px;
+  background:#111827;
+  position:sticky;
+  top:0;
+  border-bottom:1px solid #222;
+}
 
-.container { max-width:1000px; margin:auto; }
+h1 { margin:0; font-size:18px; }
+
+.container {
+  max-width:1100px;
+  margin:auto;
+  padding:20px;
+}
+
+.controls {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:15px 0;
+}
+
+input, select, button {
+  padding:10px;
+  border-radius:8px;
+  border:none;
+  background:#1f2937;
+  color:#fff;
+}
+
+button {
+  cursor:pointer;
+  background:#2563eb;
+}
+
+button:hover {
+  background:#1d4ed8;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:10px;
+}
 
 .card {
-  background:#1a1a1a;
-  padding:10px;
-  margin:10px 0;
-  border-radius:8px;
+  background:#111827;
+  border:1px solid #1f2937;
+  padding:12px;
+  border-radius:10px;
   display:flex;
   justify-content:space-between;
   align-items:center;
   gap:10px;
 }
 
-.small { font-size:12px; opacity:0.6; }
+.left {
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+}
 
-.status-PENDING { color:orange; }
-.status-SENT { color:cyan; }
-.status-RTS { color:red; }
-.status-SUCCESS { color:lime; }
-.status-LOGGED { color:#aaa; }
+input.edit {
+  background:#0b0f14;
+  border:1px solid #374151;
+  min-width:220px;
+}
+
+.small {
+  font-size:11px;
+  opacity:0.6;
+}
+
+.status {
+  padding:6px 8px;
+  border-radius:6px;
+  font-size:12px;
+}
+
+.PENDING { background:orange; color:#000; }
+.SENT { background:deepskyblue; color:#000; }
+.RTS { background:red; }
+.SUCCESS { background:limegreen; color:#000; }
+.LOGGED { background:gray; }
+
 </style>
 </head>
 
 <body>
+
+<header>
+  <h1>Vault Tracker V3 — Clean Safe System</h1>
+</header>
+
 <div class="container">
 
-<h1>Vault Tracker V2 Safe Mode</h1>
-
-<div>
-  <input id="name" placeholder="Name / Target">
+<div class="controls">
+  <input id="name" placeholder="Add target...">
   <select id="status">
     <option>PENDING</option>
     <option>SENT</option>
@@ -56,13 +121,14 @@ button { cursor:pointer; }
     <option>SUCCESS</option>
     <option>LOGGED</option>
   </select>
-  <button onclick="addItem()">Add</button>
-  <button onclick="exportJSON()">Export JSON</button>
+  <button onclick="add()">Add</button>
+
+  <button onclick="exportJSON()">Export</button>
   <input type="file" onchange="importJSON(event)">
-  <button onclick="resetData()">Reset</button>
+  <button onclick="resetAll()">Reset</button>
 </div>
 
-<div id="list"></div>
+<div id="list" class="grid"></div>
 
 </div>
 
@@ -70,56 +136,49 @@ button { cursor:pointer; }
 
 let records = [];
 
-/* ---------------- SAFE LOAD ---------------- */
+/* SAFE LOAD */
 function load() {
-  const data = localStorage.getItem("vault_data");
-
-  if (!data) {
-    records = [];
-    return;
-  }
-
   try {
-    const parsed = JSON.parse(data);
+    const raw = localStorage.getItem("vault_data");
+    if (!raw) return;
 
-    if (!Array.isArray(parsed)) {
-      records = [];
-      return;
-    }
+    const parsed = JSON.parse(raw);
 
-    records = parsed.map((r, i) => ({
-      name: typeof r?.name === "string" ? r.name : `Unnamed ${i}`,
-      status: ["PENDING","SENT","RTS","SUCCESS","LOGGED"].includes(r?.status)
-        ? r.status
-        : "PENDING"
-    }));
+    records = Array.isArray(parsed) ? parsed.map(normalise) : [];
 
-  } catch (e) {
-    console.log("Corrupt data reset");
+  } catch {
     records = [];
   }
 }
 
-/* ---------------- SAFE SAVE ---------------- */
+/* NORMALISE DATA */
+function normalise(r, i) {
+  return {
+    name: r?.name || `Unnamed ${i}`,
+    status: ["PENDING","SENT","RTS","SUCCESS","LOGGED"].includes(r?.status)
+      ? r.status
+      : "PENDING"
+  };
+}
+
+/* SAVE */
 function save() {
   localStorage.setItem("vault_data", JSON.stringify(records));
 }
 
-/* ---------------- RENDER ---------------- */
+/* RENDER */
 function render() {
-  const list = document.getElementById("list");
-  list.innerHTML = "";
+  const el = document.getElementById("list");
+  el.innerHTML = "";
 
   records.forEach((r, i) => {
-
-    if (!r) return;
 
     const div = document.createElement("div");
     div.className = "card";
 
     div.innerHTML = `
-      <div>
-        <input value="${r.name}" 
+      <div class="left">
+        <input class="edit" value="${r.name}"
           onchange="editName(${i}, this.value)">
 
         <select onchange="editStatus(${i}, this.value)">
@@ -130,27 +189,26 @@ function render() {
           <option ${r.status==="LOGGED"?"selected":""}>LOGGED</option>
         </select>
 
+        <span class="status ${r.status}">${r.status}</span>
+
         <div class="small">#${i}</div>
       </div>
 
-      <button onclick="removeItem(${i})">Delete</button>
+      <button onclick="del(${i})">Delete</button>
     `;
 
-    list.appendChild(div);
+    el.appendChild(div);
   });
 }
 
-/* ---------------- ACTIONS ---------------- */
-function addItem() {
+/* ACTIONS */
+function add() {
   const name = document.getElementById("name").value.trim();
   const status = document.getElementById("status").value;
 
   if (!name) return;
 
-  records.push({
-    name,
-    status
-  });
+  records.push({ name, status });
 
   document.getElementById("name").value = "";
 
@@ -170,62 +228,55 @@ function editStatus(i, val) {
   save();
 }
 
-function removeItem(i) {
+function del(i) {
   records.splice(i, 1);
   save();
   render();
 }
 
-/* ---------------- IMPORT SAFETY ---------------- */
+/* IMPORT (SAFE) */
 function importJSON(event) {
   const file = event.target.files[0];
   const reader = new FileReader();
 
-  reader.onload = function(e) {
+  reader.onload = (e) => {
     try {
       const parsed = JSON.parse(e.target.result);
+      const arr = Array.isArray(parsed) ? parsed : [parsed];
 
-      if (!Array.isArray(parsed)) {
-        alert("Invalid file: must be an array");
-        return;
-      }
-
-      records = parsed.map((r, i) => ({
-        name: typeof r?.name === "string" ? r.name : `Imported ${i}`,
-        status: ["PENDING","SENT","RTS","SUCCESS","LOGGED"].includes(r?.status)
-          ? r.status
-          : "PENDING"
-      }));
+      records = arr.map(normalise);
 
       save();
       render();
 
-    } catch (err) {
-      alert("Invalid JSON file");
+      alert("Imported: " + records.length);
+
+    } catch {
+      alert("Invalid JSON");
     }
   };
 
   reader.readAsText(file);
 }
 
-/* ---------------- UTIL ---------------- */
+/* EXPORT */
 function exportJSON() {
   const blob = new Blob([JSON.stringify(records, null, 2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "vault_data_v2.json";
+  a.download = "vault_v3.json";
   a.click();
 }
 
-function resetData() {
+/* RESET */
+function resetAll() {
   localStorage.removeItem("vault_data");
   records = [];
   render();
 }
 
-/* ---------------- INIT ---------------- */
 load();
 render();
 
