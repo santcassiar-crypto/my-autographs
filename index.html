@@ -6,274 +6,180 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS TRUE DATABASE CORE</title>
+<title>VaultOS FIXED ENGINE</title>
 
 <style>
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #0b0b0b;
-    color: #fff;
-}
+body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
+header { padding:10px; background:#111; border-bottom:1px solid #222; }
+.container { display:grid; grid-template-columns:280px 1fr; height:calc(100vh - 50px); }
+.sidebar { padding:10px; background:#0f0f0f; border-right:1px solid #222; }
+.main { padding:10px; overflow:auto; }
 
-header {
-    position: sticky;
-    top: 0;
-    background: #111;
-    padding: 12px;
-    border-bottom: 1px solid #222;
-}
-
-h1 {
-    margin: 0;
-    color: #00ffcc;
-    font-size: 18px;
-}
-
-.container {
-    display: grid;
-    grid-template-columns: 280px 1fr;
-    height: calc(100vh - 50px);
-}
-
-.sidebar {
-    background: #0f0f0f;
-    border-right: 1px solid #222;
-    padding: 10px;
-}
-
-.main {
-    padding: 10px;
-    overflow-y: auto;
-}
-
-.card {
-    background: #111;
-    border: 1px solid #222;
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 10px;
-}
+.card { background:#111; border:1px solid #222; padding:10px; margin-bottom:10px; border-radius:8px; }
 
 button {
-    width: 100%;
-    padding: 8px;
-    margin: 4px 0;
-    background: #00ffcc;
-    border: none;
-    border-radius: 5px;
-    font-weight: bold;
-    cursor: pointer;
+  width:100%;
+  padding:8px;
+  margin:4px 0;
+  background:#00ffcc;
+  border:0;
+  font-weight:bold;
+  cursor:pointer;
+  border-radius:5px;
 }
 
-button:hover { background: #00ddb3; }
+button:hover { background:#00ddb3; }
 
 .record {
-    border: 1px solid #222;
-    padding: 8px;
-    margin: 6px 0;
-    border-radius: 6px;
-    background: #0d0d0d;
+  background:#0d0d0d;
+  border:1px solid #222;
+  padding:8px;
+  margin:6px 0;
+  border-radius:6px;
 }
 
+.small { font-size:12px; opacity:0.7; }
 input {
-    width: 100%;
-    padding: 6px;
-    background: #000;
-    border: 1px solid #333;
-    color: #fff;
-    border-radius: 5px;
+  width:100%;
+  padding:6px;
+  background:#000;
+  border:1px solid #333;
+  color:#fff;
+  border-radius:5px;
 }
-
-.small { font-size: 12px; opacity: 0.7; }
 </style>
 </head>
 
 <body>
 
-<header>
-    <h1>VaultOS TRUE DATABASE CORE</h1>
-</header>
+<header><b>VaultOS FIXED IMPORT ENGINE</b></header>
 
 <div class="container">
 
 <div class="sidebar">
 
-    <div class="card">
-        <button onclick="addRecord()">+ Add Record</button>
-        <button onclick="exportDB()">Export</button>
-        <button onclick="document.getElementById('importFile').click()">Import</button>
-        <input type="file" id="importFile" accept="application/json">
-    </div>
+  <div class="card">
+    <button onclick="document.getElementById('file').click()">Import JSON</button>
+    <button onclick="exportDB()">Export JSON</button>
+    <input type="file" id="file" accept="application/json">
+  </div>
 
-    <div class="card">
-        <input id="search" placeholder="Search..." oninput="render()">
-    </div>
+  <div class="card">
+    <input id="search" placeholder="Search Name..." oninput="render()">
+  </div>
 
 </div>
 
 <div class="main">
-    <div id="view"></div>
+  <div id="view"></div>
 </div>
 
 </div>
 
 <script>
 
-// =========================
-// DATABASE CORE
-// =========================
-let DB = {
-    records: []
+// ======================
+// CORE DB
+// ======================
+let DB = { records: [] };
+
+function save() {
+  localStorage.setItem("vault_fixed", JSON.stringify(DB));
+}
+
+function load() {
+  const raw = localStorage.getItem("vault_fixed");
+  if (raw) DB = JSON.parse(raw);
+}
+load();
+
+// ======================
+// 🔥 STRICT NORMALISER (YOUR FORMAT ONLY)
+// ======================
+function norm(r) {
+  return {
+    id: r?.ID ?? Date.now(),
+    name: r?.Name ?? "Untitled",
+    status: r?.Status ?? "UNKNOWN"
+  };
+}
+
+// ======================
+// IMPORT
+// ======================
+document.getElementById("file").onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+
+      const arr = Array.isArray(data) ? data : (data.records || []);
+
+      DB.records = arr.map(norm);
+
+      save();
+      render();
+
+      alert("Import successful");
+
+    } catch {
+      alert("Invalid JSON");
+    }
+  };
+
+  reader.readAsText(file);
+  e.target.value = "";
 };
 
-// =========================
-// LOAD
-// =========================
-function loadDB() {
-    const raw = localStorage.getItem("vaultos_true");
-    if (!raw) return;
-
-    try {
-        const parsed = JSON.parse(raw);
-        DB.records = Array.isArray(parsed.records)
-            ? parsed.records
-            : Array.isArray(parsed)
-            ? parsed
-            : [];
-    } catch {}
-}
-
-// =========================
-// SAVE
-// =========================
-function saveDB() {
-    localStorage.setItem("vaultos_true", JSON.stringify(DB));
-}
-
-// =========================
-// 🔥 UNIVERSAL NORMALISER (KEY FIX)
-// =========================
-function safeRecord(r) {
-
-    if (!r || typeof r !== "object") {
-        return {
-            id: Date.now(),
-            title: "Untitled",
-            content: String(r || ""),
-            created: "unknown"
-        };
-    }
-
-    return {
-        id: r.id || Date.now(),
-        title: r.title || r.name || r.text || "Untitled",
-        content: r.content || r.value || r.text || "",
-        created: r.created || r.time || "unknown"
-    };
-}
-
-// =========================
-// ADD
-// =========================
-function addRecord() {
-    const title = prompt("Title:");
-    if (!title) return;
-
-    const content = prompt("Content:");
-    if (!content) return;
-
-    DB.records.push({
-        id: Date.now(),
-        title,
-        content,
-        created: new Date().toISOString()
-    });
-
-    saveDB();
-    render();
-}
-
-// =========================
+// ======================
 // EXPORT
-// =========================
+// ======================
 function exportDB() {
-    const blob = new Blob([JSON.stringify(DB)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
+  const blob = new Blob([JSON.stringify(DB.records)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "VaultOS_DB.json";
-    a.click();
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "vault_fixed.json";
+  a.click();
 
-    URL.revokeObjectURL(url);
+  URL.revokeObjectURL(url);
 }
 
-// =========================
-// IMPORT (FULL COMPATIBILITY)
-// =========================
-document.getElementById("importFile").addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = function(ev) {
-        try {
-            const incoming = JSON.parse(ev.target.result);
-
-            const raw = incoming.records || incoming || [];
-
-            DB.records = raw.map(safeRecord);
-
-            saveDB();
-            render();
-
-            alert("Import successful");
-
-        } catch {
-            alert("Invalid JSON file");
-        }
-    };
-
-    reader.readAsText(file);
-    e.target.value = "";
-});
-
-// =========================
-// SEARCH + RENDER (NO UNDEFINED EVER)
-// =========================
+// ======================
+// RENDER (NO UNDEFINED EVER)
+// ======================
 function render() {
-    const q = document.getElementById("search").value.toLowerCase();
+  const q = document.getElementById("search").value.toLowerCase();
 
-    let records = DB.records.map(safeRecord);
+  let records = DB.records.map(norm);
 
-    if (q) {
-        records = records.filter(r =>
-            r.title.toLowerCase().includes(q) ||
-            r.content.toLowerCase().includes(q)
-        );
-    }
+  if (q) {
+    records = records.filter(r =>
+      r.name.toLowerCase().includes(q)
+    );
+  }
 
-    const view = document.getElementById("view");
+  const view = document.getElementById("view");
 
-    view.innerHTML = `<h3>Records (${records.length})</h3>`;
+  view.innerHTML = `<h3>Records (${records.length})</h3>`;
 
-    records.forEach(r => {
-        view.innerHTML += `
-            <div class="record">
-                <b>${r.title}</b><br>
-                <span class="small">${r.created}</span>
-                <p>${r.content}</p>
-            </div>
-        `;
-    });
+  records.forEach(r => {
+    view.innerHTML += `
+      <div class="record">
+        <b>${r.name}</b><br>
+        <span class="small">ID: ${r.id}</span><br>
+        <span class="small">Status: ${r.status}</span>
+      </div>
+    `;
+  });
 }
 
-// =========================
-// INIT
-// =========================
-loadDB();
+// ======================
 render();
 
 </script>
