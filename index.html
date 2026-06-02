@@ -1,17 +1,19 @@
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS PRO PLUS ULTIMATE</title>
+<title>TTM OS ELITE</title>
 <style>
 body{font-family:Arial,sans-serif;background:#151923;color:#fff;margin:0}
-header{background:#1f2633;border-bottom:2px solid #4ea1ff;padding:12px;position:sticky;top:0}
+header{background:#1f2633;border-bottom:3px solid #4ea1ff;padding:12px;position:sticky;top:0}
 .card{background:#232b3a;border:1px solid #3d4f6b;border-radius:10px;padding:12px;margin:10px;box-shadow:0 0 10px rgba(78,161,255,.15)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;padding:10px}
 input,textarea,button{padding:10px;border-radius:8px;border:1px solid #4ea1ff;background:#2e3747;color:#fff}
+button{cursor:pointer}
 button:hover{background:#4ea1ff}
 textarea{width:100%;height:100px}
 #search{width:100%}
@@ -20,8 +22,8 @@ textarea{width:100%;height:100px}
 </head>
 <body>
 <header>
-<h2>TTM OS PRO PLUS ULTIMATE</h2>
-<input id="search" placeholder="Search records...">
+<h2>TTM OS ELITE</h2>
+<input id="search" placeholder="Search records">
 </header>
 
 <div class="grid" id="stats"></div>
@@ -31,67 +33,96 @@ textarea{width:100%;height:100px}
 <input type="file" id="file">
 <button onclick="importJSON()">Import JSON</button>
 <button onclick="exportJSON()">Export JSON</button>
+<button onclick="cleanupDatabase()">🧹 Clean Database</button>
 <div id="msg"></div>
 </div>
 
 <div class="card">
 <h3>Bulk Add</h3>
 <textarea id="bulk"></textarea>
-<button onclick="bulkAdd()">Add All As PENDING</button>
+<button onclick="bulkAdd()">Add All As Pending</button>
 </div>
 
-<div class="card"><h3>📰 Hobby News Reel</h3><div id="news"></div></div>
-<div class="card"><h3>📈 Hobby Intelligence</h3><div id="intel"></div></div>
-<div class="card"><h3>🎯 Smart 7 Day Planner</h3><div id="planner"></div></div>
+<div class="card"><h3>🎯 Recommended Next Sends</h3><div id="nextTargets"></div></div>
+<div class="card"><h3>📬 Active Portfolio</h3><div id="portfolio"></div></div>
+<div class="card"><h3>📅 Smart 7 Day Planner</h3><div id="planner"></div></div>
 <div class="card"><h3>⚡ ROI Queue</h3><div id="roi"></div></div>
-<div class="card"><h3>🚫 Suppressed Targets</h3><div id="suppressed"></div></div>
+<div class="card"><h3>🚫 Suppressed</h3><div id="suppressed"></div></div>
+<div class="card"><h3>📰 Hobby News</h3><div id="news"></div></div>
 <div class="card"><h3>🔁 Duplicates</h3><div id="dupes"></div></div>
 <div class="card"><h3>Records</h3><div id="list"></div></div>
 
 <script>
-const KEY="TTM_OS_PRO_PLUS_ULTIMATE";
-let DB={records:[]};
+const KEY="TTM_OS_ELITE";
+let DB={records:[],opportunities:[
+{name:"Matt Le Tissier Event",score:92},
+{name:"England v New Zealand Test Match",score:90},
+{name:"Soccer Aid Participants",score:88},
+{name:"New Theatre Productions",score:84},
+{name:"Podcast Guest Opportunities",score:82}
+]};
 
+function norm(n){return (n||"").toLowerCase().replace(/\\([^)]*\\)/g,"").replace(/[^a-z0-9 ]/g,"").replace(/\\s+/g," ").trim();}
 function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
 function load(){let d=localStorage.getItem(KEY); if(d) DB=JSON.parse(d); render();}
 
-function norm(name){
- return (name||"").toLowerCase().replace(/\([^)]*\)/g,"").replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
-}
-
 function importJSON(){
- const f=document.getElementById('file').files[0];
- if(!f) return alert("Select JSON");
+ const f=file.files[0]; if(!f) return alert("Choose JSON");
  const r=new FileReader();
  r.onload=e=>{
-  const data=JSON.parse(e.target.result);
+  let data=JSON.parse(e.target.result);
   if(Array.isArray(data)){
    DB.records=data.map(x=>({id:x.ID||x.id,name:x.Name||x.name,status:(x.Status||x.status||"PENDING").toUpperCase()}));
-  } else {
+  }else{
    DB.records=(data.records||[]).map(x=>({id:x.ID||x.id,name:x.Name||x.name,status:(x.Status||x.status||"PENDING").toUpperCase()}));
   }
+  cleanupDatabase(false);
   save(); render();
-  document.getElementById("msg").innerHTML="Imported "+DB.records.length+" records";
  };
  r.readAsText(f);
 }
 
 function exportJSON(){
- const a=document.createElement("a");
+ let a=document.createElement("a");
  a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:"application/json"}));
- a.download="TTM_OS_Backup.json";
+ a.download="TTM_OS_ELITE_Backup.json";
  a.click();
 }
 
 function bulkAdd(){
- document.getElementById("bulk").value.split("\n").map(x=>x.trim()).filter(Boolean).forEach(n=>{
+ bulk.value.split("\\n").map(x=>x.trim()).filter(Boolean).forEach(n=>{
   DB.records.push({id:Date.now()+Math.random(),name:n,status:"PENDING"});
  });
  save(); render();
 }
 
+function rank(s){
+ s=(s||"").toUpperCase();
+ if(s==="SUCCESS") return 5;
+ if(s==="LOGGED") return 4;
+ if(s==="SENT") return 3;
+ if(s==="PENDING") return 2;
+ return 1;
+}
+
+function cleanupDatabase(alertUser=true){
+ let best={};
+ DB.records.forEach(r=>{
+   if(!r.name) return;
+   let k=norm(r.name);
+   if(!best[k] || rank(r.status)>rank(best[k].status)){
+      best[k]=r;
+   }
+ });
+ let before=DB.records.length;
+ DB.records=Object.values(best);
+ let removed=before-DB.records.length;
+ save(); render();
+ if(alertUser) alert(removed+" duplicate/weak records removed");
+}
+
 function roiScore(r){
- let s=50,n=r.name.toLowerCase();
+ let s=50,n=(r.name||"").toLowerCase();
  if(n.includes("home")) s+=30;
  if(n.includes("event")) s+=20;
  if(n.includes("podcast")) s+=15;
@@ -99,73 +130,41 @@ function roiScore(r){
  if(n.includes("parents")) s+=10;
  if(n.includes("training")) s-=20;
  if(n.includes("camp")) s-=15;
- if(n.includes("cast")) s-=15;
  return s;
-}
-
-function actionableTargets(){
- const success=new Set(DB.records.filter(r=>r.status==="SUCCESS").map(r=>norm(r.name)));
- const sent=new Set(DB.records.filter(r=>r.status==="SENT").map(r=>norm(r.name)));
- const seen=new Set();
- const active=[],supp=[];
-
- DB.records.forEach(r=>{
-  if(r.status!=="PENDING") return;
-  const k=norm(r.name);
-
-  if(success.has(k)){supp.push("SUCCESS exists → "+r.name);return;}
-  if(sent.has(k)){supp.push("Already sent → "+r.name);return;}
-  if(seen.has(k)){supp.push("Duplicate pending → "+r.name);return;}
-
-  seen.add(k);
-  active.push({...r,score:roiScore(r)});
- });
-
- active.sort((a,b)=>b.score-a.score);
- return {active,supp};
 }
 
 function render(){
  const rec=DB.records;
  const pending=rec.filter(x=>x.status==="PENDING").length;
  const success=rec.filter(x=>x.status==="SUCCESS").length;
- const rts=rec.filter(x=>String(x.status).includes("RTS")).length;
- const logged=rec.filter(x=>x.status==="LOGGED").length;
- const sent=rec.filter(x=>x.status==="SENT").length;
 
- document.getElementById("stats").innerHTML=`
- <div class="card"><h2>${rec.length}</h2>Total</div>
- <div class="card"><h2>${pending}</h2>Pending</div>
- <div class="card"><h2>${success}</h2>Success</div>
- <div class="card"><h2>${rts}</h2>RTS</div>
- <div class="card"><h2>${logged}</h2>Logged</div>
- <div class="card"><h2>${sent}</h2>Sent</div>`;
+ stats.innerHTML=`<div class=card><h2>${rec.length}</h2>Total</div>
+ <div class=card><h2>${pending}</h2>Pending</div>
+ <div class=card><h2>${success}</h2>Success</div>`;
 
- const smart=actionableTargets();
-
- document.getElementById("roi").innerHTML=smart.active.slice(0,20).map(x=>"⚡ "+x.name+" ("+x.score+")").join("<br>");
- document.getElementById("suppressed").innerHTML=smart.supp.length?smart.supp.join("<br>"):"None";
+ let active=rec.filter(x=>x.status==="PENDING").sort((a,b)=>roiScore(b)-roiScore(a));
+ roi.innerHTML=active.slice(0,20).map(x=>"⚡ "+x.name+" ("+roiScore(x)+")").join("<br>");
+ portfolio.innerHTML=active.slice(0,20).map(x=>"📬 "+x.name).join("<br>");
 
  let days=[[],[],[],[],[],[],[]];
- smart.active.slice(0,35).forEach((r,i)=>days[i%7].push(r.name));
- document.getElementById("planner").innerHTML=days.map((d,i)=>"<b>Day "+(i+1)+"</b><br>"+(d.join("<br>")||"No actions")).join("<hr>");
+ DB.opportunities.forEach((o,i)=>days[i%7].push(o.name));
+ planner.innerHTML=days.map((d,i)=>"<b>Day "+(i+1)+"</b><br>"+(d.join("<br>")||"Review Portfolio")).join("<hr>");
 
- let news=[];
- if(success>20) news.push("🏆 Strong success history building");
- if(pending>50) news.push("📬 Large active pending portfolio");
- if(rts>10) news.push("⚠ RTS count worth reviewing");
- document.getElementById("news").innerHTML=news.join("<br>");
+ nextTargets.innerHTML=DB.opportunities.sort((a,b)=>b.score-a.score).map(x=>"🎯 "+x.name+" ("+x.score+")").join("<br>");
 
- document.getElementById("intel").innerHTML=smart.active.slice(0,10).map(x=>"⭐ "+x.name+" ("+x.score+")").join("<br>");
+ suppressed.innerHTML="Duplicates and weaker statuses are removed automatically during cleanup.";
 
  let map={};
  rec.forEach(r=>{let k=norm(r.name); map[k]=(map[k]||0)+1;});
- document.getElementById("dupes").innerHTML=Object.keys(map).filter(k=>map[k]>1).join("<br>")||"No duplicates";
+ dupes.innerHTML=Object.keys(map).filter(k=>map[k]>1).join("<br>")||"No duplicates";
 
- const q=(document.getElementById("search").value||"").toLowerCase();
- document.getElementById("list").innerHTML=rec.filter(r=>(r.name||"").toLowerCase().includes(q))
- .map(r=>"<div class='record'><b>"+r.name+"</b><br>"+r.status+"</div>").join("");
+ news.innerHTML=`🏆 Successes: ${success}<br>📬 Active Pendings: ${pending}<br>🧹 Database cleanup available`;
+
+ const q=(search.value||"").toLowerCase();
+ list.innerHTML=rec.filter(r=>(r.name||"").toLowerCase().includes(q))
+ .map(r=>`<div class="record"><b>${r.name}</b><br>${r.status}</div>`).join("");
 }
+
 document.addEventListener("input",e=>{if(e.target.id==="search") render();});
 load();
 </script>
