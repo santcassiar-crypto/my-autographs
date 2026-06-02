@@ -1,15 +1,19 @@
 
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS ULTIMATE AI ENGINE</title>
+<title>VaultOS AUTONOMOUS OS</title>
 
 <style>
-body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
+body {
+  margin:0;
+  font-family:Arial;
+  background:#0b0b0b;
+  color:#fff;
+}
 
 header {
   padding:12px;
@@ -17,15 +21,16 @@ header {
   border-bottom:1px solid #222;
   position:sticky;
   top:0;
+  z-index:10;
 }
 
 .container {
   display:grid;
-  grid-template-columns:320px 1fr;
+  grid-template-columns:340px 1fr;
   height:calc(100vh - 50px);
 }
 
-/* SIDEBAR */
+/* LEFT PANEL */
 .sidebar {
   background:#0f0f0f;
   border-right:1px solid #222;
@@ -54,7 +59,19 @@ button {
 button:hover { background:#00ddb3; }
 
 /* MAIN */
-.main { padding:10px; overflow:auto; }
+.main {
+  padding:10px;
+  overflow:auto;
+}
+
+.ticker {
+  background:#111;
+  border:1px solid #222;
+  padding:12px;
+  border-radius:8px;
+  margin-bottom:10px;
+  color:#00ffcc;
+}
 
 .record {
   background:#0d0d0d;
@@ -71,19 +88,10 @@ button:hover { background:#00ddb3; }
 }
 
 .PENDING { background:#ffcc00; color:#000; }
+.SENT { background:#4da6ff; color:#fff; }
 .SUCCESS { background:#00ff88; color:#000; }
 .RTS { background:#ff4d4d; color:#fff; }
-.SENT { background:#4da6ff; color:#fff; }
 .LOGGED { background:#888; color:#fff; }
-
-.ticker {
-  background:#111;
-  border:1px solid #222;
-  padding:10px;
-  margin-bottom:10px;
-  border-radius:8px;
-  color:#00ffcc;
-}
 
 input {
   width:100%;
@@ -98,7 +106,9 @@ input {
 
 <body>
 
-<header><b>VaultOS ULTIMATE AI ENGINE</b></header>
+<header>
+<b>VaultOS AUTONOMOUS OS</b>
+</header>
 
 <div class="container">
 
@@ -107,12 +117,16 @@ input {
 
   <div class="card">
     <button onclick="triggerImport()">IMPORT JSON</button>
-    <button onclick="markNext()">MARK NEXT AS SENT</button>
+    <button onclick="markNext()">COMPLETE NEXT MISSION</button>
     <input type="file" id="file" style="display:none" accept="application/json">
   </div>
 
   <div class="card">
-    <input id="search" placeholder="Search Name..." oninput="render()">
+    <input id="search" placeholder="Search missions..." oninput="render()">
+  </div>
+
+  <div class="card">
+    <div id="stats"></div>
   </div>
 
 </div>
@@ -120,7 +134,7 @@ input {
 <!-- MAIN -->
 <div class="main">
 
-  <div id="ticker" class="ticker">Loading...</div>
+  <div id="ticker" class="ticker">INITIALISING AUTONOMOUS ENGINE...</div>
 
   <div id="view"></div>
 
@@ -131,7 +145,7 @@ input {
 <script>
 
 // =========================
-// CORE DB
+// CORE DATABASE
 // =========================
 let DB = { records: [] };
 let index = 0;
@@ -140,28 +154,28 @@ let index = 0;
 // LOAD / SAVE
 // =========================
 function save(){
-  localStorage.setItem("vault_ai_v3", JSON.stringify(DB));
+  localStorage.setItem("vault_os", JSON.stringify(DB));
 }
 
 function load(){
-  const d = localStorage.getItem("vault_ai_v3");
+  const d = localStorage.getItem("vault_os");
   if(d) DB = JSON.parse(d);
 }
 load();
 
 // =========================
-// NORMALISER (NO BREAKS EVER)
+// NORMALISER (SELF-HEALING)
 // =========================
 function norm(r){
   return {
     ID: r?.ID ?? Date.now(),
-    Name: r?.Name ?? "Untitled",
+    Name: r?.Name ?? "Untitled Mission",
     Status: r?.Status ?? "PENDING"
   };
 }
 
 // =========================
-// IMPORT SYSTEM
+// IMPORT ENGINE (ROBUST)
 // =========================
 function triggerImport(){
   document.getElementById("file").click();
@@ -177,19 +191,20 @@ document.getElementById("file").addEventListener("change", e => {
     try {
       const data = JSON.parse(ev.target.result);
 
-      const arr = Array.isArray(data)
-        ? data
-        : (data.records || []);
+      const arr =
+        Array.isArray(data) ? data :
+        Array.isArray(data.records) ? data.records :
+        [];
 
       DB.records = arr.map(norm);
 
       save();
       render();
 
-      alert("Imported: " + DB.records.length);
+      alert("Autonomous import complete: " + DB.records.length);
 
     } catch {
-      alert("Invalid JSON");
+      alert("Import failed - invalid JSON");
     }
   };
 
@@ -197,16 +212,16 @@ document.getElementById("file").addEventListener("change", e => {
 });
 
 // =========================
-// AI ENGINE (FILTER QUEUE)
+// AUTONOMOUS QUEUE ENGINE
 // =========================
 function getQueue(){
 
   let arr = DB.records.map(norm);
 
-  // only PENDING
+  // ONLY ACTIVE WORK
   arr = arr.filter(r => r.Status === "PENDING");
 
-  // dedupe
+  // DEDUPE BY NAME
   const seen = new Set();
   arr = arr.filter(r => {
     const k = r.Name.toLowerCase().trim();
@@ -219,22 +234,25 @@ function getQueue(){
 }
 
 // =========================
-// TICKER
+// TICKER ENGINE
 // =========================
 function updateTicker(queue){
+
   if(queue.length === 0){
-    document.getElementById("ticker").innerHTML = "NO NEXT ITEMS";
+    document.getElementById("ticker").innerHTML =
+      "🧠 AUTONOMOUS ENGINE: NO ACTIVE MISSIONS";
     return;
   }
 
   const next = queue[index] || queue[0];
 
   document.getElementById("ticker").innerHTML =
-    `NEXT SEND → <b>${next.Name}</b> <span class="${next.Status} badge">${next.Status}</span>`;
+    `🚀 NEXT MISSION → <b>${next.Name}</b> 
+     <span class="${next.Status} badge">${next.Status}</span>`;
 }
 
 // =========================
-// MARK NEXT
+// COMPLETE MISSION
 // =========================
 function markNext(){
 
@@ -257,30 +275,52 @@ function markNext(){
 }
 
 // =========================
-// RENDER
+// STATS ENGINE
+// =========================
+function updateStats(){
+
+  const s = {PENDING:0,SENT:0,SUCCESS:0,RTS:0,LOGGED:0};
+
+  DB.records.forEach(r=>{
+    const n = norm(r);
+    if(s[n.Status] !== undefined) s[n.Status]++;
+  });
+
+  document.getElementById("stats").innerHTML = `
+    PENDING: ${s.PENDING}<br>
+    SENT: ${s.SENT}<br>
+    SUCCESS: ${s.SUCCESS}<br>
+    RTS: ${s.RTS}<br>
+    LOGGED: ${s.LOGGED}
+  `;
+}
+
+// =========================
+// RENDER ENGINE
 // =========================
 function render(){
 
   const q = document.getElementById("search").value.toLowerCase();
-  let records = DB.records.map(norm);
+
+  let queue = getQueue();
 
   if(q){
-    records = records.filter(r =>
+    queue = queue.filter(r =>
       r.Name.toLowerCase().includes(q)
     );
   }
 
-  const queue = getQueue();
   updateTicker(queue);
+  updateStats();
 
   const view = document.getElementById("view");
 
-  view.innerHTML = `<h3>QUEUE (${queue.length})</h3>`;
+  view.innerHTML = `<h3>ACTIVE AUTONOMOUS QUEUE (${queue.length})</h3>`;
 
-  queue.forEach(r => {
+  queue.forEach(r=>{
     view.innerHTML += `
       <div class="record">
-        <b>${r.Name}</b>
+        <b>${r.Name}</b><br>
         <span class="badge ${r.Status}">${r.Status}</span><br>
         <small>ID: ${r.ID}</small>
       </div>
@@ -296,3 +336,7 @@ render();
 
 </body>
 </html>
+
+
+
+
