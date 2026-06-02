@@ -6,7 +6,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS DATABASE ENGINE</title>
+<title>VaultOS TRUE DATABASE CORE</title>
 
 <style>
 body {
@@ -92,7 +92,7 @@ input {
 <body>
 
 <header>
-    <h1>VaultOS DATABASE ENGINE</h1>
+    <h1>VaultOS TRUE DATABASE CORE</h1>
 </header>
 
 <div class="container">
@@ -100,15 +100,14 @@ input {
 <div class="sidebar">
 
     <div class="card">
-        <button onclick="addRecord()">+ Insert Record</button>
-        <button onclick="createSnapshot()">Snapshot</button>
-        <button onclick="exportDB()">Export DB</button>
-        <button onclick="document.getElementById('importFile').click()">Import DB</button>
+        <button onclick="addRecord()">+ Add Record</button>
+        <button onclick="exportDB()">Export</button>
+        <button onclick="document.getElementById('importFile').click()">Import</button>
         <input type="file" id="importFile" accept="application/json">
     </div>
 
     <div class="card">
-        <input id="query" placeholder="Search database..." oninput="render()">
+        <input id="search" placeholder="Search..." oninput="render()">
     </div>
 
 </div>
@@ -121,56 +120,62 @@ input {
 
 <script>
 
-// ===============================
-// DATABASE CORE (IN-MEMORY INDEX)
-// ===============================
+// =========================
+// DATABASE CORE
+// =========================
 let DB = {
-    records: [],
-    index: {},
-    snapshots: []
+    records: []
 };
 
-// ===============================
+// =========================
 // LOAD
-// ===============================
+// =========================
 function loadDB() {
-    const raw = localStorage.getItem("vaultos_db");
+    const raw = localStorage.getItem("vaultos_true");
     if (!raw) return;
 
     try {
         const parsed = JSON.parse(raw);
-        DB.records = Array.isArray(parsed.records) ? parsed.records : [];
-        DB.snapshots = Array.isArray(parsed.snapshots) ? parsed.snapshots : [];
-        rebuildIndex();
+        DB.records = Array.isArray(parsed.records)
+            ? parsed.records
+            : Array.isArray(parsed)
+            ? parsed
+            : [];
     } catch {}
 }
 
-// ===============================
+// =========================
 // SAVE
-// ===============================
+// =========================
 function saveDB() {
-    localStorage.setItem("vaultos_db", JSON.stringify(DB));
+    localStorage.setItem("vaultos_true", JSON.stringify(DB));
 }
 
-// ===============================
-// INDEX ENGINE (FAST LOOKUP)
-// ===============================
-function rebuildIndex() {
-    DB.index = {};
+// =========================
+// 🔥 UNIVERSAL NORMALISER (KEY FIX)
+// =========================
+function safeRecord(r) {
 
-    DB.records.forEach(r => {
-        const text = ((r.title || "") + " " + (r.content || "")).toLowerCase();
+    if (!r || typeof r !== "object") {
+        return {
+            id: Date.now(),
+            title: "Untitled",
+            content: String(r || ""),
+            created: "unknown"
+        };
+    }
 
-        text.split(/\s+/).forEach(word => {
-            if (!DB.index[word]) DB.index[word] = [];
-            DB.index[word].push(r.id);
-        });
-    });
+    return {
+        id: r.id || Date.now(),
+        title: r.title || r.name || r.text || "Untitled",
+        content: r.content || r.value || r.text || "",
+        created: r.created || r.time || "unknown"
+    };
 }
 
-// ===============================
-// INSERT
-// ===============================
+// =========================
+// ADD
+// =========================
 function addRecord() {
     const title = prompt("Title:");
     if (!title) return;
@@ -178,77 +183,35 @@ function addRecord() {
     const content = prompt("Content:");
     if (!content) return;
 
-    const record = {
+    DB.records.push({
         id: Date.now(),
         title,
         content,
         created: new Date().toISOString()
-    };
+    });
 
-    DB.records.push(record);
-
-    rebuildIndex();
     saveDB();
     render();
 }
 
-// ===============================
-// SNAPSHOT (VERSION CONTROL)
-// ===============================
-function createSnapshot() {
-    DB.snapshots.push({
-        time: new Date().toISOString(),
-        data: JSON.parse(JSON.stringify(DB.records))
-    });
-
-    saveDB();
-    alert("Snapshot created");
-}
-
-// ===============================
-// QUERY ENGINE (FAST SEARCH)
-// ===============================
-function queryDB(q) {
-    q = q.toLowerCase().trim();
-    if (!q) return DB.records;
-
-    const words = q.split(/\s+/);
-
-    let resultIds = null;
-
-    words.forEach(w => {
-        const ids = DB.index[w] || [];
-
-        if (resultIds === null) {
-            resultIds = new Set(ids);
-        } else {
-            resultIds = new Set(ids.filter(id => resultIds.has(id)));
-        }
-    });
-
-    const results = DB.records.filter(r => resultIds?.has(r.id));
-
-    return results;
-}
-
-// ===============================
+// =========================
 // EXPORT
-// ===============================
+// =========================
 function exportDB() {
     const blob = new Blob([JSON.stringify(DB)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = "VaultOS_DATABASE.json";
+    a.download = "VaultOS_DB.json";
     a.click();
 
     URL.revokeObjectURL(url);
 }
 
-// ===============================
+// =========================
 // IMPORT (FULL COMPATIBILITY)
-// ===============================
+// =========================
 document.getElementById("importFile").addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -259,24 +222,17 @@ document.getElementById("importFile").addEventListener("change", e => {
         try {
             const incoming = JSON.parse(ev.target.result);
 
-            DB.records = Array.isArray(incoming.records)
-                ? incoming.records
-                : Array.isArray(incoming)
-                ? incoming
-                : [];
+            const raw = incoming.records || incoming || [];
 
-            DB.snapshots = Array.isArray(incoming.snapshots)
-                ? incoming.snapshots
-                : [];
+            DB.records = raw.map(safeRecord);
 
-            rebuildIndex();
             saveDB();
             render();
 
-            alert("Database imported");
+            alert("Import successful");
 
         } catch {
-            alert("Invalid database file");
+            alert("Invalid JSON file");
         }
     };
 
@@ -284,17 +240,26 @@ document.getElementById("importFile").addEventListener("change", e => {
     e.target.value = "";
 });
 
-// ===============================
-// RENDER
-// ===============================
+// =========================
+// SEARCH + RENDER (NO UNDEFINED EVER)
+// =========================
 function render() {
-    const q = document.getElementById("query").value;
-    const results = queryDB(q);
+    const q = document.getElementById("search").value.toLowerCase();
+
+    let records = DB.records.map(safeRecord);
+
+    if (q) {
+        records = records.filter(r =>
+            r.title.toLowerCase().includes(q) ||
+            r.content.toLowerCase().includes(q)
+        );
+    }
 
     const view = document.getElementById("view");
-    view.innerHTML = `<h3>Records (${results.length})</h3>`;
 
-    results.forEach(r => {
+    view.innerHTML = `<h3>Records (${records.length})</h3>`;
+
+    records.forEach(r => {
         view.innerHTML += `
             <div class="record">
                 <b>${r.title}</b><br>
@@ -305,9 +270,9 @@ function render() {
     });
 }
 
-// ===============================
+// =========================
 // INIT
-// ===============================
+// =========================
 loadDB();
 render();
 
