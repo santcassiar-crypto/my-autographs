@@ -6,72 +6,174 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS FIXED ENGINE</title>
+<title>VaultOS Dashboard UI</title>
 
 <style>
-body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
-header { padding:10px; background:#111; border-bottom:1px solid #222; }
-.container { display:grid; grid-template-columns:280px 1fr; height:calc(100vh - 50px); }
-.sidebar { padding:10px; background:#0f0f0f; border-right:1px solid #222; }
-.main { padding:10px; overflow:auto; }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0b0b0b;
+  color: #fff;
+}
 
-.card { background:#111; border:1px solid #222; padding:10px; margin-bottom:10px; border-radius:8px; }
+/* HEADER */
+header {
+  position: sticky;
+  top: 0;
+  background: #111;
+  padding: 12px;
+  border-bottom: 1px solid #222;
+  z-index: 10;
+}
 
+h1 {
+  margin: 0;
+  font-size: 16px;
+  color: #00ffcc;
+}
+
+/* LAYOUT */
+.container {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: calc(100vh - 50px);
+}
+
+/* SIDEBAR */
+.sidebar {
+  background: #0f0f0f;
+  border-right: 1px solid #222;
+  padding: 10px;
+}
+
+/* MAIN */
+.main {
+  padding: 10px;
+  overflow: auto;
+}
+
+/* CARDS */
+.card {
+  background: #111;
+  border: 1px solid #222;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+/* BUTTONS */
 button {
-  width:100%;
-  padding:8px;
-  margin:4px 0;
-  background:#00ffcc;
-  border:0;
-  font-weight:bold;
-  cursor:pointer;
-  border-radius:5px;
+  width: 100%;
+  padding: 8px;
+  margin: 4px 0;
+  background: #00ffcc;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
-button:hover { background:#00ddb3; }
+button:hover {
+  background: #00ddb3;
+}
 
+/* FILTER BUTTONS */
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.filter button {
+  width: auto;
+  flex: 1;
+  font-size: 12px;
+  padding: 6px;
+}
+
+/* RECORD CARD */
 .record {
-  background:#0d0d0d;
-  border:1px solid #222;
-  padding:8px;
-  margin:6px 0;
-  border-radius:6px;
+  background: #0d0d0d;
+  border: 1px solid #222;
+  padding: 10px;
+  margin: 6px 0;
+  border-radius: 8px;
+  transition: 0.2s;
 }
 
-.small { font-size:12px; opacity:0.7; }
+.record:hover {
+  transform: scale(1.01);
+  border-color: #00ffcc;
+}
+
+/* STATUS BADGES */
+.badge {
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  margin-left: 6px;
+  font-weight: bold;
+}
+
+.PENDING { background:#ffcc00; color:#000; }
+.SUCCESS { background:#00ff88; color:#000; }
+.RTS { background:#ff4d4d; color:#fff; }
+.SENT { background:#4da6ff; color:#fff; }
+.LOGGED { background:#888; color:#fff; }
+
+/* SEARCH */
 input {
-  width:100%;
-  padding:6px;
-  background:#000;
-  border:1px solid #333;
-  color:#fff;
-  border-radius:5px;
+  width: 100%;
+  padding: 7px;
+  background: #000;
+  border: 1px solid #333;
+  color: #fff;
+  border-radius: 5px;
+}
+
+/* STATS BAR */
+.stats {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  opacity: 0.8;
 }
 </style>
 </head>
 
 <body>
 
-<header><b>VaultOS FIXED IMPORT ENGINE</b></header>
+<header>
+  <h1>VaultOS DASHBOARD</h1>
+</header>
 
 <div class="container">
 
+<!-- SIDEBAR -->
 <div class="sidebar">
-
-  <div class="card">
-    <button onclick="document.getElementById('file').click()">Import JSON</button>
-    <button onclick="exportDB()">Export JSON</button>
-    <input type="file" id="file" accept="application/json">
-  </div>
 
   <div class="card">
     <input id="search" placeholder="Search Name..." oninput="render()">
   </div>
 
+  <div class="card filter">
+    <button onclick="setFilter('ALL')">ALL</button>
+    <button onclick="setFilter('PENDING')">PENDING</button>
+    <button onclick="setFilter('SUCCESS')">SUCCESS</button>
+    <button onclick="setFilter('RTS')">RTS</button>
+    <button onclick="setFilter('SENT')">SENT</button>
+    <button onclick="setFilter('LOGGED')">LOGGED</button>
+  </div>
+
 </div>
 
+<!-- MAIN -->
 <div class="main">
+
+  <div class="card stats" id="stats"></div>
+
   <div id="view"></div>
+
 </div>
 
 </div>
@@ -79,22 +181,29 @@ input {
 <script>
 
 // ======================
-// CORE DB
+// DATA
 // ======================
 let DB = { records: [] };
+let FILTER = "ALL";
 
-function save() {
-  localStorage.setItem("vault_fixed", JSON.stringify(DB));
-}
-
+// ======================
+// LOAD
+// ======================
 function load() {
-  const raw = localStorage.getItem("vault_fixed");
+  const raw = localStorage.getItem("vault_ui");
   if (raw) DB = JSON.parse(raw);
 }
 load();
 
 // ======================
-// 🔥 STRICT NORMALISER (YOUR FORMAT ONLY)
+// SAVE
+// ======================
+function save() {
+  localStorage.setItem("vault_ui", JSON.stringify(DB));
+}
+
+// ======================
+// NORMALISER (YOUR DATA SAFE)
 // ======================
 function norm(r) {
   return {
@@ -105,64 +214,51 @@ function norm(r) {
 }
 
 // ======================
-// IMPORT
+// FILTER CONTROL
 // ======================
-document.getElementById("file").onchange = e => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-
-  reader.onload = ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-
-      const arr = Array.isArray(data) ? data : (data.records || []);
-
-      DB.records = arr.map(norm);
-
-      save();
-      render();
-
-      alert("Import successful");
-
-    } catch {
-      alert("Invalid JSON");
-    }
-  };
-
-  reader.readAsText(file);
-  e.target.value = "";
-};
-
-// ======================
-// EXPORT
-// ======================
-function exportDB() {
-  const blob = new Blob([JSON.stringify(DB.records)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "vault_fixed.json";
-  a.click();
-
-  URL.revokeObjectURL(url);
+function setFilter(f) {
+  FILTER = f;
+  render();
 }
 
 // ======================
-// RENDER (NO UNDEFINED EVER)
+// STATS
+// ======================
+function updateStats(records) {
+  const s = {};
+  records.forEach(r => {
+    s[r.status] = (s[r.status] || 0) + 1;
+  });
+
+  document.getElementById("stats").innerHTML = `
+    TOTAL: ${records.length} |
+    PENDING: ${s.PENDING || 0} |
+    SUCCESS: ${s.SUCCESS || 0} |
+    RTS: ${s.RTS || 0} |
+    SENT: ${s.SENT || 0} |
+    LOGGED: ${s.LOGGED || 0}
+  `;
+}
+
+// ======================
+// RENDER
 // ======================
 function render() {
   const q = document.getElementById("search").value.toLowerCase();
 
   let records = DB.records.map(norm);
 
+  if (FILTER !== "ALL") {
+    records = records.filter(r => r.status === FILTER);
+  }
+
   if (q) {
     records = records.filter(r =>
       r.name.toLowerCase().includes(q)
     );
   }
+
+  updateStats(records);
 
   const view = document.getElementById("view");
 
@@ -171,15 +267,23 @@ function render() {
   records.forEach(r => {
     view.innerHTML += `
       <div class="record">
-        <b>${r.name}</b><br>
-        <span class="small">ID: ${r.id}</span><br>
-        <span class="small">Status: ${r.status}</span>
+        <b>${r.name}</b>
+        <span class="badge ${r.status}">${r.status}</span>
+        <br>
+        <span style="font-size:11px;opacity:0.6">ID: ${r.id}</span>
       </div>
     `;
   });
 }
 
 // ======================
+// INIT SAMPLE LOAD (optional safety)
+// ======================
+if (!DB.records.length) {
+  DB.records = [];
+  save();
+}
+
 render();
 
 </script>
