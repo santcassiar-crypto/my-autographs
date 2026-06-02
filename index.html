@@ -9,48 +9,63 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS ELITE PRO</title>
+<title>VaultOS ELITE PRO OS</title>
 
 <style>
 body {
+    margin: 0;
     font-family: Arial, sans-serif;
     background: #0b0b0b;
     color: #fff;
-    margin: 0;
-    padding: 20px;
 }
 
 header {
     position: sticky;
     top: 0;
     background: #111;
-    padding: 15px;
+    padding: 12px;
     border-bottom: 1px solid #222;
+    z-index: 10;
 }
 
 h1 {
     margin: 0;
     color: #00ffcc;
+    font-size: 18px;
 }
 
 .container {
-    max-width: 1100px;
-    margin: auto;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    height: calc(100vh - 50px);
+}
+
+.sidebar {
+    background: #0f0f0f;
+    border-right: 1px solid #222;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+.main {
+    padding: 10px;
+    overflow-y: auto;
 }
 
 .card {
     background: #111;
     border: 1px solid #222;
     border-radius: 8px;
-    padding: 15px;
-    margin-top: 15px;
+    padding: 10px;
+    margin-bottom: 10px;
 }
 
 button {
     background: #00ffcc;
     border: none;
-    padding: 10px 12px;
-    margin: 5px 5px 5px 0;
+    padding: 8px;
+    margin: 4px 0;
+    width: 100%;
     cursor: pointer;
     border-radius: 5px;
     font-weight: bold;
@@ -58,11 +73,11 @@ button {
 
 button:hover { background: #00ddb3; }
 
-button.danger { background: #ff4d4d; color: white; }
+button.danger { background: #ff4d4d; color: #fff; }
 
 input, textarea {
     width: 100%;
-    padding: 8px;
+    padding: 6px;
     margin-top: 5px;
     background: #000;
     color: #fff;
@@ -70,20 +85,17 @@ input, textarea {
     border-radius: 5px;
 }
 
-pre {
-    background: #000;
-    padding: 10px;
-    border: 1px solid #222;
-    overflow: auto;
-    max-height: 300px;
-}
-
 .record {
     border: 1px solid #222;
-    padding: 10px;
-    margin-top: 10px;
-    background: #0f0f0f;
+    padding: 8px;
+    margin: 6px 0;
     border-radius: 6px;
+    background: #0d0d0d;
+}
+
+.small {
+    font-size: 12px;
+    opacity: 0.7;
 }
 </style>
 </head>
@@ -91,135 +103,187 @@ pre {
 <body>
 
 <header>
-    <h1>VaultOS ELITE PRO SYSTEM</h1>
+    <h1>VaultOS ELITE PRO OS — Full Architecture</h1>
 </header>
 
 <div class="container">
 
-<!-- CONTROL PANEL -->
-<div class="card">
-    <h3>Controls</h3>
+<!-- SIDEBAR -->
+<div class="sidebar">
 
-    <button onclick="addRecordPrompt()">Add Record</button>
-    <button onclick="exportVault()">Export JSON</button>
-    <button onclick="document.getElementById('importFile').click()">Import JSON</button>
-    <button class="danger" onclick="resetVault()">Reset Vault</button>
+    <div class="card">
+        <button onclick="setMode('records')">Records</button>
+        <button onclick="setMode('timeline')">Timeline</button>
+        <button onclick="setMode('backups')">Backups</button>
+        <button onclick="setMode('settings')">Settings</button>
+    </div>
 
-    <input type="file" id="importFile" accept="application/json">
+    <div class="card">
+        <input id="search" placeholder="Search..." oninput="render()">
+    </div>
+
+    <div class="card">
+        <button onclick="addRecord()">+ Add Record</button>
+        <button onclick="createSnapshot()">Snapshot</button>
+        <button onclick="exportVault()">Export</button>
+        <button onclick="document.getElementById('importFile').click()">Import</button>
+        <input type="file" id="importFile" accept="application/json">
+    </div>
+
 </div>
 
-<!-- RECORDS -->
-<div class="card">
-    <h3>Vault Records</h3>
-    <div id="records"></div>
-</div>
+<!-- MAIN -->
+<div class="main">
 
-<!-- RAW DATA -->
-<div class="card">
-    <h3>Raw Data</h3>
-    <pre id="raw"></pre>
+    <div id="view"></div>
+
 </div>
 
 </div>
 
 <script>
 // =========================
-// CORE VAULT ENGINE
+// CORE STATE
 // =========================
+let mode = "records";
+
 function getVault() {
-    return JSON.parse(localStorage.getItem("vaultos") || "{}");
+    return JSON.parse(localStorage.getItem("vaultos_elite") || "{}");
 }
 
-function saveVault(data) {
-    localStorage.setItem("vaultos", JSON.stringify(data));
+function saveVault(v) {
+    localStorage.setItem("vaultos_elite", JSON.stringify(v));
     render();
 }
 
 // =========================
-// INIT
+// INIT SYSTEM
 // =========================
-if (!localStorage.getItem("vaultos")) {
+if (!localStorage.getItem("vaultos_elite")) {
     saveVault({
-        version: "ELITE-PRO-V1",
+        version: "ELITE-PRO-FULL",
         created: new Date().toISOString(),
-        records: [
-            { id: 1, title: "System Boot", content: "Vault initialized", time: new Date().toISOString() }
-        ]
+        records: [],
+        snapshots: [],
+        slots: {
+            A: null,
+            B: null,
+            C: null,
+            D: null
+        }
     });
 }
 
 // =========================
-// ADD RECORD
+// MODE SWITCH
 // =========================
-function addRecordPrompt() {
-    const title = prompt("Record title:");
+function setMode(m) {
+    mode = m;
+    render();
+}
+
+// =========================
+// RECORD SYSTEM
+// =========================
+function addRecord() {
+    const title = prompt("Title:");
     if (!title) return;
 
-    const content = prompt("Record content:");
+    const content = prompt("Content:");
     if (!content) return;
 
-    const vault = getVault();
+    const v = getVault();
 
-    const newRecord = {
+    v.records.push({
         id: Date.now(),
         title,
         content,
-        time: new Date().toISOString()
-    };
+        tags: [],
+        created: new Date().toISOString()
+    });
 
-    vault.records.push(newRecord);
-    saveVault(vault);
+    saveVault(v);
 }
 
-// =========================
-// DELETE RECORD
-// =========================
 function deleteRecord(id) {
-    const vault = getVault();
-    vault.records = vault.records.filter(r => r.id !== id);
-    saveVault(vault);
+    const v = getVault();
+    v.records = v.records.filter(r => r.id !== id);
+    saveVault(v);
+}
+
+function editRecord(id) {
+    const v = getVault();
+    const r = v.records.find(x => x.id === id);
+    if (!r) return;
+
+    const newText = prompt("Edit content:", r.content);
+    if (newText !== null) r.content = newText;
+
+    saveVault(v);
 }
 
 // =========================
-// EXPORT
+// SNAPSHOT / TIMELINE
+// =========================
+function createSnapshot() {
+    const v = getVault();
+
+    v.snapshots.push({
+        time: new Date().toISOString(),
+        data: JSON.parse(JSON.stringify(v.records))
+    });
+
+    saveVault(v);
+}
+
+function restoreSnapshot(i) {
+    const v = getVault();
+    if (!v.snapshots[i]) return;
+
+    v.records = JSON.parse(JSON.stringify(v.snapshots[i].data));
+    saveVault(v);
+}
+
+// =========================
+// EXPORT / IMPORT
 // =========================
 function exportVault() {
-    const data = localStorage.getItem("vaultos") || "{}";
-
+    const data = localStorage.getItem("vaultos_elite") || "{}";
     const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
 
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "VaultOS-elite-backup.json";
+    a.download = "VaultOS-ELITE.json";
     a.click();
-
     URL.revokeObjectURL(url);
 }
 
-// =========================
-// IMPORT
-// =========================
-document.getElementById("importFile").addEventListener("change", function (e) {
+document.getElementById("importFile").addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
 
-    reader.onload = function (event) {
+    reader.onload = function(ev) {
         try {
-            const data = JSON.parse(event.target.result);
+            const incoming = JSON.parse(ev.target.result);
+            const current = getVault();
 
-            if (!data || typeof data !== "object") {
-                alert("Invalid file");
-                return;
+            const mode = confirm("OK = Replace / Cancel = Merge");
+
+            if (mode) {
+                saveVault(incoming);
+            } else {
+                incoming.records = [
+                    ...(current.records || []),
+                    ...(incoming.records || [])
+                ];
+                saveVault(incoming);
             }
 
-            saveVault(data);
-            alert("Vault imported successfully");
-
-        } catch (err) {
-            alert("Import failed");
+        } catch {
+            alert("Invalid file");
         }
     };
 
@@ -228,46 +292,111 @@ document.getElementById("importFile").addEventListener("change", function (e) {
 });
 
 // =========================
+// SLOT SYSTEM
+// =========================
+function saveSlot(slot) {
+    const v = getVault();
+    v.slots[slot] = JSON.parse(JSON.stringify(v));
+    saveVault(v);
+    alert("Saved to slot " + slot);
+}
+
+function loadSlot(slot) {
+    const v = getVault();
+    if (!v.slots[slot]) return alert("Empty slot");
+
+    saveVault(v.slots[slot]);
+}
+
+// =========================
+// SEARCH
+// =========================
+function filteredRecords() {
+    const v = getVault();
+    const q = document.getElementById("search").value.toLowerCase();
+
+    if (!q) return v.records;
+
+    return v.records.filter(r =>
+        r.title.toLowerCase().includes(q) ||
+        r.content.toLowerCase().includes(q)
+    );
+}
+
+// =========================
+// RENDER SYSTEM
+// =========================
+function render() {
+    const v = getVault();
+    const view = document.getElementById("view");
+
+    if (mode === "records") {
+        view.innerHTML = "<h3>Records</h3>";
+
+        filteredRecords().forEach(r => {
+            view.innerHTML += `
+                <div class="record">
+                    <b>${r.title}</b>
+                    <div class="small">${r.created}</div>
+                    <p>${r.content}</p>
+                    <button onclick="editRecord(${r.id})">Edit</button>
+                    <button class="danger" onclick="deleteRecord(${r.id})">Delete</button>
+                </div>
+            `;
+        });
+    }
+
+    if (mode === "timeline") {
+        view.innerHTML = "<h3>Timeline Snapshots</h3>";
+
+        v.snapshots.forEach((s, i) => {
+            view.innerHTML += `
+                <div class="record">
+                    <b>Snapshot ${i}</b><br>
+                    <span class="small">${s.time}</span>
+                    <button onclick="restoreSnapshot(${i})">Restore</button>
+                </div>
+            `;
+        });
+    }
+
+    if (mode === "backups") {
+        view.innerHTML = `
+            <h3>Backup Slots</h3>
+
+            <button onclick="saveSlot('A')">Save Slot A</button>
+            <button onclick="saveSlot('B')">Save Slot B</button>
+            <button onclick="saveSlot('C')">Save Slot C</button>
+            <button onclick="saveSlot('D')">Save Slot D</button>
+
+            <hr>
+
+            <button onclick="loadSlot('A')">Load A</button>
+            <button onclick="loadSlot('B')">Load B</button>
+            <button onclick="loadSlot('C')">Load C</button>
+            <button onclick="loadSlot('D')">Load D</button>
+        `;
+    }
+
+    if (mode === "settings") {
+        view.innerHTML = `
+            <h3>Settings</h3>
+            <button class="danger" onclick="resetAll()">Reset Vault</button>
+            <pre>${JSON.stringify(v, null, 2)}</pre>
+        `;
+    }
+}
+
+// =========================
 // RESET
 // =========================
-function resetVault() {
-    if (!confirm("Reset VaultOS completely?")) return;
-
-    localStorage.removeItem("vaultos");
+function resetAll() {
+    if (!confirm("Reset ALL VaultOS data?")) return;
+    localStorage.removeItem("vaultos_elite");
     location.reload();
 }
 
-// =========================
-// RENDER UI
-// =========================
-function render() {
-    const vault = getVault();
-
-    // raw view
-    document.getElementById("raw").textContent =
-        JSON.stringify(vault, null, 2);
-
-    // records view
-    const container = document.getElementById("records");
-    container.innerHTML = "";
-
-    if (!vault.records) return;
-
-    vault.records.forEach(r => {
-        const div = document.createElement("div");
-        div.className = "record";
-
-        div.innerHTML = `
-            <strong>${r.title}</strong><br>
-            <small>${r.time}</small>
-            <p>${r.content}</p>
-            <button onclick="deleteRecord(${r.id})">Delete</button>
-        `;
-
-        container.appendChild(div);
-    });
-}
-
+// init render
 render();
 
 </script>
