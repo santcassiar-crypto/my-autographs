@@ -6,7 +6,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS ULTIMATE ENGINE</title>
+<title>VaultOS ULTIMATE ENGINE FIXED</title>
 
 <style>
 body {
@@ -94,7 +94,7 @@ input {
 <body>
 
 <header>
-    <h1>VaultOS ULTIMATE ENGINE (FIXED IMPORT)</h1>
+    <h1>VaultOS ULTIMATE ENGINE (STABLE FIX)</h1>
 </header>
 
 <div class="container">
@@ -132,34 +132,36 @@ input {
 let mode = "records";
 
 // =========================
-// SAFE STORAGE
+// CORE STORAGE
 // =========================
 function getVault() {
     return JSON.parse(localStorage.getItem("vaultos") || "{}");
 }
 
+// 🔥 SAVE WITH SAFETY NORMALISATION
 function saveVault(v) {
-    const safe = normalize(v);
-    localStorage.setItem("vaultos", JSON.stringify(safe));
+    localStorage.setItem("vaultos", JSON.stringify(normaliseVault(v)));
     render();
 }
 
 // =========================
-// SCHEMA FIXER (CRITICAL)
+// 🔥 GLOBAL NORMALISER (FIXES EVERYTHING)
 // =========================
-function normalize(v) {
+function normaliseVault(v) {
+
+    if (!v || typeof v !== "object") v = {};
 
     if (v.vaultos) v = v.vaultos;
     if (v.data) v = v.data;
-    if (v.vaultos_ultimate) v = v.vaultos_ultimate;
 
     if (Array.isArray(v)) v = { records: v };
 
-    return {
-        version: v.version || "ULTIMATE-FIX",
-        created: v.created || new Date().toISOString(),
+    const records = Array.isArray(v.records) ? v.records : [];
 
-        records: Array.isArray(v.records) ? v.records : [],
+    return {
+        version: v.version || "ULTIMATE-STABLE",
+        created: v.created || new Date().toISOString(),
+        records,
         snapshots: Array.isArray(v.snapshots) ? v.snapshots : []
     };
 }
@@ -170,7 +172,7 @@ function normalize(v) {
 if (!localStorage.getItem("vaultos")) {
     saveVault({
         records: [
-            { id: 1, title: "Boot", content: "VaultOS started", created: new Date().toISOString() }
+            { id: 1, title: "System Boot", content: "VaultOS started", created: new Date().toISOString() }
         ],
         snapshots: []
     });
@@ -206,12 +208,6 @@ function addRecord() {
     saveVault(v);
 }
 
-function deleteRecord(id) {
-    const v = getVault();
-    v.records = v.records.filter(r => r.id !== id);
-    saveVault(v);
-}
-
 // =========================
 // SNAPSHOTS
 // =========================
@@ -244,7 +240,7 @@ function exportVault() {
 }
 
 // =========================
-// IMPORT (FIXED + DEBUG SAFE)
+// IMPORT (NO MORE BROKEN DATA)
 // =========================
 document.getElementById("importFile").addEventListener("change", e => {
     const file = e.target.files[0];
@@ -253,39 +249,26 @@ document.getElementById("importFile").addEventListener("change", e => {
     const reader = new FileReader();
 
     reader.onload = function(ev) {
-
         try {
-            const raw = ev.target.result;
-            const parsed = JSON.parse(raw);
+            const parsed = JSON.parse(ev.target.result);
 
-            console.log("RAW:", parsed);
-
-            const incoming = normalize(parsed);
             const current = getVault();
+            const incoming = normaliseVault(parsed);
 
-            console.log("NORMALISED:", incoming);
+            const replace = confirm("OK = Replace / Cancel = Merge");
 
-            const ok = confirm(
-                "IMPORT READY\n\n" +
-                "Records: " + incoming.records.length + "\n\n" +
-                "OK = Replace\nCancel = Merge"
-            );
-
-            if (ok) {
+            if (replace) {
                 saveVault(incoming);
             } else {
                 current.records = [
                     ...(current.records || []),
-                    ...(incoming.records || [])
+                    ...incoming.records
                 ];
                 saveVault(current);
             }
 
-            alert("Import successful");
-
         } catch (err) {
-            console.error(err);
-            alert("Import failed — check console (F12)");
+            alert("Invalid JSON file");
         }
     };
 
@@ -294,19 +277,26 @@ document.getElementById("importFile").addEventListener("change", e => {
 });
 
 // =========================
-// SEARCH SAFE
+// SAFE FILTER (NO UNDEFINED EVER)
 // =========================
 function filtered() {
     const v = getVault();
     const q = document.getElementById("search").value.toLowerCase();
 
-    const records = Array.isArray(v.records) ? v.records : [];
+    const records = normaliseVault(v).records;
 
-    if (!q) return records;
+    const clean = records.map(r => ({
+        id: r?.id || Date.now(),
+        title: r?.title || r?.name || "Untitled",
+        content: r?.content || r?.value || "",
+        created: r?.created || "unknown"
+    }));
 
-    return records.filter(r =>
-        (r.title || "").toLowerCase().includes(q) ||
-        (r.content || "").toLowerCase().includes(q)
+    if (!q) return clean;
+
+    return clean.filter(r =>
+        r.title.toLowerCase().includes(q) ||
+        r.content.toLowerCase().includes(q)
     );
 }
 
@@ -326,7 +316,6 @@ function render() {
                     <b>${r.title}</b><br>
                     <span class="small">${r.created}</span>
                     <p>${r.content}</p>
-                    <button onclick="deleteRecord(${r.id})" class="danger">Delete</button>
                 </div>
             `;
         });
