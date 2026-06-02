@@ -4,7 +4,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Vault Tracker V1</title>
+<title>Vault Tracker V2 Safe Mode</title>
+
 <style>
 body { font-family: Arial; background:#0b0b0b; color:#fff; margin:0; padding:20px; }
 h1 { margin-bottom:10px; }
@@ -31,24 +32,22 @@ button { cursor:pointer; }
   gap:10px;
 }
 
+.small { font-size:12px; opacity:0.6; }
+
 .status-PENDING { color:orange; }
 .status-SENT { color:cyan; }
 .status-RTS { color:red; }
 .status-SUCCESS { color:lime; }
 .status-LOGGED { color:#aaa; }
-
-.small { font-size:12px; opacity:0.7; }
-
-.row { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px; }
 </style>
 </head>
 
 <body>
 <div class="container">
 
-<h1>Vault Tracker V1</h1>
+<h1>Vault Tracker V2 Safe Mode</h1>
 
-<div class="row">
+<div>
   <input id="name" placeholder="Name / Target">
   <select id="status">
     <option>PENDING</option>
@@ -60,6 +59,7 @@ button { cursor:pointer; }
   <button onclick="addItem()">Add</button>
   <button onclick="exportJSON()">Export JSON</button>
   <input type="file" onchange="importJSON(event)">
+  <button onclick="resetData()">Reset</button>
 </div>
 
 <div id="list"></div>
@@ -67,28 +67,61 @@ button { cursor:pointer; }
 </div>
 
 <script>
+
 let records = [];
 
+/* ---------------- SAFE LOAD ---------------- */
+function load() {
+  const data = localStorage.getItem("vault_data");
+
+  if (!data) {
+    records = [];
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(data);
+
+    if (!Array.isArray(parsed)) {
+      records = [];
+      return;
+    }
+
+    records = parsed.map((r, i) => ({
+      name: typeof r?.name === "string" ? r.name : `Unnamed ${i}`,
+      status: ["PENDING","SENT","RTS","SUCCESS","LOGGED"].includes(r?.status)
+        ? r.status
+        : "PENDING"
+    }));
+
+  } catch (e) {
+    console.log("Corrupt data reset");
+    records = [];
+  }
+}
+
+/* ---------------- SAFE SAVE ---------------- */
 function save() {
   localStorage.setItem("vault_data", JSON.stringify(records));
 }
 
-function load() {
-  const data = localStorage.getItem("vault_data");
-  if (data) records = JSON.parse(data);
-}
-
+/* ---------------- RENDER ---------------- */
 function render() {
   const list = document.getElementById("list");
   list.innerHTML = "";
 
   records.forEach((r, i) => {
+
+    if (!r) return;
+
     const div = document.createElement("div");
     div.className = "card";
 
     div.innerHTML = `
       <div>
-        <input value="${r.name}" onchange="editName(${i}, this.value)">
+        <input value="${r.name}" 
+          onchange="editName(${i}, this.value)">
+
         <select onchange="editStatus(${i}, this.value)">
           <option ${r.status==="PENDING"?"selected":""}>PENDING</option>
           <option ${r.status==="SENT"?"selected":""}>SENT</option>
@@ -96,7 +129,8 @@ function render() {
           <option ${r.status==="SUCCESS"?"selected":""}>SUCCESS</option>
           <option ${r.status==="LOGGED"?"selected":""}>LOGGED</option>
         </select>
-        <div class="small">ID: ${i}</div>
+
+        <div class="small">#${i}</div>
       </div>
 
       <button onclick="removeItem(${i})">Delete</button>
@@ -106,13 +140,18 @@ function render() {
   });
 }
 
+/* ---------------- ACTIONS ---------------- */
 function addItem() {
-  const name = document.getElementById("name").value;
+  const name = document.getElementById("name").value.trim();
   const status = document.getElementById("status").value;
 
   if (!name) return;
 
-  records.push({ name, status });
+  records.push({
+    name,
+    status
+  });
+
   document.getElementById("name").value = "";
 
   save();
@@ -120,11 +159,13 @@ function addItem() {
 }
 
 function editName(i, val) {
-  records[i].name = val;
+  if (!records[i]) return;
+  records[i].name = val || "Unnamed";
   save();
 }
 
 function editStatus(i, val) {
+  if (!records[i]) return;
   records[i].status = val;
   save();
 }
@@ -135,31 +176,59 @@ function removeItem(i) {
   render();
 }
 
+/* ---------------- IMPORT SAFETY ---------------- */
+function importJSON(event) {
+  const file = event.target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    try {
+      const parsed = JSON.parse(e.target.result);
+
+      if (!Array.isArray(parsed)) {
+        alert("Invalid file: must be an array");
+        return;
+      }
+
+      records = parsed.map((r, i) => ({
+        name: typeof r?.name === "string" ? r.name : `Imported ${i}`,
+        status: ["PENDING","SENT","RTS","SUCCESS","LOGGED"].includes(r?.status)
+          ? r.status
+          : "PENDING"
+      }));
+
+      save();
+      render();
+
+    } catch (err) {
+      alert("Invalid JSON file");
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+/* ---------------- UTIL ---------------- */
 function exportJSON() {
   const blob = new Blob([JSON.stringify(records, null, 2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "vault_data.json";
+  a.download = "vault_data_v2.json";
   a.click();
 }
 
-function importJSON(event) {
-  const file = event.target.files[0];
-  const reader = new FileReader();
-
-  reader.onload = function(e) {
-    records = JSON.parse(e.target.result);
-    save();
-    render();
-  };
-
-  reader.readAsText(file);
+function resetData() {
+  localStorage.removeItem("vault_data");
+  records = [];
+  render();
 }
 
+/* ---------------- INIT ---------------- */
 load();
 render();
+
 </script>
 
 </body>
