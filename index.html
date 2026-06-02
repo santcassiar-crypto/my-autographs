@@ -5,32 +5,26 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>VaultOS V7 Lite Enterprise</title>
+<title>VaultOS V7.5 Advanced Import System</title>
 
 <style>
 body{
     margin:0;
-    font-family: Arial, sans-serif;
+    font-family:Arial;
     background:#0b0f14;
     color:#fff;
 }
 
 header{
-    padding:12px;
     background:#111827;
+    padding:10px;
     position:sticky;
     top:0;
-    z-index:10;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
 }
-
-h1{font-size:16px;margin:0}
 
 .container{
     display:grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns:320px 1fr;
     height:calc(100vh - 50px);
 }
 
@@ -46,14 +40,22 @@ h1{font-size:16px;margin:0}
     overflow:auto;
 }
 
+.card{
+    background:#111827;
+    padding:10px;
+    margin:10px 0;
+    border-radius:8px;
+    border:1px solid #222;
+}
+
 input, textarea, button, select{
     width:100%;
     padding:8px;
     margin:5px 0;
-    border-radius:6px;
-    border:1px solid #333;
     background:#111;
     color:#fff;
+    border:1px solid #333;
+    border-radius:6px;
 }
 
 button{
@@ -64,58 +66,26 @@ button{
 
 button:hover{background:#1d4ed8}
 
-.card{
-    background:#111827;
-    padding:10px;
-    margin:10px 0;
-    border-radius:8px;
-    border:1px solid #222;
-}
-
-.small{
-    font-size:12px;
-    opacity:0.7;
-}
-
-.row{
-    display:flex;
-    gap:10px;
-}
-
-.row > *{
-    flex:1;
-}
-
-.ticker{
-    background:#1f2937;
-    padding:6px;
-    font-size:12px;
-    overflow:hidden;
-    white-space:nowrap;
-}
-
-.marquee{
-    display:inline-block;
-    animation: scroll 20s linear infinite;
-}
-
-@keyframes scroll{
-    0%{transform:translateX(100%)}
-    100%{transform:translateX(-100%)}
-}
-
-.tag{
-    display:inline-block;
-    padding:2px 6px;
-    background:#2563eb;
-    border-radius:4px;
-    font-size:10px;
-    margin-right:5px;
-}
-
 .danger{background:#dc2626}
 
-.success{background:#16a34a}
+.dropzone{
+    border:2px dashed #555;
+    padding:10px;
+    text-align:center;
+    margin:10px 0;
+    color:#aaa;
+}
+
+.small{font-size:12px;opacity:0.7}
+
+.history{
+    font-size:11px;
+    max-height:120px;
+    overflow:auto;
+    background:#0b1220;
+    padding:5px;
+    border-radius:6px;
+}
 
 </style>
 </head>
@@ -123,195 +93,218 @@ button:hover{background:#1d4ed8}
 <body>
 
 <header>
-    <h1>VaultOS V7 Lite Enterprise</h1>
-    <div class="small" id="status">Ready</div>
+VaultOS V7.5 Advanced Import System
 </header>
-
-<div class="ticker">
-    <div class="marquee" id="newsTicker">Loading system feed...</div>
-</div>
 
 <div class="container">
 
-    <!-- SIDEBAR -->
-    <div class="sidebar">
+<!-- SIDEBAR -->
+<div class="sidebar">
 
-        <h3>Command Console</h3>
-        <input id="cmd" placeholder="Type command: add / clear / export / import" />
-        <button onclick="runCommand()">Execute</button>
+<h3>Import System</h3>
 
-        <hr>
+<div class="dropzone" id="dropzone">
+Drop JSON file here
+</div>
 
-        <h3>Add Record</h3>
-        <input id="title" placeholder="Title"/>
-        <textarea id="desc" placeholder="Description"></textarea>
-        <button onclick="addRecord()">Add</button>
+<textarea id="importBox" placeholder="Paste JSON here"></textarea>
 
-        <hr>
+<button onclick="importData('replace')">Import (Replace)</button>
+<button onclick="importData('merge')">Import (Merge)</button>
 
-        <h3>Import JSON</h3>
-        <textarea id="importBox" placeholder='Paste JSON array here'></textarea>
-        <button onclick="importData()">Import</button>
+<button onclick="exportData()">Export</button>
 
-        <button onclick="exportData()">Export Data</button>
+<hr>
 
-        <button onclick="clearAll()" class="danger">Clear All</button>
+<h3>Command</h3>
+<input id="cmd" placeholder="add / export / clear / merge last"/>
+<button onclick="runCommand()">Run</button>
 
-    </div>
+<hr>
 
-    <!-- MAIN -->
-    <div class="main">
+<h3>Import History</h3>
+<div class="history" id="history"></div>
 
-        <input id="search" placeholder="Search records..." oninput="render()"/>
+</div>
 
-        <div id="records"></div>
+<!-- MAIN -->
+<div class="main">
 
-    </div>
+<h3>Records</h3>
+
+<input id="search" placeholder="Search..." oninput="render()"/>
+
+<div id="records"></div>
+
+</div>
 
 </div>
 
 <script>
 
-let data = JSON.parse(localStorage.getItem("vaultos_data") || "[]");
+let data = JSON.parse(localStorage.getItem("vaultos") || "[]");
+let importHistory = JSON.parse(localStorage.getItem("vaultos_history") || "[]");
 
-const tickerMessages = [
-    "System online ✔",
-    "VaultOS V7 running stable",
-    "Records synced locally",
-    "AI layer: standby mode",
-    "Import/export engine active"
-];
-
+/* ---------------- SAVE ---------------- */
 function save(){
-    localStorage.setItem("vaultos_data", JSON.stringify(data));
+    localStorage.setItem("vaultos", JSON.stringify(data));
+    localStorage.setItem("vaultos_history", JSON.stringify(importHistory));
 }
 
-function addRecord(){
-    const title = document.getElementById("title").value;
-    const desc = document.getElementById("desc").value;
+/* ---------------- JSON FIXER ---------------- */
+function repairJSON(str){
+    try {
+        return JSON.parse(str);
+    } catch(e) {
+        // attempt auto-fix
+        try {
+            let fixed = str
+                .replace(/,\s*}/g, "}")
+                .replace(/,\s*]/g, "]")
+                .replace(/'/g, '"');
 
-    if(!title) return;
+            return JSON.parse(fixed);
+        } catch(err){
+            return null;
+        }
+    }
+}
 
-    data.unshift({
-        id: Date.now(),
-        title,
-        desc,
-        tags: []
+/* ---------------- IMPORT ---------------- */
+function importData(mode){
+    const raw = document.getElementById("importBox").value.trim();
+    const parsed = repairJSON(raw);
+
+    if(!parsed){
+        alert("Import failed: invalid JSON even after repair");
+        return;
+    }
+
+    if(!Array.isArray(parsed)){
+        alert("JSON must be an array of records");
+        return;
+    }
+
+    const version = Date.now();
+
+    importHistory.unshift({
+        version,
+        mode,
+        count: parsed.length,
+        time: new Date().toLocaleString()
     });
 
-    document.getElementById("title").value="";
-    document.getElementById("desc").value="";
+    if(mode === "replace"){
+        data = parsed;
+    } else if(mode === "merge"){
+        data = [...parsed, ...data];
+    }
 
     save();
     render();
+    renderHistory();
+
+    alert("Import successful: " + mode);
 }
 
-function deleteRecord(id){
-    data = data.filter(x => x.id !== id);
-    save();
-    render();
-}
-
-function editRecord(id){
-    const item = data.find(x => x.id === id);
-    const newTitle = prompt("Edit title", item.title);
-    const newDesc = prompt("Edit description", item.desc);
-
-    if(newTitle !== null) item.title = newTitle;
-    if(newDesc !== null) item.desc = newDesc;
-
-    save();
-    render();
-}
-
-function render(){
-    const q = document.getElementById("search").value.toLowerCase();
-    const container = document.getElementById("records");
-
-    container.innerHTML = "";
-
-    data
-    .filter(x => x.title.toLowerCase().includes(q) || x.desc.toLowerCase().includes(q))
-    .forEach(item => {
-
-        const div = document.createElement("div");
-        div.className = "card";
-
-        div.innerHTML = `
-            <div><b>${item.title}</b></div>
-            <div class="small">${item.desc || ""}</div>
-            <div style="margin-top:8px">
-                <button onclick="editRecord(${item.id})">Edit</button>
-                <button onclick="deleteRecord(${item.id})" class="danger">Delete</button>
-            </div>
-        `;
-
-        container.appendChild(div);
-    });
-}
-
+/* ---------------- EXPORT ---------------- */
 function exportData(){
-    const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "vaultos_export.json";
     a.click();
 }
 
-function importData(){
-    try{
-        const imported = JSON.parse(document.getElementById("importBox").value);
-        if(Array.isArray(imported)){
-            data = imported;
-            save();
-            render();
-            alert("Imported successfully");
-        }
-    } catch(e){
-        alert("Invalid JSON");
-    }
+/* ---------------- DROPZONE ---------------- */
+const dropzone = document.getElementById("dropzone");
+
+dropzone.addEventListener("dragover", e=>{
+    e.preventDefault();
+    dropzone.style.borderColor="#2563eb";
+});
+
+dropzone.addEventListener("dragleave", ()=>{
+    dropzone.style.borderColor="#555";
+});
+
+dropzone.addEventListener("drop", e=>{
+    e.preventDefault();
+    dropzone.style.borderColor="#555";
+
+    const file = e.dataTransfer.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function(ev){
+        document.getElementById("importBox").value = ev.target.result;
+        alert("File loaded. Choose Import mode.");
+    };
+
+    reader.readAsText(file);
+});
+
+/* ---------------- RECORDS ---------------- */
+function render(){
+    const q = document.getElementById("search").value.toLowerCase();
+    const box = document.getElementById("records");
+
+    box.innerHTML = "";
+
+    data
+    .filter(x => (x.title||"").toLowerCase().includes(q))
+    .forEach(item=>{
+
+        const div = document.createElement("div");
+        div.className="card";
+
+        div.innerHTML=`
+            <b>${item.title || "Untitled"}</b>
+            <div class="small">${item.desc || ""}</div>
+        `;
+
+        box.appendChild(div);
+    });
 }
 
-function clearAll(){
-    if(confirm("Clear all data?")){
-        data = [];
-        save();
-        render();
-    }
+/* ---------------- HISTORY ---------------- */
+function renderHistory(){
+    const h = document.getElementById("history");
+    h.innerHTML = importHistory.slice(0,10).map(i=>
+        `<div>${i.time} | ${i.mode} | ${i.count} items</div>`
+    ).join("");
 }
 
+/* ---------------- COMMANDS ---------------- */
 function runCommand(){
     const cmd = document.getElementById("cmd").value.toLowerCase();
 
     if(cmd === "clear"){
-        clearAll();
+        data = [];
     }
-    else if(cmd === "export"){
+
+    if(cmd === "export"){
         exportData();
     }
-    else if(cmd === "import"){
-        document.getElementById("importBox").focus();
-    }
-    else if(cmd.startsWith("add ")){
-        const text = cmd.replace("add ","");
-        data.unshift({id:Date.now(), title:text, desc:"(command created)"});
-        save(); render();
-    }
-    else{
-        alert("Unknown command");
+
+    if(cmd === "merge last"){
+        alert("Use merge import button");
     }
 
-    document.getElementById("cmd").value="";
+    if(cmd.startsWith("add ")){
+        data.unshift({
+            id:Date.now(),
+            title:cmd.replace("add ",""),
+            desc:"command entry"
+        });
+    }
+
+    save();
+    render();
 }
 
-function updateTicker(){
-    const msg = tickerMessages[Math.floor(Math.random()*tickerMessages.length)];
-    document.getElementById("newsTicker").innerText = msg;
-}
-
+/* ---------------- INIT ---------------- */
 render();
-updateTicker();
-setInterval(updateTicker, 6000);
+renderHistory();
 
 </script>
 
