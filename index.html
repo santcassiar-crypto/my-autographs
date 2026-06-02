@@ -2,234 +2,171 @@
 
 
 
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TTM OS ELITE PRO AUTONOMOUS V5</title>
+<title>VaultOS Backup System</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#0b1220;color:#e5e7eb}
-header{padding:16px;background:#0f172a;position:sticky;top:0}
-h1{margin:0;font-size:18px}
-.container{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.card{background:#111827;padding:12px;border-radius:10px}
-input,select,button{padding:8px;margin:4px;border-radius:6px;border:0}
-button{background:#2563eb;color:white;cursor:pointer}
-table{width:100%;border-collapse:collapse;margin-top:10px}
-td,th{border:1px solid #334155;padding:6px;font-size:12px}
-.small{font-size:12px;color:#94a3b8}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.stat{background:#0f172a;padding:10px;border-radius:8px}
+body {
+    font-family: Arial, sans-serif;
+    background: #0b0b0b;
+    color: #fff;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    color: #00ffcc;
+}
+
+.container {
+    max-width: 900px;
+    margin: auto;
+}
+
+.card {
+    background: #111;
+    border: 1px solid #222;
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 8px;
+}
+
+button {
+    background: #00ffcc;
+    border: none;
+    padding: 10px 15px;
+    margin: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 5px;
+}
+
+button:hover {
+    background: #00ddb3;
+}
+
+pre {
+    background: #000;
+    padding: 10px;
+    overflow: auto;
+    border: 1px solid #222;
+}
+
+input[type="file"] {
+    display: none;
+}
 </style>
 </head>
 
 <body>
 
-<header>
-<h1>TTM OS ELITE PRO AUTONOMOUS V5</h1>
-<div class="small">Autonomous Tracking • Discovery • Scoring • Planner</div>
-</header>
-
 <div class="container">
 
-<!-- LEFT -->
-<div>
+<h1>VaultOS Backup System</h1>
 
 <div class="card">
-<h3>Quick Add Target</h3>
-<input id="name" placeholder="Name">
-<input id="category" placeholder="Category">
-<select id="status">
-<option>Pending</option>
-<option>Sent</option>
-<option>Returned</option>
-</select>
-<button onclick="addRecord()">Add</button>
+    <button onclick="exportVaultBackup()">Export Backup</button>
+    <button onclick="document.getElementById('jsonImport').click()">Import Backup</button>
+    <input type="file" id="jsonImport" accept="application/json">
 </div>
 
 <div class="card">
-<h3>Search</h3>
-<input id="search" oninput="render()" placeholder="Search records">
-<button onclick="exportData()">Export JSON</button>
-<input type="file" onchange="importData(event)">
+    <h3>Current Vault Data</h3>
+    <pre id="output"></pre>
 </div>
 
-<div class="card">
-<h3>Weekly AI Sends</h3>
-<div id="weekly"></div>
-<button onclick="generateWeekly()">Generate</button>
-</div>
-
-<div class="card">
-<h3>Planner (7 Days)</h3>
-<div id="planner"></div>
-</div>
-
-</div>
-
-<!-- RIGHT -->
-<div>
-
-<div class="card">
-<h3>Stats</h3>
-<div class="grid">
-<div class="stat" id="statTotal">Total: 0</div>
-<div class="stat" id="statSent">Sent: 0</div>
-<div class="stat" id="statReturned">Returned: 0</div>
-<div class="stat" id="statRate">Success: 0%</div>
-</div>
-</div>
-
-<div class="card">
-<h3>Discovery Engine</h3>
-<button onclick="runDiscovery()">Run Discovery</button>
-<div id="discover"></div>
-</div>
-
-<div class="card">
-<h3>Records</h3>
-<table>
-<thead>
-<tr>
-<th>Name</th><th>Category</th><th>Status</th><th>Score</th><th>Action</th>
-</tr>
-</thead>
-<tbody id="rows"></tbody>
-</table>
-</div>
-
-</div>
 </div>
 
 <script>
-
-let data = JSON.parse(localStorage.getItem("ttm_v5") || "[]");
-
-function save(){
- localStorage.setItem("ttm_v5", JSON.stringify(data));
- render();
+// -----------------------------
+// INIT STORAGE
+// -----------------------------
+function getVaultData() {
+    return JSON.parse(localStorage.getItem("vaultos_data") || "{}");
 }
 
-function scoreItem(r){
- let score = 50;
- if(r.status === "Returned") score += 30;
- if(r.status === "Sent") score += 10;
- if(r.category?.toLowerCase().includes("football")) score += 10;
- if(r.category?.toLowerCase().includes("actor")) score += 8;
- return Math.min(100, score);
+function setVaultData(data) {
+    localStorage.setItem("vaultos_data", JSON.stringify(data));
+    render();
 }
 
-function addRecord(){
- if(!document.getElementById("name").value) return;
+// -----------------------------
+// EXPORT
+// -----------------------------
+function exportVaultBackup() {
+    const data = localStorage.getItem("vaultos_data") || "{}";
 
- let name = document.getElementById("name").value;
- if(data.find(x => x.name === name)) return alert("Duplicate blocked");
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
 
- data.push({
-  name,
-  category: document.getElementById("category").value,
-  status: document.getElementById("status").value,
-  date: new Date().toISOString()
- });
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "VaultOS-backup.json";
+    a.click();
 
- save();
+    URL.revokeObjectURL(url);
 }
 
-function del(i){
- data.splice(i,1);
- save();
+// -----------------------------
+// IMPORT
+// -----------------------------
+document.getElementById("jsonImport").addEventListener("change", function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+        try {
+            const importedData = JSON.parse(e.target.result);
+
+            if (!importedData || typeof importedData !== "object") {
+                alert("Invalid backup file");
+                return;
+            }
+
+            // FULL REPLACE
+            setVaultData(importedData);
+
+            alert("VaultOS restored successfully");
+        } catch (err) {
+            alert("Import failed: invalid JSON");
+            console.error(err);
+        }
+    };
+
+    reader.readAsText(file);
+    event.target.value = "";
+});
+
+// -----------------------------
+// DEMO DATA (optional starter)
+// -----------------------------
+if (!localStorage.getItem("vaultos_data")) {
+    setVaultData({
+        version: "V5",
+        created: new Date().toISOString(),
+        records: [
+            { id: 1, name: "Sample Record", value: "Vault initialized" }
+        ]
+    });
 }
 
-function render(){
-
- let q = document.getElementById("search").value?.toLowerCase() || "";
-
- let rows = "";
- let total=0, sent=0, returned=0;
-
- data.forEach((r,i)=>{
-
-  if(q && !r.name.toLowerCase().includes(q) && !r.category.toLowerCase().includes(q)) return;
-
-  let s = scoreItem(r);
-
-  total++;
-  if(r.status==="Sent") sent++;
-  if(r.status==="Returned") returned++;
-
-  rows += `
-  <tr>
-    <td>${r.name}</td>
-    <td>${r.category}</td>
-    <td>${r.status}</td>
-    <td>${s}</td>
-    <td><button onclick="del(${i})">X</button></td>
-  </tr>`;
- });
-
- document.getElementById("rows").innerHTML = rows;
-
- document.getElementById("statTotal").innerText = "Total: " + total;
- document.getElementById("statSent").innerText = "Sent: " + sent;
- document.getElementById("statReturned").innerText = "Returned: " + returned;
- document.getElementById("statRate").innerText = "Success: " + (sent?Math.round(returned/sent*100):0) + "%";
+// -----------------------------
+// RENDER
+// -----------------------------
+function render() {
+    document.getElementById("output").textContent =
+        JSON.stringify(getVaultData(), null, 2);
 }
 
-function generateWeekly(){
-
- let top = [...data]
- .sort((a,b)=>scoreItem(b)-scoreItem(a))
- .slice(0,5);
-
- document.getElementById("weekly").innerHTML =
- top.map(x=>`<div>🔥 ${x.name} (${x.category})</div>`).join("");
-}
-
-function runDiscovery(){
-
- let ideas = [
-  "Retired Footballers (UK)",
-  "Hollywood Supporting Actors",
-  "Olympic Athletes",
-  "Boxing Champions",
-  "TV Presenters",
-  "Music Legends"
- ];
-
- document.getElementById("discover").innerHTML =
- ideas.map(i=>`<div>🧠 ${i}</div>`).join("");
-}
-
-function generatePlanner(){
-
- let days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
- document.getElementById("planner").innerHTML =
- days.map(d=>`<div><b>${d}</b>: Research • Send • Follow-up</div>`).join("");
-}
-
-function exportData(){
- let blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
- let a = document.createElement("a");
- a.href = URL.createObjectURL(blob);
- a.download = "TTM_V5_EXPORT.json";
- a.click();
-}
-
-function importData(e){
- let f = e.target.files[0];
- let r = new FileReader();
- r.onload = ev=>{
-  data = JSON.parse(ev.target.result);
-  save();
- };
- r.readAsText(f);
-}
-
-generatePlanner();
 render();
-
 </script>
 
 </body>
