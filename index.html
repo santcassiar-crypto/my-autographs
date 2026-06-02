@@ -9,39 +9,48 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS Backup System</title>
+<title>VaultOS ELITE Backup System</title>
 
 <style>
 body {
     font-family: Arial, sans-serif;
     background: #0b0b0b;
-    color: #fff;
+    color: #ffffff;
     margin: 0;
     padding: 20px;
 }
 
-h1 {
-    color: #00ffcc;
+.container {
+    max-width: 1000px;
+    margin: auto;
 }
 
-.container {
-    max-width: 900px;
-    margin: auto;
+header {
+    padding: 15px;
+    background: #111;
+    border-bottom: 1px solid #222;
+    position: sticky;
+    top: 0;
+}
+
+h1 {
+    color: #00ffcc;
+    margin: 0;
 }
 
 .card {
     background: #111;
     border: 1px solid #222;
+    border-radius: 8px;
     padding: 15px;
     margin-top: 15px;
-    border-radius: 8px;
 }
 
 button {
     background: #00ffcc;
     border: none;
     padding: 10px 15px;
-    margin: 5px;
+    margin: 5px 5px 5px 0;
     cursor: pointer;
     font-weight: bold;
     border-radius: 5px;
@@ -51,42 +60,69 @@ button:hover {
     background: #00ddb3;
 }
 
+button.danger {
+    background: #ff4d4d;
+    color: #fff;
+}
+
+button.danger:hover {
+    background: #e63b3b;
+}
+
 pre {
     background: #000;
-    padding: 10px;
-    overflow: auto;
     border: 1px solid #222;
+    padding: 12px;
+    overflow: auto;
+    border-radius: 6px;
+    max-height: 400px;
 }
 
 input[type="file"] {
     display: none;
+}
+
+.badge {
+    display: inline-block;
+    padding: 3px 8px;
+    background: #00ffcc;
+    color: #000;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-left: 10px;
 }
 </style>
 </head>
 
 <body>
 
+<header>
+    <h1>VaultOS ELITE Backup System <span class="badge">V5</span></h1>
+</header>
+
 <div class="container">
 
-<h1>VaultOS Backup System</h1>
+    <!-- ACTIONS -->
+    <div class="card">
+        <button onclick="exportVaultBackup()">Export Backup</button>
+        <button onclick="document.getElementById('jsonImport').click()">Import Backup</button>
+        <button class="danger" onclick="resetVault()">Reset Vault</button>
 
-<div class="card">
-    <button onclick="exportVaultBackup()">Export Backup</button>
-    <button onclick="document.getElementById('jsonImport').click()">Import Backup</button>
-    <input type="file" id="jsonImport" accept="application/json">
-</div>
+        <input type="file" id="jsonImport" accept="application/json">
+    </div>
 
-<div class="card">
-    <h3>Current Vault Data</h3>
-    <pre id="output"></pre>
-</div>
+    <!-- STATUS -->
+    <div class="card">
+        <h3>Vault Data Preview</h3>
+        <pre id="output"></pre>
+    </div>
 
 </div>
 
 <script>
-// -----------------------------
-// INIT STORAGE
-// -----------------------------
+// =============================
+// CORE STORAGE SYSTEM
+// =============================
 function getVaultData() {
     return JSON.parse(localStorage.getItem("vaultos_data") || "{}");
 }
@@ -96,9 +132,9 @@ function setVaultData(data) {
     render();
 }
 
-// -----------------------------
-// EXPORT
-// -----------------------------
+// =============================
+// EXPORT BACKUP
+// =============================
 function exportVaultBackup() {
     const data = localStorage.getItem("vaultos_data") || "{}";
 
@@ -113,9 +149,9 @@ function exportVaultBackup() {
     URL.revokeObjectURL(url);
 }
 
-// -----------------------------
-// IMPORT
-// -----------------------------
+// =============================
+// IMPORT BACKUP
+// =============================
 document.getElementById("jsonImport").addEventListener("change", function (event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -131,12 +167,18 @@ document.getElementById("jsonImport").addEventListener("change", function (event
                 return;
             }
 
-            // FULL REPLACE
+            // Safety check (optional version guard)
+            if (importedData.version && importedData.version !== "V5") {
+                const confirmImport = confirm("Version mismatch detected. Continue import?");
+                if (!confirmImport) return;
+            }
+
             setVaultData(importedData);
 
-            alert("VaultOS restored successfully");
+            alert("VaultOS backup restored successfully");
+
         } catch (err) {
-            alert("Import failed: invalid JSON");
+            alert("Import failed: invalid JSON file");
             console.error(err);
         }
     };
@@ -145,28 +187,48 @@ document.getElementById("jsonImport").addEventListener("change", function (event
     event.target.value = "";
 });
 
-// -----------------------------
-// DEMO DATA (optional starter)
-// -----------------------------
+// =============================
+// RESET VAULT
+// =============================
+function resetVault() {
+    const confirmReset = confirm("Reset entire VaultOS data?");
+    if (!confirmReset) return;
+
+    localStorage.removeItem("vaultos_data");
+    setVaultData({
+        version: "V5",
+        created: new Date().toISOString(),
+        records: []
+    });
+}
+
+// =============================
+// INIT DEFAULT DATA
+// =============================
 if (!localStorage.getItem("vaultos_data")) {
     setVaultData({
         version: "V5",
         created: new Date().toISOString(),
         records: [
-            { id: 1, name: "Sample Record", value: "Vault initialized" }
+            {
+                id: 1,
+                type: "system",
+                message: "VaultOS initialized"
+            }
         ]
     });
 }
 
-// -----------------------------
-// RENDER
-// -----------------------------
+// =============================
+// RENDER VIEW
+// =============================
 function render() {
     document.getElementById("output").textContent =
         JSON.stringify(getVaultData(), null, 2);
 }
 
 render();
+
 </script>
 
 </body>
