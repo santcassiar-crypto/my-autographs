@@ -1,24 +1,26 @@
 
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM_OS_PRO_PLUS</title>
+<title>TTM OS PRO PLUS ULTIMATE</title>
 <style>
-body{font-family:Arial,sans-serif;background:#0b0b0b;color:#fff;margin:0}
-header{background:#111;padding:12px;position:sticky;top:0}
-.card{background:#111;border:1px solid #222;border-radius:10px;padding:12px;margin:10px}
+body{font-family:Arial,sans-serif;background:#151923;color:#fff;margin:0}
+header{background:#1f2633;border-bottom:2px solid #4ea1ff;padding:12px;position:sticky;top:0}
+.card{background:#232b3a;border:1px solid #3d4f6b;border-radius:10px;padding:12px;margin:10px;box-shadow:0 0 10px rgba(78,161,255,.15)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:10px}
-input,select,textarea,button{padding:10px;border-radius:8px;border:1px solid #333;background:#181818;color:#fff}
-textarea{width:100%;height:120px}
+input,textarea,button{padding:10px;border-radius:8px;border:1px solid #4ea1ff;background:#2e3747;color:#fff}
+button:hover{background:#4ea1ff}
+textarea{width:100%;height:100px}
 #search{width:100%}
-.record{padding:6px;border-bottom:1px solid #222}
+.record{padding:6px;border-bottom:1px solid #333}
 </style>
 </head>
 <body>
 <header>
-<h2>TTM OS PRO PLUS</h2>
+<h2>TTM OS PRO PLUS ULTIMATE</h2>
 <input id="search" placeholder="Search records...">
 </header>
 
@@ -38,55 +40,38 @@ textarea{width:100%;height:120px}
 <button onclick="bulkAdd()">Add All As PENDING</button>
 </div>
 
-<div class="card"><h3>7 Day Planner</h3><div id="planner"></div></div>
-<div class="card"><h3>ROI Queue</h3><div id="roi"></div></div>
-<div class="card"><h3>Duplicates</h3><div id="dupes"></div></div>
+<div class="card"><h3>📰 Hobby News Reel</h3><div id="news"></div></div>
+<div class="card"><h3>📈 Hobby Intelligence</h3><div id="intel"></div></div>
+<div class="card"><h3>🎯 Smart 7 Day Planner</h3><div id="planner"></div></div>
+<div class="card"><h3>⚡ ROI Queue</h3><div id="roi"></div></div>
+<div class="card"><h3>🚫 Suppressed Targets</h3><div id="suppressed"></div></div>
+<div class="card"><h3>🔁 Duplicates</h3><div id="dupes"></div></div>
 <div class="card"><h3>Records</h3><div id="list"></div></div>
 
 <script>
-const KEY="TTM_OS_PRO_PLUS";
-let DB={records:[],weights:{},heat:{}};
+const KEY="TTM_OS_PRO_PLUS_ULTIMATE";
+let DB={records:[]};
 
-function load(){
- let d=localStorage.getItem(KEY);
- if(d) DB=JSON.parse(d);
- render();
-}
 function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
+function load(){let d=localStorage.getItem(KEY); if(d) DB=JSON.parse(d); render();}
+
+function norm(name){
+ return (name||"").toLowerCase().replace(/\([^)]*\)/g,"").replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
+}
 
 function importJSON(){
  const f=document.getElementById('file').files[0];
- if(!f) return alert("Select JSON file");
+ if(!f) return alert("Select JSON");
  const r=new FileReader();
  r.onload=e=>{
-  try{
-   const data=JSON.parse(e.target.result);
-
-   if(Array.isArray(data)){
-     DB.records=data.map(x=>({
-      id:x.id||x.ID||Date.now()+Math.random(),
-      name:x.name||x.Name||"",
-      status:(x.status||x.Status||"PENDING").toUpperCase()
-     }));
-     DB.weights={}; DB.heat={};
-   } else if(data.records){
-     DB.records=(data.records||[]).map(x=>({
-      id:x.id||x.ID||Date.now()+Math.random(),
-      name:x.name||x.Name||"",
-      status:(x.status||x.Status||"PENDING").toUpperCase()
-     }));
-     DB.weights=data.weights||{};
-     DB.heat=data.heat||{};
-   } else {
-     throw new Error("Unknown format");
-   }
-
-   save(); render();
-   document.getElementById("msg").innerHTML="Imported "+DB.records.length+" records";
-  } catch(err){
-   alert("Import failed");
-   console.error(err);
+  const data=JSON.parse(e.target.result);
+  if(Array.isArray(data)){
+   DB.records=data.map(x=>({id:x.ID||x.id,name:x.Name||x.name,status:(x.Status||x.status||"PENDING").toUpperCase()}));
+  } else {
+   DB.records=(data.records||[]).map(x=>({id:x.ID||x.id,name:x.Name||x.name,status:(x.Status||x.status||"PENDING").toUpperCase()}));
   }
+  save(); render();
+  document.getElementById("msg").innerHTML="Imported "+DB.records.length+" records";
  };
  r.readAsText(f);
 }
@@ -94,7 +79,7 @@ function importJSON(){
 function exportJSON(){
  const a=document.createElement("a");
  a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:"application/json"}));
- a.download="TTM_OS_PRO_PLUS_Backup.json";
+ a.download="TTM_OS_Backup.json";
  a.click();
 }
 
@@ -106,20 +91,45 @@ function bulkAdd(){
 }
 
 function roiScore(r){
- let s=50;
- let n=r.name.toLowerCase();
+ let s=50,n=r.name.toLowerCase();
  if(n.includes("home")) s+=30;
- if(n.includes("event")) s+=15;
- if(n.includes("podcast")) s+=10;
+ if(n.includes("event")) s+=20;
+ if(n.includes("podcast")) s+=15;
+ if(n.includes("business")) s+=10;
+ if(n.includes("parents")) s+=10;
  if(n.includes("training")) s-=20;
+ if(n.includes("camp")) s-=15;
+ if(n.includes("cast")) s-=15;
  return s;
+}
+
+function actionableTargets(){
+ const success=new Set(DB.records.filter(r=>r.status==="SUCCESS").map(r=>norm(r.name)));
+ const sent=new Set(DB.records.filter(r=>r.status==="SENT").map(r=>norm(r.name)));
+ const seen=new Set();
+ const active=[],supp=[];
+
+ DB.records.forEach(r=>{
+  if(r.status!=="PENDING") return;
+  const k=norm(r.name);
+
+  if(success.has(k)){supp.push("SUCCESS exists → "+r.name);return;}
+  if(sent.has(k)){supp.push("Already sent → "+r.name);return;}
+  if(seen.has(k)){supp.push("Duplicate pending → "+r.name);return;}
+
+  seen.add(k);
+  active.push({...r,score:roiScore(r)});
+ });
+
+ active.sort((a,b)=>b.score-a.score);
+ return {active,supp};
 }
 
 function render(){
  const rec=DB.records;
  const pending=rec.filter(x=>x.status==="PENDING").length;
  const success=rec.filter(x=>x.status==="SUCCESS").length;
- const rts=rec.filter(x=>x.status.includes("RTS")).length;
+ const rts=rec.filter(x=>String(x.status).includes("RTS")).length;
  const logged=rec.filter(x=>x.status==="LOGGED").length;
  const sent=rec.filter(x=>x.status==="SENT").length;
 
@@ -131,23 +141,30 @@ function render(){
  <div class="card"><h2>${logged}</h2>Logged</div>
  <div class="card"><h2>${sent}</h2>Sent</div>`;
 
- let roi=rec.filter(x=>x.status==="PENDING").sort((a,b)=>roiScore(b)-roiScore(a)).slice(0,20);
- document.getElementById("roi").innerHTML=roi.map(x=>"⚡ "+x.name+" ("+roiScore(x)+")").join("<br>");
+ const smart=actionableTargets();
+
+ document.getElementById("roi").innerHTML=smart.active.slice(0,20).map(x=>"⚡ "+x.name+" ("+x.score+")").join("<br>");
+ document.getElementById("suppressed").innerHTML=smart.supp.length?smart.supp.join("<br>"):"None";
 
  let days=[[],[],[],[],[],[],[]];
- roi.forEach((r,i)=>days[i%7].push(r.name));
- document.getElementById("planner").innerHTML=days.map((d,i)=>"<b>Day "+(i+1)+"</b><br>"+d.join("<br>")).join("<hr>");
+ smart.active.slice(0,35).forEach((r,i)=>days[i%7].push(r.name));
+ document.getElementById("planner").innerHTML=days.map((d,i)=>"<b>Day "+(i+1)+"</b><br>"+(d.join("<br>")||"No actions")).join("<hr>");
+
+ let news=[];
+ if(success>20) news.push("🏆 Strong success history building");
+ if(pending>50) news.push("📬 Large active pending portfolio");
+ if(rts>10) news.push("⚠ RTS count worth reviewing");
+ document.getElementById("news").innerHTML=news.join("<br>");
+
+ document.getElementById("intel").innerHTML=smart.active.slice(0,10).map(x=>"⭐ "+x.name+" ("+x.score+")").join("<br>");
 
  let map={};
- rec.forEach(r=>{
-  let k=r.name.trim().toLowerCase();
-  map[k]=(map[k]||0)+1;
- });
+ rec.forEach(r=>{let k=norm(r.name); map[k]=(map[k]||0)+1;});
  document.getElementById("dupes").innerHTML=Object.keys(map).filter(k=>map[k]>1).join("<br>")||"No duplicates";
 
  const q=(document.getElementById("search").value||"").toLowerCase();
- document.getElementById("list").innerHTML=rec.filter(r=>r.name.toLowerCase().includes(q))
- .map(r=>`<div class="record"><b>${r.name}</b><br>${r.status}</div>`).join("");
+ document.getElementById("list").innerHTML=rec.filter(r=>(r.name||"").toLowerCase().includes(q))
+ .map(r=>"<div class='record'><b>"+r.name+"</b><br>"+r.status+"</div>").join("");
 }
 document.addEventListener("input",e=>{if(e.target.id==="search") render();});
 load();
