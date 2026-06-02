@@ -9,7 +9,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS ELITE PRO OS</title>
+<title>VaultOS ULTIMATE ENGINE</title>
 
 <style>
 body {
@@ -25,7 +25,6 @@ header {
     background: #111;
     padding: 12px;
     border-bottom: 1px solid #222;
-    z-index: 10;
 }
 
 h1 {
@@ -36,7 +35,7 @@ h1 {
 
 .container {
     display: grid;
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 280px 1fr;
     height: calc(100vh - 50px);
 }
 
@@ -61,41 +60,37 @@ h1 {
 }
 
 button {
-    background: #00ffcc;
-    border: none;
+    width: 100%;
     padding: 8px;
     margin: 4px 0;
-    width: 100%;
-    cursor: pointer;
+    background: #00ffcc;
+    border: none;
     border-radius: 5px;
     font-weight: bold;
+    cursor: pointer;
 }
 
 button:hover { background: #00ddb3; }
 
 button.danger { background: #ff4d4d; color: #fff; }
 
-input, textarea {
-    width: 100%;
-    padding: 6px;
-    margin-top: 5px;
-    background: #000;
-    color: #fff;
-    border: 1px solid #333;
-    border-radius: 5px;
-}
-
 .record {
     border: 1px solid #222;
     padding: 8px;
-    margin: 6px 0;
+    margin-top: 8px;
     border-radius: 6px;
     background: #0d0d0d;
 }
 
-.small {
-    font-size: 12px;
-    opacity: 0.7;
+.small { font-size: 12px; opacity: 0.7; }
+
+input {
+    width: 100%;
+    padding: 6px;
+    background: #000;
+    border: 1px solid #333;
+    color: #fff;
+    border-radius: 5px;
 }
 </style>
 </head>
@@ -103,7 +98,7 @@ input, textarea {
 <body>
 
 <header>
-    <h1>VaultOS ELITE PRO OS — Full Architecture</h1>
+    <h1>VaultOS ULTIMATE ENGINE</h1>
 </header>
 
 <div class="container">
@@ -134,48 +129,57 @@ input, textarea {
 
 <!-- MAIN -->
 <div class="main">
-
     <div id="view"></div>
-
 </div>
 
 </div>
 
 <script>
+
 // =========================
-// CORE STATE
+// STATE ENGINE
 // =========================
 let mode = "records";
 
 function getVault() {
-    return JSON.parse(localStorage.getItem("vaultos_elite") || "{}");
+    return JSON.parse(localStorage.getItem("vaultos_ultimate") || "{}");
 }
 
 function saveVault(v) {
-    localStorage.setItem("vaultos_elite", JSON.stringify(v));
+    localStorage.setItem("vaultos_ultimate", JSON.stringify(v));
     render();
 }
 
 // =========================
-// INIT SYSTEM
+// SELF-HEALING SCHEMA ENGINE
 // =========================
-if (!localStorage.getItem("vaultos_elite")) {
-    saveVault({
-        version: "ELITE-PRO-FULL",
-        created: new Date().toISOString(),
-        records: [],
-        snapshots: [],
-        slots: {
-            A: null,
-            B: null,
-            C: null,
-            D: null
-        }
-    });
+function normalise(v) {
+    return {
+        version: v.version || "ULTIMATE-ENGINE-V1",
+        created: v.created || new Date().toISOString(),
+
+        records: Array.isArray(v.records) ? v.records : [],
+        snapshots: Array.isArray(v.snapshots) ? v.snapshots : [],
+
+        slots: v.slots || { A:null, B:null, C:null, D:null }
+    };
 }
 
 // =========================
-// MODE SWITCH
+// INIT
+// =========================
+if (!localStorage.getItem("vaultos_ultimate")) {
+    saveVault(normalise({
+        records: [
+            { id: 1, title: "System Boot", content: "VaultOS ULTIMATE initialised", created: new Date().toISOString() }
+        ],
+        snapshots: [],
+        slots: { A:null, B:null, C:null, D:null }
+    }));
+}
+
+// =========================
+// MODE
 // =========================
 function setMode(m) {
     mode = m;
@@ -183,7 +187,7 @@ function setMode(m) {
 }
 
 // =========================
-// RECORD SYSTEM
+// RECORD ENGINE
 // =========================
 function addRecord() {
     const title = prompt("Title:");
@@ -198,7 +202,6 @@ function addRecord() {
         id: Date.now(),
         title,
         content,
-        tags: [],
         created: new Date().toISOString()
     });
 
@@ -216,21 +219,21 @@ function editRecord(id) {
     const r = v.records.find(x => x.id === id);
     if (!r) return;
 
-    const newText = prompt("Edit content:", r.content);
-    if (newText !== null) r.content = newText;
+    const updated = prompt("Edit content:", r.content);
+    if (updated !== null) r.content = updated;
 
     saveVault(v);
 }
 
 // =========================
-// SNAPSHOT / TIMELINE
+// TIMELINE ENGINE (GIT-LIKE)
 // =========================
 function createSnapshot() {
     const v = getVault();
 
     v.snapshots.push({
         time: new Date().toISOString(),
-        data: JSON.parse(JSON.stringify(v.records))
+        state: JSON.parse(JSON.stringify(v.records))
     });
 
     saveVault(v);
@@ -240,25 +243,28 @@ function restoreSnapshot(i) {
     const v = getVault();
     if (!v.snapshots[i]) return;
 
-    v.records = JSON.parse(JSON.stringify(v.snapshots[i].data));
+    v.records = JSON.parse(JSON.stringify(v.snapshots[i].state));
     saveVault(v);
 }
 
 // =========================
-// EXPORT / IMPORT
+// EXPORT
 // =========================
 function exportVault() {
-    const data = localStorage.getItem("vaultos_elite") || "{}";
+    const data = localStorage.getItem("vaultos_ultimate") || "{}";
     const blob = new Blob([data], { type: "application/json" });
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "VaultOS-ELITE.json";
+    a.download = "VaultOS-ULTIMATE.json";
     a.click();
     URL.revokeObjectURL(url);
 }
 
+// =========================
+// IMPORT (FULL RESILIENCE ENGINE)
+// =========================
 document.getElementById("importFile").addEventListener("change", e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -267,23 +273,31 @@ document.getElementById("importFile").addEventListener("change", e => {
 
     reader.onload = function(ev) {
         try {
-            const incoming = JSON.parse(ev.target.result);
+            let incoming = JSON.parse(ev.target.result);
             const current = getVault();
 
-            const mode = confirm("OK = Replace / Cancel = Merge");
+            // unwrap legacy formats
+            if (incoming.vaultos_ultimate) incoming = incoming.vaultos_ultimate;
+            if (incoming.vaultos) incoming = incoming.vaultos;
+            if (incoming.data) incoming = incoming.data;
 
-            if (mode) {
+            incoming = normalise(incoming);
+
+            const merge = confirm("OK = Replace FULL vault / Cancel = Merge Records");
+
+            if (merge) {
                 saveVault(incoming);
             } else {
-                incoming.records = [
+                current.records = [
                     ...(current.records || []),
                     ...(incoming.records || [])
                 ];
-                saveVault(incoming);
+                saveVault(current);
             }
 
-        } catch {
-            alert("Invalid file");
+        } catch (err) {
+            console.error(err);
+            alert("Import failed: corrupted or invalid JSON");
         }
     };
 
@@ -292,26 +306,9 @@ document.getElementById("importFile").addEventListener("change", e => {
 });
 
 // =========================
-// SLOT SYSTEM
-// =========================
-function saveSlot(slot) {
-    const v = getVault();
-    v.slots[slot] = JSON.parse(JSON.stringify(v));
-    saveVault(v);
-    alert("Saved to slot " + slot);
-}
-
-function loadSlot(slot) {
-    const v = getVault();
-    if (!v.slots[slot]) return alert("Empty slot");
-
-    saveVault(v.slots[slot]);
-}
-
-// =========================
 // SEARCH
 // =========================
-function filteredRecords() {
+function filtered() {
     const v = getVault();
     const q = document.getElementById("search").value.toLowerCase();
 
@@ -324,7 +321,7 @@ function filteredRecords() {
 }
 
 // =========================
-// RENDER SYSTEM
+// RENDER ENGINE
 // =========================
 function render() {
     const v = getVault();
@@ -333,21 +330,21 @@ function render() {
     if (mode === "records") {
         view.innerHTML = "<h3>Records</h3>";
 
-        filteredRecords().forEach(r => {
+        filtered().forEach(r => {
             view.innerHTML += `
                 <div class="record">
-                    <b>${r.title}</b>
-                    <div class="small">${r.created}</div>
+                    <b>${r.title}</b><br>
+                    <span class="small">${r.created}</span>
                     <p>${r.content}</p>
                     <button onclick="editRecord(${r.id})">Edit</button>
-                    <button class="danger" onclick="deleteRecord(${r.id})">Delete</button>
+                    <button onclick="deleteRecord(${r.id})" class="danger">Delete</button>
                 </div>
             `;
         });
     }
 
     if (mode === "timeline") {
-        view.innerHTML = "<h3>Timeline Snapshots</h3>";
+        view.innerHTML = "<h3>Timeline (Snapshots)</h3>";
 
         v.snapshots.forEach((s, i) => {
             view.innerHTML += `
@@ -362,41 +359,30 @@ function render() {
 
     if (mode === "backups") {
         view.innerHTML = `
-            <h3>Backup Slots</h3>
-
-            <button onclick="saveSlot('A')">Save Slot A</button>
-            <button onclick="saveSlot('B')">Save Slot B</button>
-            <button onclick="saveSlot('C')">Save Slot C</button>
-            <button onclick="saveSlot('D')">Save Slot D</button>
-
-            <hr>
-
-            <button onclick="loadSlot('A')">Load A</button>
-            <button onclick="loadSlot('B')">Load B</button>
-            <button onclick="loadSlot('C')">Load C</button>
-            <button onclick="loadSlot('D')">Load D</button>
+            <h3>Backup System</h3>
+            <button onclick="exportVault()">Export</button>
         `;
     }
 
     if (mode === "settings") {
         view.innerHTML = `
-            <h3>Settings</h3>
-            <button class="danger" onclick="resetAll()">Reset Vault</button>
+            <h3>System State</h3>
             <pre>${JSON.stringify(v, null, 2)}</pre>
+            <button class="danger" onclick="reset()">Reset Vault</button>
         `;
     }
 }
 
 // =========================
-// RESET
+// RESET ENGINE
 // =========================
-function resetAll() {
-    if (!confirm("Reset ALL VaultOS data?")) return;
-    localStorage.removeItem("vaultos_elite");
+function reset() {
+    if (!confirm("Reset EVERYTHING?")) return;
+    localStorage.removeItem("vaultos_ultimate");
     location.reload();
 }
 
-// init render
+// start
 render();
 
 </script>
