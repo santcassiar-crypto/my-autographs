@@ -2,159 +2,235 @@
 
 
 
-
 <!DOCTYPE html>
-<html lang="en"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS ELITE PRO AUTONOMOUS V3</title>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TTM OS ELITE PRO AUTONOMOUS V5</title>
+
 <style>
-body{font-family:Arial;background:#151923;color:#fff;margin:0}
-header{background:#1f2633;padding:12px;border-bottom:3px solid #4ea1ff}
-.card{background:#232b3a;border:1px solid #3d4f6b;border-radius:10px;padding:12px;margin:10px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:10px}
-input,textarea,select,button{background:#2e3747;color:#fff;border:1px solid #4ea1ff;border-radius:6px;padding:8px}
-textarea,#search{width:100%}
-.record{padding:8px;border-bottom:1px solid #3d4f6b}
-</style></head><body>
+body{margin:0;font-family:Arial;background:#0b1220;color:#e5e7eb}
+header{padding:16px;background:#0f172a;position:sticky;top:0}
+h1{margin:0;font-size:18px}
+.container{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:#111827;padding:12px;border-radius:10px}
+input,select,button{padding:8px;margin:4px;border-radius:6px;border:0}
+button{background:#2563eb;color:white;cursor:pointer}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+td,th{border:1px solid #334155;padding:6px;font-size:12px}
+.small{font-size:12px;color:#94a3b8}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#0f172a;padding:10px;border-radius:8px}
+</style>
+</head>
+
+<body>
 
 <header>
-<h2>TTM OS ELITE PRO AUTONOMOUS V3</h2>
-<input id="search" placeholder="Search records">
+<h1>TTM OS ELITE PRO AUTONOMOUS V5</h1>
+<div class="small">Autonomous Tracking • Discovery • Scoring • Planner</div>
 </header>
 
-<div class="grid" id="stats"></div>
+<div class="container">
+
+<!-- LEFT -->
+<div>
 
 <div class="card">
-<h3>JSON Import / Export</h3>
-<input type="file" id="file">
-<button onclick="importJSON()">Import JSON</button>
-<button onclick="exportJSON()">Export JSON</button>
-<button onclick="cleanupDatabase()">Clean Duplicates</button>
+<h3>Quick Add Target</h3>
+<input id="name" placeholder="Name">
+<input id="category" placeholder="Category">
+<select id="status">
+<option>Pending</option>
+<option>Sent</option>
+<option>Returned</option>
+</select>
+<button onclick="addRecord()">Add</button>
 </div>
 
 <div class="card">
-<h3>Weekly Discovery Feed</h3>
-<p>Name | Category | Score</p>
-<textarea id="feedInput"></textarea><br>
-<button onclick="importOpportunities()">Import Feed</button>
-<button onclick="generateSendList()">Generate Weekly Queue</button>
-<div id="feedCount"></div>
+<h3>Search</h3>
+<input id="search" oninput="render()" placeholder="Search records">
+<button onclick="exportData()">Export JSON</button>
+<input type="file" onchange="importData(event)">
 </div>
 
-<div class="card"><h3>🎯 Discovery Queue (New Targets Only)</h3><div id="discovery"></div></div>
-<div class="card"><h3>📅 7 Day Planner</h3><div id="planner"></div></div>
-<div class="card"><h3>📬 Editable Records</h3><div id="list"></div></div>
+<div class="card">
+<h3>Weekly AI Sends</h3>
+<div id="weekly"></div>
+<button onclick="generateWeekly()">Generate</button>
+</div>
+
+<div class="card">
+<h3>Planner (7 Days)</h3>
+<div id="planner"></div>
+</div>
+
+</div>
+
+<!-- RIGHT -->
+<div>
+
+<div class="card">
+<h3>Stats</h3>
+<div class="grid">
+<div class="stat" id="statTotal">Total: 0</div>
+<div class="stat" id="statSent">Sent: 0</div>
+<div class="stat" id="statReturned">Returned: 0</div>
+<div class="stat" id="statRate">Success: 0%</div>
+</div>
+</div>
+
+<div class="card">
+<h3>Discovery Engine</h3>
+<button onclick="runDiscovery()">Run Discovery</button>
+<div id="discover"></div>
+</div>
+
+<div class="card">
+<h3>Records</h3>
+<table>
+<thead>
+<tr>
+<th>Name</th><th>Category</th><th>Status</th><th>Score</th><th>Action</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+
+</div>
+</div>
 
 <script>
-const KEY="TTM_OS_V3";
-let DB={records:[],opportunities:[],generated:[]};
 
-function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
-function load(){let d=localStorage.getItem(KEY);if(d)DB=JSON.parse(d);render();}
+let data = JSON.parse(localStorage.getItem("ttm_v5") || "[]");
 
-function norm(v){
- return (v||"").toLowerCase().replace(/\([^)]*\)/g,"")
- .replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
+function save(){
+ localStorage.setItem("ttm_v5", JSON.stringify(data));
+ render();
 }
 
-function importJSON(){
- let f=document.getElementById("file").files[0];
- if(!f)return;
- let r=new FileReader();
- r.onload=e=>{
-   let data=JSON.parse(e.target.result);
-   DB.records=(Array.isArray(data)?data:(data.records||[])).map(x=>({
-      id:x.ID||x.id||Date.now()+Math.random(),
-      name:x.Name||x.name||"",
-      status:(x.Status||x.status||"PENDING").toUpperCase()
-   }));
-   save();render();
+function scoreItem(r){
+ let score = 50;
+ if(r.status === "Returned") score += 30;
+ if(r.status === "Sent") score += 10;
+ if(r.category?.toLowerCase().includes("football")) score += 10;
+ if(r.category?.toLowerCase().includes("actor")) score += 8;
+ return Math.min(100, score);
+}
+
+function addRecord(){
+ if(!document.getElementById("name").value) return;
+
+ let name = document.getElementById("name").value;
+ if(data.find(x => x.name === name)) return alert("Duplicate blocked");
+
+ data.push({
+  name,
+  category: document.getElementById("category").value,
+  status: document.getElementById("status").value,
+  date: new Date().toISOString()
+ });
+
+ save();
+}
+
+function del(i){
+ data.splice(i,1);
+ save();
+}
+
+function render(){
+
+ let q = document.getElementById("search").value?.toLowerCase() || "";
+
+ let rows = "";
+ let total=0, sent=0, returned=0;
+
+ data.forEach((r,i)=>{
+
+  if(q && !r.name.toLowerCase().includes(q) && !r.category.toLowerCase().includes(q)) return;
+
+  let s = scoreItem(r);
+
+  total++;
+  if(r.status==="Sent") sent++;
+  if(r.status==="Returned") returned++;
+
+  rows += `
+  <tr>
+    <td>${r.name}</td>
+    <td>${r.category}</td>
+    <td>${r.status}</td>
+    <td>${s}</td>
+    <td><button onclick="del(${i})">X</button></td>
+  </tr>`;
+ });
+
+ document.getElementById("rows").innerHTML = rows;
+
+ document.getElementById("statTotal").innerText = "Total: " + total;
+ document.getElementById("statSent").innerText = "Sent: " + sent;
+ document.getElementById("statReturned").innerText = "Returned: " + returned;
+ document.getElementById("statRate").innerText = "Success: " + (sent?Math.round(returned/sent*100):0) + "%";
+}
+
+function generateWeekly(){
+
+ let top = [...data]
+ .sort((a,b)=>scoreItem(b)-scoreItem(a))
+ .slice(0,5);
+
+ document.getElementById("weekly").innerHTML =
+ top.map(x=>`<div>🔥 ${x.name} (${x.category})</div>`).join("");
+}
+
+function runDiscovery(){
+
+ let ideas = [
+  "Retired Footballers (UK)",
+  "Hollywood Supporting Actors",
+  "Olympic Athletes",
+  "Boxing Champions",
+  "TV Presenters",
+  "Music Legends"
+ ];
+
+ document.getElementById("discover").innerHTML =
+ ideas.map(i=>`<div>🧠 ${i}</div>`).join("");
+}
+
+function generatePlanner(){
+
+ let days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+ document.getElementById("planner").innerHTML =
+ days.map(d=>`<div><b>${d}</b>: Research • Send • Follow-up</div>`).join("");
+}
+
+function exportData(){
+ let blob = new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+ let a = document.createElement("a");
+ a.href = URL.createObjectURL(blob);
+ a.download = "TTM_V5_EXPORT.json";
+ a.click();
+}
+
+function importData(e){
+ let f = e.target.files[0];
+ let r = new FileReader();
+ r.onload = ev=>{
+  data = JSON.parse(ev.target.result);
+  save();
  };
  r.readAsText(f);
 }
 
-function exportJSON(){
- let a=document.createElement("a");
- a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:"application/json"}));
- a.download="TTM_OS_Backup.json";a.click();
-}
+generatePlanner();
+render();
 
-function updateName(id,v){let r=DB.records.find(x=>x.id==id);if(r){r.name=v;save();}}
-function updateStatus(id,v){let r=DB.records.find(x=>x.id==id);if(r){r.status=v;save();render();}}
-function deleteRecord(id){DB.records=DB.records.filter(x=>x.id!=id);save();render();}
-
-function rank(s){return {SUCCESS:5,LOGGED:4,SENT:3,PENDING:2}[s]||1;}
-function cleanupDatabase(){
- let best={};
- DB.records.forEach(r=>{
-   let k=norm(r.name);
-   if(!best[k]||rank(r.status)>rank(best[k].status)) best[k]=r;
- });
- DB.records=Object.values(best);
- save();render();
-}
-
-function importOpportunities(){
- let count=0;
- document.getElementById("feedInput").value.split("\n").forEach(line=>{
-   if(!line.trim()) return;
-   let p=line.split("|");
-   DB.opportunities.push({
-      name:(p[0]||"").trim(),
-      category:(p[1]||"General").trim(),
-      score:Number((p[2]||75).trim())
-   });
-   count++;
- });
- document.getElementById("feedCount").innerHTML=count+" opportunities imported";
- save();
-}
-
-function tracked(name){
- let t=norm(name);
- return DB.records.some(r=>{
-   let e=norm(r.name);
-   return e.includes(t)||t.includes(e);
- });
-}
-
-function generateSendList(){
- DB.generated=DB.opportunities
-   .filter(o=>!tracked(o.name))
-   .sort((a,b)=>b.score-a.score);
- save();render();
-}
-
-function render(){
- let pending=DB.records.filter(x=>x.status==="PENDING").length;
- let success=DB.records.filter(x=>x.status==="SUCCESS").length;
-
- stats.innerHTML=`<div class='card'><h2>${DB.records.length}</h2>Total</div>
- <div class='card'><h2>${pending}</h2>Pending</div>
- <div class='card'><h2>${success}</h2>Success</div>`;
-
- discovery.innerHTML=DB.generated.map((o,i)=>`
- <div class='record'><b>#${i+1} ${o.name}</b><br>${o.category} | Score ${o.score}</div>`).join("") || "Import feed and generate queue.";
-
- planner.innerHTML=DB.generated.slice(0,7).map((o,i)=>
- `<b>Day ${i+1}</b><br>${o.name}<hr>`).join("");
-
- let q=(search.value||"").toLowerCase();
- list.innerHTML=DB.records.filter(r=>r.name.toLowerCase().includes(q)).map(r=>`
- <div class='record'>
- <input value="${String(r.name).replace(/"/g,'&quot;')}" onchange="updateName('${r.id}',this.value)" style="width:300px">
- <select onchange="updateStatus('${r.id}',this.value)">
- <option ${r.status==='PENDING'?'selected':''}>PENDING</option>
- <option ${r.status==='SENT'?'selected':''}>SENT</option>
- <option ${r.status==='LOGGED'?'selected':''}>LOGGED</option>
- <option ${r.status==='SUCCESS'?'selected':''}>SUCCESS</option>
- <option ${r.status==='RTS'?'selected':''}>RTS</option>
- </select>
- <button onclick="deleteRecord('${r.id}')">Delete</button>
- </div>`).join("");
-}
-document.addEventListener("input",e=>{if(e.target.id==="search")render();});
-load();
 </script>
-</body></html>
+
+</body>
+</html>
