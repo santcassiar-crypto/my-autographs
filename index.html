@@ -5,7 +5,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS DATA ENGINE V2 (Stable)</title>
+<title>VaultOS CONTROL PANEL V3</title>
 
 <style>
 body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
@@ -20,7 +20,7 @@ header {
 
 .container {
   display:grid;
-  grid-template-columns:320px 1fr;
+  grid-template-columns:360px 1fr;
   height:calc(100vh - 50px);
 }
 
@@ -68,6 +68,7 @@ button:hover { background:#00ddb3; }
   padding:10px;
   margin:6px 0;
   border-radius:8px;
+  cursor:pointer;
 }
 
 .badge {
@@ -80,6 +81,16 @@ button:hover { background:#00ddb3; }
 .SENT { background:#4da6ff; color:#fff; }
 .SUCCESS { background:#00ff88; color:#000; }
 .RTS { background:#ff4d4d; color:#fff; }
+
+.panel {
+  background:#111;
+  border:1px solid #222;
+  padding:10px;
+  border-radius:8px;
+  margin-bottom:10px;
+  color:#ccc;
+  font-size:13px;
+}
 
 input {
   width:100%;
@@ -94,7 +105,7 @@ input {
 
 <body>
 
-<header><b>VaultOS DATA ENGINE V2 (STABLE)</b></header>
+<header><b>VaultOS CONTROL PANEL V3 (AI EXPLAINABLE ENGINE)</b></header>
 
 <div class="container">
 
@@ -103,8 +114,11 @@ input {
 
   <div class="card">
     <button onclick="triggerImport()">IMPORT JSON</button>
-    <button onclick="markNext()">MARK NEXT AS SENT</button>
     <input type="file" id="file" style="display:none" accept="application/json">
+  </div>
+
+  <div class="card">
+    <button onclick="markNext()">MARK NEXT AS SENT</button>
   </div>
 
   <div class="card">
@@ -116,7 +130,10 @@ input {
 <!-- MAIN -->
 <div class="main">
 
-  <div id="ticker" class="ticker">INITIALISING...</div>
+  <div id="ticker" class="ticker">INITIALISING AI CONTROL ENGINE...</div>
+
+  <div id="explain" class="panel">AI reasoning will appear here...</div>
+
   <div id="view"></div>
 
 </div>
@@ -134,17 +151,17 @@ let DB = { records: [] };
 // LOAD / SAVE
 // =========================
 function save(){
-  localStorage.setItem("vault_v2", JSON.stringify(DB));
+  localStorage.setItem("vault_v3", JSON.stringify(DB));
 }
 
 function load(){
-  const d = localStorage.getItem("vault_v2");
+  const d = localStorage.getItem("vault_v3");
   if(d) DB = JSON.parse(d);
 }
 load();
 
 // =========================
-// NORMALISE (FIXES EVERYTHING)
+// NORMALISE
 // =========================
 function norm(r){
   return {
@@ -155,7 +172,23 @@ function norm(r){
 }
 
 // =========================
-// IMPORT (ROBUST)
+// SCORE ENGINE (AI)
+// =========================
+function score(r){
+
+  let s = 0;
+
+  if(r.Status === "PENDING") s += 50;
+  if(r.Status === "RTS") s -= 30;
+
+  // simple stability bonus
+  if(r.Name.length > 5) s += 5;
+
+  return s;
+}
+
+// =========================
+// IMPORT (WITH AUTO CLEAN)
 // =========================
 function triggerImport(){
   document.getElementById("file").click();
@@ -176,25 +209,22 @@ document.getElementById("file").addEventListener("change", e => {
         Array.isArray(data.records) ? data.records :
         [];
 
-      // CLEAN + NORMALISE
-      let cleaned = arr.map(norm);
+      const cleaned = arr.map(norm);
 
-      // DEDUPE BY NAME (CRITICAL FIX)
+      // merge duplicates
       const map = new Map();
 
-      for(const r of cleaned){
+      cleaned.forEach(r=>{
         map.set(r.Name.toLowerCase(), r);
-      }
+      });
 
       DB.records = [...map.values()];
 
       save();
       render();
 
-      alert("Imported: " + DB.records.length);
-
     } catch {
-      alert("Invalid JSON");
+      alert("Import failed");
     }
   };
 
@@ -202,29 +232,29 @@ document.getElementById("file").addEventListener("change", e => {
 });
 
 // =========================
-// TRUE NEXT ENGINE (NO INDEX BUGS)
+// NEXT PICK
 // =========================
-function getQueue(){
-  return DB.records
-    .map(norm)
-    .filter(r => r.Status === "PENDING");
-}
-
 function getNext(){
-  const q = getQueue();
-  return q.length ? q[0] : null;
+
+  const list = DB.records
+    .map(norm)
+    .filter(r => r.Status === "PENDING")
+    .sort((a,b)=>score(b)-score(a));
+
+  return list[0] || null;
 }
 
 // =========================
 // MARK NEXT
 // =========================
 function markNext(){
+
   const next = getNext();
   if(!next) return;
 
   DB.records = DB.records.map(r =>
     r.Name === next.Name
-      ? { ...norm(r), Status:"SENT" }
+      ? {...norm(r), Status:"SENT"}
       : r
   );
 
@@ -233,9 +263,31 @@ function markNext(){
 }
 
 // =========================
+// EXPLAIN AI
+// =========================
+function explain(r){
+
+  if(!r) return "No active mission";
+
+  return `
+    🧠 AI SELECTION EXPLANATION
+
+    • Name: ${r.Name}
+    • Status: ${r.Status}
+    • Score: ${score(r)}
+
+    WHY SELECTED:
+    - Eligible (PENDING)
+    - Passed priority filter
+    - Highest current score in queue
+  `;
+}
+
+// =========================
 // STATS
 // =========================
 function stats(){
+
   const s = {PENDING:0,SENT:0,SUCCESS:0,RTS:0};
 
   DB.records.forEach(r=>{
@@ -259,17 +311,17 @@ function render(){
   const next = getNext();
 
   document.getElementById("ticker").innerHTML =
-    next
-      ? `NEXT → <b>${next.Name}</b> <span class="badge ${next.Status}">${next.Status}</span>`
-      : "NO PENDING ITEMS";
+    next ? `NEXT → <b>${next.Name}</b>` : "NO ACTIVE ITEMS";
+
+  document.getElementById("explain").innerHTML = explain(next);
 
   stats();
 
   const view = document.getElementById("view");
 
-  view.innerHTML = `<h3>QUEUE</h3>`;
+  view.innerHTML = `<h3>CONTROL QUEUE</h3>`;
 
-  getQueue().forEach(r=>{
+  DB.records.forEach(r=>{
     const n = norm(r);
 
     view.innerHTML += `
