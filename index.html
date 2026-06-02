@@ -2,29 +2,26 @@
 
 
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TTM OS ELITE PLUS</title>
+<title>TTM OS ELITE PRO AUTONOMOUS</title>
 <style>
 body{font-family:Arial,sans-serif;background:#151923;color:#fff;margin:0}
 header{background:#1f2633;border-bottom:3px solid #4ea1ff;padding:12px;position:sticky;top:0}
-.card{background:#232b3a;border:1px solid #3d4f6b;border-radius:10px;padding:12px;margin:10px;box-shadow:0 0 10px rgba(78,161,255,.15)}
+.card{background:#232b3a;border:1px solid #3d4f6b;border-radius:10px;padding:12px;margin:10px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;padding:10px}
-input,textarea,button{padding:10px;border-radius:8px;border:1px solid #4ea1ff;background:#2e3747;color:#fff}
-button{cursor:pointer}
-button:hover{background:#4ea1ff}
-textarea{width:100%;height:100px}
-#search{width:100%}
+input,textarea,select,button{padding:8px;border-radius:6px;border:1px solid #4ea1ff;background:#2e3747;color:#fff}
+textarea,#search{width:100%}
 .record{padding:8px;border-bottom:1px solid #333}
+.small{font-size:12px;color:#b9d4ff}
 </style>
 </head>
 <body>
 <header>
-<h2>TTM OS ELITE PLUS</h2>
+<h2>TTM OS ELITE PRO AUTONOMOUS</h2>
 <input id="search" placeholder="Search records">
 </header>
 
@@ -35,178 +32,186 @@ textarea{width:100%;height:100px}
 <input type="file" id="file">
 <button onclick="importJSON()">Import JSON</button>
 <button onclick="exportJSON()">Export JSON</button>
-<button onclick="cleanupDatabase()">🧹 Clean Database</button>
-<div id="msg"></div>
+<button onclick="cleanupDatabase()">Clean Duplicates</button>
 </div>
 
 <div class="card">
 <h3>Bulk Add</h3>
-<textarea id="bulk"></textarea>
+<textarea id="bulk"></textarea><br>
 <button onclick="bulkAdd()">Add All As Pending</button>
 </div>
 
-<div class="card"><h3>🎯 Recommended Next Sends</h3><div id="nextTargets"></div></div>
-<div class="card"><h3>📅 Smart 7 Day Planner</h3><div id="planner"></div></div>
-<div class="card"><h3>📬 Active Portfolio</h3><div id="portfolio"></div></div>
-<div class="card"><h3>⚡ ROI Queue</h3><div id="roi"></div></div>
-<div class="card"><h3>📰 Hobby News Reel</h3><div id="news"></div></div>
-<div class="card"><h3>🔁 Duplicates</h3><div id="dupes"></div></div>
-<div class="card"><h3>Records</h3><div id="list"></div></div>
+<div class="card">
+<h3>Weekly Opportunity Feed</h3>
+<div class="small">One per line: Name | Category | Score</div>
+<textarea id="feedInput"></textarea><br>
+<button onclick="importOpportunities()">Import Feed</button>
+<button onclick="generateSendList()">Generate Send List</button>
+<div id="feedCount"></div>
+</div>
+
+<div class="card"><h3>Generated Send Queue</h3><div id="sendQueue"></div></div>
+<div class="card"><h3>Smart 7 Day Planner</h3><div id="planner"></div></div>
+<div class="card"><h3>ROI Queue</h3><div id="roi"></div></div>
+<div class="card"><h3>News Reel</h3><div id="news"></div></div>
+<div class="card"><h3>Records (Editable)</h3><div id="list"></div></div>
 
 <script>
-const KEY="TTM_OS_ELITE_PLUS";
-
-let DB={records:[],opportunities:[
-{name:"Matt Le Tissier / Rickie Lambert / Eden Hazard Evening",category:"Football Event",score:95,action:"SEND NOW"},
-{name:"England v New Zealand 1st Test (Lord's)",category:"Cricket",score:93,action:"SEND NOW"},
-{name:"England v New Zealand 2nd Test (The Oval)",category:"Cricket",score:92,action:"THIS WEEK"},
-{name:"England v New Zealand Trent Bridge Test",category:"Cricket",score:89,action:"THIS MONTH"},
-{name:"Soccer Aid Participants",category:"Football",score:88,action:"MONITOR"},
-{name:"Jonathan Ross Show Guests",category:"TV",score:86,action:"CHECK GUEST LIST"},
-{name:"Stick To Football Podcast",category:"Podcast",score:85,action:"SEND"},
-{name:"Footballers Football Podcast",category:"Podcast",score:84,action:"SEND"},
-{name:"West End Productions",category:"Theatre",score:83,action:"CHECK CAST"},
-{name:"Football Legends Dinners",category:"Events",score:82,action:"MONITOR"}
-]};
-
-function norm(n){
- return (n||"").toLowerCase()
- .replace(/\([^)]*\)/g,"")
- .replace(/[^a-z0-9 ]/g,"")
- .replace(/\s+/g," ")
- .trim();
-}
-
-function alreadyTracked(name){
- let target=norm(name);
- return DB.records.some(r=>{
-   let existing=norm(r.name);
-   return existing.includes(target)||target.includes(existing);
- });
-}
+const KEY="TTM_OS_ELITE_PRO_AUTONOMOUS_V2";
+let DB={records:[],opportunities:[],generated:[]};
 
 function save(){localStorage.setItem(KEY,JSON.stringify(DB));}
 function load(){let d=localStorage.getItem(KEY);if(d)DB=JSON.parse(d);render();}
+function norm(n){return (n||"").toLowerCase().replace(/\\([^)]*\\)/g,"").replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();}
 
 function importJSON(){
- const f=document.getElementById('file').files[0];
- if(!f) return alert("Choose JSON");
- const r=new FileReader();
+ let f=document.getElementById('file').files[0];
+ if(!f)return alert("Select JSON");
+ let r=new FileReader();
  r.onload=e=>{
-  let data=JSON.parse(e.target.result);
-  if(Array.isArray(data)){
-   DB.records=data.map(x=>({
-    id:x.ID||x.id,
-    name:x.Name||x.name,
-    status:(x.Status||x.status||"PENDING").toUpperCase()
+   let data=JSON.parse(e.target.result);
+   DB.records=(Array.isArray(data)?data:(data.records||[])).map(x=>({
+     id:x.id||x.ID||Date.now()+Math.random(),
+     name:x.name||x.Name||"",
+     status:(x.status||x.Status||"PENDING").toUpperCase()
    }));
-  }else{
-   DB.records=(data.records||[]).map(x=>({
-    id:x.ID||x.id,
-    name:x.Name||x.name,
-    status:(x.Status||x.status||"PENDING").toUpperCase()
-   }));
-  }
-  cleanupDatabase(false);
-  save();
-  render();
+   save();render();
  };
  r.readAsText(f);
 }
 
 function exportJSON(){
- const a=document.createElement("a");
+ let a=document.createElement("a");
  a.href=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:"application/json"}));
- a.download="TTM_OS_ELITE_PLUS.json";
+ a.download="TTM_OS_Backup.json";
  a.click();
 }
 
 function bulkAdd(){
- document.getElementById("bulk").value.split("\n")
- .map(x=>x.trim()).filter(Boolean)
- .forEach(n=>DB.records.push({id:Date.now()+Math.random(),name:n,status:"PENDING"}));
- save(); render();
+ let added=0;
+ document.getElementById("bulk").value.split("\n").forEach(n=>{
+   n=n.trim();
+   if(!n)return;
+   DB.records.push({id:Date.now()+Math.random(),name:n,status:"PENDING"});
+   added++;
+ });
+ save();render();
+ alert(added+" records added");
+}
+
+function updateName(id,val){
+ let r=DB.records.find(x=>x.id==id);
+ if(r){r.name=val;save();}
+}
+function updateStatus(id,val){
+ let r=DB.records.find(x=>x.id==id);
+ if(r){r.status=val;save();render();}
+}
+function deleteRecord(id){
+ if(!confirm("Delete record?"))return;
+ DB.records=DB.records.filter(x=>x.id!=id);
+ save();render();
 }
 
 function rank(s){
- s=(s||"").toUpperCase();
- if(s==="SUCCESS") return 5;
- if(s==="LOGGED") return 4;
- if(s==="SENT") return 3;
- if(s==="PENDING") return 2;
+ if(s==="SUCCESS")return 5;
+ if(s==="LOGGED")return 4;
+ if(s==="SENT")return 3;
+ if(s==="PENDING")return 2;
  return 1;
 }
 
-function cleanupDatabase(alertUser=true){
+function cleanupDatabase(){
  let best={};
  DB.records.forEach(r=>{
-  if(!r.name) return;
-  let k=norm(r.name);
-  if(!best[k] || rank(r.status)>rank(best[k].status)) best[k]=r;
+   let k=norm(r.name);
+   if(!k)return;
+   if(!best[k]||rank(r.status)>rank(best[k].status)) best[k]=r;
  });
- let before=DB.records.length;
  DB.records=Object.values(best);
- let removed=before-DB.records.length;
- save(); render();
- if(alertUser) alert(removed+" duplicate / weaker records removed");
+ save();render();
+}
+
+function importOpportunities(){
+ let added=0;
+ document.getElementById("feedInput").value.split("\n").forEach(line=>{
+   line=line.trim(); if(!line)return;
+   let p=line.split("|");
+   DB.opportunities.push({
+     name:(p[0]||"").trim(),
+     category:(p[1]||"General").trim(),
+     score:Number((p[2]||75).trim())
+   });
+   added++;
+ });
+ document.getElementById("feedCount").innerHTML=added+" opportunities imported";
+ save();render();
+}
+
+function exists(name){
+ let t=norm(name);
+ return DB.records.some(r=>{
+   let e=norm(r.name);
+   return e.includes(t)||t.includes(e);
+ });
+}
+
+function generateSendList(){
+ DB.generated=DB.opportunities.filter(o=>!exists(o.name))
+ .sort((a,b)=>b.score-a.score).slice(0,14);
+ save();render();
 }
 
 function roiScore(r){
  let s=50,n=(r.name||"").toLowerCase();
- if(n.includes("home")) s+=30;
- if(n.includes("event")) s+=20;
- if(n.includes("podcast")) s+=15;
- if(n.includes("business")) s+=10;
- if(n.includes("parents")) s+=10;
- if(n.includes("training")) s-=20;
+ if(n.includes("home"))s+=30;
+ if(n.includes("event"))s+=20;
+ if(n.includes("podcast"))s+=15;
+ if(n.includes("training"))s-=20;
  return s;
 }
 
 function render(){
- const rec=DB.records;
- const pending=rec.filter(x=>x.status==="PENDING").length;
- const success=rec.filter(x=>x.status==="SUCCESS").length;
+ let total=DB.records.length;
+ let pending=DB.records.filter(x=>x.status==="PENDING").length;
+ let success=DB.records.filter(x=>x.status==="SUCCESS").length;
 
- document.getElementById("stats").innerHTML=`
- <div class="card"><h2>${rec.length}</h2>Total</div>
+ stats.innerHTML=`
+ <div class="card"><h2>${total}</h2>Total</div>
  <div class="card"><h2>${pending}</h2>Pending</div>
  <div class="card"><h2>${success}</h2>Success</div>`;
 
- let active=rec.filter(x=>x.status==="PENDING").sort((a,b)=>roiScore(b)-roiScore(a));
+ roi.innerHTML=DB.records.filter(x=>x.status==="PENDING")
+ .sort((a,b)=>roiScore(b)-roiScore(a))
+ .slice(0,20)
+ .map(x=>"⚡ "+x.name+" ("+roiScore(x)+")").join("<br>");
 
- document.getElementById("portfolio").innerHTML=active.slice(0,20).map(x=>"📬 "+x.name).join("<br>");
- document.getElementById("roi").innerHTML=active.slice(0,20).map(x=>"⚡ "+x.name+" ("+roiScore(x)+")").join("<br>");
+ planner.innerHTML=DB.generated.slice(0,7)
+ .map((o,i)=>`<b>Day ${i+1}</b><br>${o.name}`)
+ .join("<hr>");
 
- let available=DB.opportunities.filter(o=>!alreadyTracked(o.name)).sort((a,b)=>b.score-a.score);
+ sendQueue.innerHTML=DB.generated.map(o=>
+ `<div class="record"><b>${o.name}</b><br>${o.category}<br>Score ${o.score}</div>`
+ ).join("");
 
- document.getElementById("nextTargets").innerHTML=available.map(o=>`
- <div class="record">
- <b>🎯 ${o.name}</b><br>
- ${o.category}<br>
- ⭐ ${o.score}<br>
- ${o.action}
- </div>`).join("") || "All opportunities already tracked";
-
- document.getElementById("planner").innerHTML=available.slice(0,7).map((o,i)=>`
- <b>Day ${i+1}</b><br>${o.name}<br>${o.action}`
- ).join("<hr>") || "Review active portfolio";
-
- document.getElementById("news").innerHTML=`
- 🏏 England v NZ Tests<br>
- ⚽ Football Legends Events<br>
- 🎙 Stick To Football Podcast<br>
- 🎙 Footballers Football Podcast<br>
- 🎭 West End Productions<br>
- 🏆 Successes: ${success}<br>
- 📬 Pending: ${pending}`;
-
- let map={};
- rec.forEach(r=>{let k=norm(r.name);map[k]=(map[k]||0)+1;});
- document.getElementById("dupes").innerHTML=Object.keys(map).filter(k=>map[k]>1).join("<br>") || "No duplicates";
+ news.innerHTML=`Pending: ${pending}<br>Success: ${success}<br>Imported Opportunities: ${DB.opportunities.length}`;
 
  let q=(document.getElementById("search").value||"").toLowerCase();
- document.getElementById("list").innerHTML=rec.filter(r=>(r.name||"").toLowerCase().includes(q))
- .map(r=>`<div class="record"><b>${r.name}</b><br>${r.status}</div>`).join("");
+
+ list.innerHTML=DB.records.filter(r=>(r.name||"").toLowerCase().includes(q))
+ .map(r=>`
+ <div class="record">
+ <input style="width:320px" value="${String(r.name).replace(/"/g,'&quot;')}"
+ onchange="updateName('${r.id}',this.value)">
+ <select onchange="updateStatus('${r.id}',this.value)">
+ <option ${r.status==='PENDING'?'selected':''}>PENDING</option>
+ <option ${r.status==='SENT'?'selected':''}>SENT</option>
+ <option ${r.status==='LOGGED'?'selected':''}>LOGGED</option>
+ <option ${r.status==='SUCCESS'?'selected':''}>SUCCESS</option>
+ <option ${r.status==='RTS'?'selected':''}>RTS</option>
+ </select>
+ <button onclick="deleteRecord('${r.id}')">Delete</button>
+ </div>`).join("");
 }
 
 document.addEventListener("input",e=>{if(e.target.id==="search")render();});
@@ -214,3 +219,4 @@ load();
 </script>
 </body>
 </html>
+
