@@ -3,49 +3,119 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS Import Fix</title>
+<title>VaultOS Status Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
 <style>
-body{margin:0;font-family:Arial;background:#0b0f14;color:#fff}
-header{padding:10px;background:#111827}
-.container{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 50px)}
-.sidebar{background:#0f172a;padding:10px;overflow:auto}
-.main{padding:10px;overflow:auto}
-textarea,input,button{
-width:100%;padding:8px;margin:5px 0;background:#111;color:#fff;border:1px solid #333;border-radius:6px
+body{
+    margin:0;
+    font-family:Arial;
+    background:#0b0f14;
+    color:#fff;
 }
-button{background:#2563eb;cursor:pointer}
+
+header{
+    padding:10px;
+    background:#111827;
+    position:sticky;
+    top:0;
+}
+
+.container{
+    display:grid;
+    grid-template-columns:320px 1fr;
+    height:calc(100vh - 50px);
+}
+
+.sidebar{
+    background:#0f172a;
+    padding:10px;
+    overflow:auto;
+}
+
+.main{
+    padding:10px;
+    overflow:auto;
+}
+
+input, select, textarea, button{
+    width:100%;
+    padding:8px;
+    margin:5px 0;
+    border-radius:6px;
+    border:1px solid #333;
+    background:#111;
+    color:#fff;
+}
+
+button{
+    background:#2563eb;
+    cursor:pointer;
+    border:none;
+}
 button:hover{background:#1d4ed8}
-.card{background:#111827;padding:10px;margin:10px 0;border-radius:8px;border:1px solid #222}
-.bad{color:#f87171;font-size:12px}
-.good{color:#34d399;font-size:12px}
+
+.card{
+    background:#111827;
+    padding:10px;
+    margin:8px 0;
+    border-radius:8px;
+    border:1px solid #222;
+}
+
+.tag{
+    display:inline-block;
+    padding:2px 6px;
+    border-radius:4px;
+    font-size:11px;
+    margin-left:6px;
+}
+
+.PENDING{background:#f59e0b}
+.SUCCESS{background:#16a34a}
+.RTS{background:#ef4444}
+.LOGGED{background:#6366f1}
+.SENT{background:#0ea5e9}
+.FAILURE{background:#dc2626}
+
+.small{font-size:12px;opacity:0.7}
+
 </style>
 </head>
 
 <body>
 
-<header>VaultOS Import Fix (No More Untitled Spam)</header>
+<header>VaultOS Status Dashboard (Fixed Schema Engine)</header>
 
 <div class="container">
 
+<!-- SIDEBAR -->
 <div class="sidebar">
 
-<h3>Import JSON</h3>
-<textarea id="box" placeholder="Paste JSON array here"></textarea>
+<h3>Add Record</h3>
 
-<button onclick="preview()">Preview Import</button>
-<button onclick="commit('replace')">Replace</button>
-<button onclick="commit('merge')">Merge</button>
+<input id="name" placeholder="Name"/>
+<select id="status">
+    <option>PENDING</option>
+    <option>SUCCESS</option>
+    <option>RTS</option>
+    <option>LOGGED</option>
+    <option>SENT</option>
+    <option>FAILURE</option>
+</select>
 
-<div id="preview"></div>
+<button onclick="addRecord()">Add</button>
+
+<hr>
+
+<input id="search" placeholder="Search ID / Name / Status" oninput="render()"/>
 
 </div>
 
+<!-- MAIN -->
 <div class="main">
 
-<h3>Records</h3>
-<input id="search" oninput="render()" placeholder="Search...">
-
-<div id="out"></div>
+<div id="output"></div>
 
 </div>
 
@@ -53,122 +123,97 @@ button:hover{background:#1d4ed8}
 
 <script>
 
-let data = JSON.parse(localStorage.getItem("vault_fix") || "[]");
-let staged = [];
+let data = JSON.parse(localStorage.getItem("vault_status") || "[]");
 
-/* ---------- SMART NORMALISER ---------- */
-function normalise(r){
-
-    const title =
-        r.title ??
-        r.name ??
-        r.heading ??
-        r.text ??
-        r.t;
-
-    const desc =
-        r.desc ??
-        r.description ??
-        r.body ??
-        r.content ??
-        r.text;
-
-    return {
-        id: r.id || Date.now() + Math.random(),
-        title: title || null,
-        desc: desc || ""
-    };
+/* ---------- SAVE ---------- */
+function save(){
+    localStorage.setItem("vault_status", JSON.stringify(data));
 }
 
-/* ---------- SAFE PARSER ---------- */
-function safeParse(str){
-    try{
-        return JSON.parse(str);
-    }catch(e){
-        try{
-            let fixed = str
-                .replace(/,\s*}/g,"}")
-                .replace(/,\s*]/g,"]")
-                .replace(/'/g,'"');
+/* ---------- ADD ---------- */
+function addRecord(){
+    const name = document.getElementById("name").value;
+    const status = document.getElementById("status").value;
 
-            return JSON.parse(fixed);
-        }catch(err){
-            return null;
-        }
-    }
-}
+    if(!name) return;
 
-/* ---------- PREVIEW ---------- */
-function preview(){
-    const raw = document.getElementById("box").value;
-    const parsed = safeParse(raw);
-
-    const out = document.getElementById("preview");
-
-    if(!parsed || !Array.isArray(parsed)){
-        out.innerHTML = "<div class='bad'>Invalid JSON or not an array</div>";
-        staged = [];
-        return;
-    }
-
-    staged = parsed.map(normalise);
-
-    let html = "<h4>Preview:</h4>";
-
-    staged.forEach((r,i)=>{
-        html += `
-        <div class="card">
-            <b>${r.title || "<span style='color:red'>MISSING TITLE</span>"}</b>
-            <div>${r.desc || ""}</div>
-        </div>`;
+    data.unshift({
+        ID: Date.now(),
+        Name: name,
+        Status: status
     });
 
-    out.innerHTML = html;
+    document.getElementById("name").value = "";
+    save();
+    render();
 }
 
-/* ---------- COMMIT ---------- */
-function commit(mode){
+/* ---------- EDIT ---------- */
+function edit(id){
+    const item = data.find(x => x.ID === id);
+    if(!item) return;
 
-    if(!staged.length){
-        alert("Nothing staged. Run preview first.");
-        return;
-    }
+    const newName = prompt("Edit Name", item.Name);
+    const newStatus = prompt("Edit Status", item.Status);
 
-    if(mode === "replace"){
-        data = staged;
-    } else {
-        data = [...staged, ...data];
-    }
+    if(newName !== null) item.Name = newName;
+    if(newStatus !== null) item.Status = newStatus;
 
-    localStorage.setItem("vault_fix", JSON.stringify(data));
+    save();
+    render();
+}
 
-    staged = [];
-    document.getElementById("box").value = "";
-    document.getElementById("preview").innerHTML = "";
-
+/* ---------- DELETE ---------- */
+function del(id){
+    data = data.filter(x => x.ID !== id);
+    save();
     render();
 }
 
 /* ---------- RENDER ---------- */
 function render(){
+
     const q = document.getElementById("search").value.toLowerCase();
-    const out = document.getElementById("out");
+    const out = document.getElementById("output");
 
     out.innerHTML = "";
 
-    data
-    .filter(x => (x.title||"").toLowerCase().includes(q))
-    .forEach(r=>{
+    const filtered = data.filter(x =>
+        (x.Name || "").toLowerCase().includes(q) ||
+        (x.Status || "").toLowerCase().includes(q) ||
+        (x.ID + "").includes(q)
+    );
 
-        const div = document.createElement("div");
-        div.className="card";
+    const groups = {};
 
-        div.innerHTML = `
-            <b>${r.title || "<span style='color:red'>Untitled (bad import)</span>"}</b>
-            <div>${r.desc || ""}</div>
+    filtered.forEach(x=>{
+        if(!groups[x.Status]) groups[x.Status] = [];
+        groups[x.Status].push(x);
+    });
+
+    Object.keys(groups).forEach(status=>{
+        const block = document.createElement("div");
+
+        block.innerHTML = `
+            <h3>${status}</h3>
         `;
 
-        out.appendChild(div);
+        groups[status].forEach(r=>{
+            const div = document.createElement("div");
+            div.className="card";
+
+            div.innerHTML = `
+                <b>${r.Name}</b>
+                <span class="tag ${r.Status}">${r.Status}</span>
+                <div class="small">ID: ${r.ID}</div>
+                <button onclick="edit(${r.ID})">Edit</button>
+                <button onclick="del(${r.ID})">Delete</button>
+            `;
+
+            block.appendChild(div);
+        });
+
+        out.appendChild(block);
     });
 }
 
