@@ -3,103 +3,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Vault Tracker V3</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VaultOS V7 Lite Enterprise</title>
 
 <style>
-body {
-  margin:0;
-  font-family: Arial, sans-serif;
-  background:#0b0f14;
-  color:#fff;
+body{
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:#0b0f14;
+    color:#fff;
 }
 
-header {
-  padding:20px;
-  background:#111827;
-  position:sticky;
-  top:0;
-  border-bottom:1px solid #222;
+header{
+    padding:12px;
+    background:#111827;
+    position:sticky;
+    top:0;
+    z-index:10;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 
-h1 { margin:0; font-size:18px; }
+h1{font-size:16px;margin:0}
 
-.container {
-  max-width:1100px;
-  margin:auto;
-  padding:20px;
+.container{
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    height:calc(100vh - 50px);
 }
 
-.controls {
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin:15px 0;
+.sidebar{
+    background:#0f172a;
+    padding:10px;
+    overflow:auto;
+    border-right:1px solid #222;
 }
 
-input, select, button {
-  padding:10px;
-  border-radius:8px;
-  border:none;
-  background:#1f2937;
-  color:#fff;
+.main{
+    padding:10px;
+    overflow:auto;
 }
 
-button {
-  cursor:pointer;
-  background:#2563eb;
+input, textarea, button, select{
+    width:100%;
+    padding:8px;
+    margin:5px 0;
+    border-radius:6px;
+    border:1px solid #333;
+    background:#111;
+    color:#fff;
 }
 
-button:hover {
-  background:#1d4ed8;
+button{
+    cursor:pointer;
+    background:#2563eb;
+    border:none;
 }
 
-.grid {
-  display:grid;
-  grid-template-columns: 1fr;
-  gap:10px;
+button:hover{background:#1d4ed8}
+
+.card{
+    background:#111827;
+    padding:10px;
+    margin:10px 0;
+    border-radius:8px;
+    border:1px solid #222;
 }
 
-.card {
-  background:#111827;
-  border:1px solid #1f2937;
-  padding:12px;
-  border-radius:10px;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
+.small{
+    font-size:12px;
+    opacity:0.7;
 }
 
-.left {
-  display:flex;
-  gap:10px;
-  align-items:center;
-  flex-wrap:wrap;
+.row{
+    display:flex;
+    gap:10px;
 }
 
-input.edit {
-  background:#0b0f14;
-  border:1px solid #374151;
-  min-width:220px;
+.row > *{
+    flex:1;
 }
 
-.small {
-  font-size:11px;
-  opacity:0.6;
+.ticker{
+    background:#1f2937;
+    padding:6px;
+    font-size:12px;
+    overflow:hidden;
+    white-space:nowrap;
 }
 
-.status {
-  padding:6px 8px;
-  border-radius:6px;
-  font-size:12px;
+.marquee{
+    display:inline-block;
+    animation: scroll 20s linear infinite;
 }
 
-.PENDING { background:orange; color:#000; }
-.SENT { background:deepskyblue; color:#000; }
-.RTS { background:red; }
-.SUCCESS { background:limegreen; color:#000; }
-.LOGGED { background:gray; }
+@keyframes scroll{
+    0%{transform:translateX(100%)}
+    100%{transform:translateX(-100%)}
+}
+
+.tag{
+    display:inline-block;
+    padding:2px 6px;
+    background:#2563eb;
+    border-radius:4px;
+    font-size:10px;
+    margin-right:5px;
+}
+
+.danger{background:#dc2626}
+
+.success{background:#16a34a}
 
 </style>
 </head>
@@ -107,178 +123,195 @@ input.edit {
 <body>
 
 <header>
-  <h1>Vault Tracker V3 — Clean Safe System</h1>
+    <h1>VaultOS V7 Lite Enterprise</h1>
+    <div class="small" id="status">Ready</div>
 </header>
+
+<div class="ticker">
+    <div class="marquee" id="newsTicker">Loading system feed...</div>
+</div>
 
 <div class="container">
 
-<div class="controls">
-  <input id="name" placeholder="Add target...">
-  <select id="status">
-    <option>PENDING</option>
-    <option>SENT</option>
-    <option>RTS</option>
-    <option>SUCCESS</option>
-    <option>LOGGED</option>
-  </select>
-  <button onclick="add()">Add</button>
+    <!-- SIDEBAR -->
+    <div class="sidebar">
 
-  <button onclick="exportJSON()">Export</button>
-  <input type="file" onchange="importJSON(event)">
-  <button onclick="resetAll()">Reset</button>
-</div>
+        <h3>Command Console</h3>
+        <input id="cmd" placeholder="Type command: add / clear / export / import" />
+        <button onclick="runCommand()">Execute</button>
 
-<div id="list" class="grid"></div>
+        <hr>
+
+        <h3>Add Record</h3>
+        <input id="title" placeholder="Title"/>
+        <textarea id="desc" placeholder="Description"></textarea>
+        <button onclick="addRecord()">Add</button>
+
+        <hr>
+
+        <h3>Import JSON</h3>
+        <textarea id="importBox" placeholder='Paste JSON array here'></textarea>
+        <button onclick="importData()">Import</button>
+
+        <button onclick="exportData()">Export Data</button>
+
+        <button onclick="clearAll()" class="danger">Clear All</button>
+
+    </div>
+
+    <!-- MAIN -->
+    <div class="main">
+
+        <input id="search" placeholder="Search records..." oninput="render()"/>
+
+        <div id="records"></div>
+
+    </div>
 
 </div>
 
 <script>
 
-let records = [];
+let data = JSON.parse(localStorage.getItem("vaultos_data") || "[]");
 
-/* SAFE LOAD */
-function load() {
-  try {
-    const raw = localStorage.getItem("vault_data");
-    if (!raw) return;
+const tickerMessages = [
+    "System online ✔",
+    "VaultOS V7 running stable",
+    "Records synced locally",
+    "AI layer: standby mode",
+    "Import/export engine active"
+];
 
-    const parsed = JSON.parse(raw);
-
-    records = Array.isArray(parsed) ? parsed.map(normalise) : [];
-
-  } catch {
-    records = [];
-  }
+function save(){
+    localStorage.setItem("vaultos_data", JSON.stringify(data));
 }
 
-/* NORMALISE DATA */
-function normalise(r, i) {
-  return {
-    name: r?.name || `Unnamed ${i}`,
-    status: ["PENDING","SENT","RTS","SUCCESS","LOGGED"].includes(r?.status)
-      ? r.status
-      : "PENDING"
-  };
+function addRecord(){
+    const title = document.getElementById("title").value;
+    const desc = document.getElementById("desc").value;
+
+    if(!title) return;
+
+    data.unshift({
+        id: Date.now(),
+        title,
+        desc,
+        tags: []
+    });
+
+    document.getElementById("title").value="";
+    document.getElementById("desc").value="";
+
+    save();
+    render();
 }
 
-/* SAVE */
-function save() {
-  localStorage.setItem("vault_data", JSON.stringify(records));
+function deleteRecord(id){
+    data = data.filter(x => x.id !== id);
+    save();
+    render();
 }
 
-/* RENDER */
-function render() {
-  const el = document.getElementById("list");
-  el.innerHTML = "";
+function editRecord(id){
+    const item = data.find(x => x.id === id);
+    const newTitle = prompt("Edit title", item.title);
+    const newDesc = prompt("Edit description", item.desc);
 
-  records.forEach((r, i) => {
+    if(newTitle !== null) item.title = newTitle;
+    if(newDesc !== null) item.desc = newDesc;
 
-    const div = document.createElement("div");
-    div.className = "card";
-
-    div.innerHTML = `
-      <div class="left">
-        <input class="edit" value="${r.name}"
-          onchange="editName(${i}, this.value)">
-
-        <select onchange="editStatus(${i}, this.value)">
-          <option ${r.status==="PENDING"?"selected":""}>PENDING</option>
-          <option ${r.status==="SENT"?"selected":""}>SENT</option>
-          <option ${r.status==="RTS"?"selected":""}>RTS</option>
-          <option ${r.status==="SUCCESS"?"selected":""}>SUCCESS</option>
-          <option ${r.status==="LOGGED"?"selected":""}>LOGGED</option>
-        </select>
-
-        <span class="status ${r.status}">${r.status}</span>
-
-        <div class="small">#${i}</div>
-      </div>
-
-      <button onclick="del(${i})">Delete</button>
-    `;
-
-    el.appendChild(div);
-  });
+    save();
+    render();
 }
 
-/* ACTIONS */
-function add() {
-  const name = document.getElementById("name").value.trim();
-  const status = document.getElementById("status").value;
+function render(){
+    const q = document.getElementById("search").value.toLowerCase();
+    const container = document.getElementById("records");
 
-  if (!name) return;
+    container.innerHTML = "";
 
-  records.push({ name, status });
+    data
+    .filter(x => x.title.toLowerCase().includes(q) || x.desc.toLowerCase().includes(q))
+    .forEach(item => {
 
-  document.getElementById("name").value = "";
+        const div = document.createElement("div");
+        div.className = "card";
 
-  save();
-  render();
+        div.innerHTML = `
+            <div><b>${item.title}</b></div>
+            <div class="small">${item.desc || ""}</div>
+            <div style="margin-top:8px">
+                <button onclick="editRecord(${item.id})">Edit</button>
+                <button onclick="deleteRecord(${item.id})" class="danger">Delete</button>
+            </div>
+        `;
+
+        container.appendChild(div);
+    });
 }
 
-function editName(i, val) {
-  if (!records[i]) return;
-  records[i].name = val || "Unnamed";
-  save();
+function exportData(){
+    const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "vaultos_export.json";
+    a.click();
 }
 
-function editStatus(i, val) {
-  if (!records[i]) return;
-  records[i].status = val;
-  save();
-}
-
-function del(i) {
-  records.splice(i, 1);
-  save();
-  render();
-}
-
-/* IMPORT (SAFE) */
-function importJSON(event) {
-  const file = event.target.files[0];
-  const reader = new FileReader();
-
-  reader.onload = (e) => {
-    try {
-      const parsed = JSON.parse(e.target.result);
-      const arr = Array.isArray(parsed) ? parsed : [parsed];
-
-      records = arr.map(normalise);
-
-      save();
-      render();
-
-      alert("Imported: " + records.length);
-
-    } catch {
-      alert("Invalid JSON");
+function importData(){
+    try{
+        const imported = JSON.parse(document.getElementById("importBox").value);
+        if(Array.isArray(imported)){
+            data = imported;
+            save();
+            render();
+            alert("Imported successfully");
+        }
+    } catch(e){
+        alert("Invalid JSON");
     }
-  };
-
-  reader.readAsText(file);
 }
 
-/* EXPORT */
-function exportJSON() {
-  const blob = new Blob([JSON.stringify(records, null, 2)], {type:"application/json"});
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "vault_v3.json";
-  a.click();
+function clearAll(){
+    if(confirm("Clear all data?")){
+        data = [];
+        save();
+        render();
+    }
 }
 
-/* RESET */
-function resetAll() {
-  localStorage.removeItem("vault_data");
-  records = [];
-  render();
+function runCommand(){
+    const cmd = document.getElementById("cmd").value.toLowerCase();
+
+    if(cmd === "clear"){
+        clearAll();
+    }
+    else if(cmd === "export"){
+        exportData();
+    }
+    else if(cmd === "import"){
+        document.getElementById("importBox").focus();
+    }
+    else if(cmd.startsWith("add ")){
+        const text = cmd.replace("add ","");
+        data.unshift({id:Date.now(), title:text, desc:"(command created)"});
+        save(); render();
+    }
+    else{
+        alert("Unknown command");
+    }
+
+    document.getElementById("cmd").value="";
 }
 
-load();
+function updateTicker(){
+    const msg = tickerMessages[Math.floor(Math.random()*tickerMessages.length)];
+    document.getElementById("newsTicker").innerText = msg;
+}
+
 render();
+updateTicker();
+setInterval(updateTicker, 6000);
 
 </script>
 
