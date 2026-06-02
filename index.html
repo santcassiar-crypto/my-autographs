@@ -1,11 +1,10 @@
 
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VaultOS CONTROL PANEL V3</title>
+<title>VaultOS CONTROL CENTER V4</title>
 
 <style>
 body { margin:0; font-family:Arial; background:#0b0b0b; color:#fff; }
@@ -20,22 +19,28 @@ header {
 
 .container {
   display:grid;
-  grid-template-columns:360px 1fr;
+  grid-template-columns:340px 1fr;
   height:calc(100vh - 50px);
 }
 
 .sidebar {
   background:#0f0f0f;
-  border-right:1px solid #222;
   padding:10px;
+  border-right:1px solid #222;
+  overflow:auto;
+}
+
+.main {
+  padding:10px;
+  overflow:auto;
 }
 
 .card {
   background:#111;
   border:1px solid #222;
   padding:10px;
-  margin-bottom:10px;
   border-radius:8px;
+  margin-bottom:10px;
 }
 
 button {
@@ -45,21 +50,18 @@ button {
   background:#00ffcc;
   border:0;
   font-weight:bold;
-  border-radius:5px;
   cursor:pointer;
 }
 
 button:hover { background:#00ddb3; }
 
-.main { padding:10px; overflow:auto; }
-
-.ticker {
-  background:#111;
-  border:1px solid #222;
-  padding:12px;
-  border-radius:8px;
-  margin-bottom:10px;
-  color:#00ffcc;
+input, textarea {
+  width:100%;
+  padding:8px;
+  background:#000;
+  border:1px solid #333;
+  color:#fff;
+  margin-top:5px;
 }
 
 .record {
@@ -67,13 +69,12 @@ button:hover { background:#00ddb3; }
   border:1px solid #222;
   padding:10px;
   margin:6px 0;
-  border-radius:8px;
-  cursor:pointer;
+  border-radius:6px;
 }
 
 .badge {
   padding:3px 8px;
-  border-radius:20px;
+  border-radius:12px;
   font-size:11px;
 }
 
@@ -82,30 +83,20 @@ button:hover { background:#00ddb3; }
 .SUCCESS { background:#00ff88; color:#000; }
 .RTS { background:#ff4d4d; color:#fff; }
 
-.panel {
+.ticker {
   background:#111;
   border:1px solid #222;
-  padding:10px;
-  border-radius:8px;
+  padding:12px;
   margin-bottom:10px;
-  color:#ccc;
-  font-size:13px;
-}
-
-input {
-  width:100%;
-  padding:8px;
-  background:#000;
-  border:1px solid #333;
-  color:#fff;
-  border-radius:5px;
+  color:#00ffcc;
+  border-radius:8px;
 }
 </style>
 </head>
 
 <body>
 
-<header><b>VaultOS CONTROL PANEL V3 (AI EXPLAINABLE ENGINE)</b></header>
+<header><b>VaultOS CONTROL CENTER V4</b></header>
 
 <div class="container">
 
@@ -113,16 +104,19 @@ input {
 <div class="sidebar">
 
   <div class="card">
-    <button onclick="triggerImport()">IMPORT JSON</button>
-    <input type="file" id="file" style="display:none" accept="application/json">
+    <b>Quick Add</b>
+    <input id="name" placeholder="Name">
+    <button onclick="addRecord()">ADD RECORD</button>
   </div>
 
   <div class="card">
-    <button onclick="markNext()">MARK NEXT AS SENT</button>
+    <b>Bulk Import (paste JSON)</b>
+    <textarea id="bulk" placeholder='[{"ID":1,"Name":"Test","Status":"PENDING"}]'></textarea>
+    <button onclick="bulkImport()">IMPORT PASTE</button>
   </div>
 
   <div class="card">
-    <div id="stats"></div>
+    <button onclick="markNext()">MARK NEXT SENT</button>
   </div>
 
 </div>
@@ -130,9 +124,7 @@ input {
 <!-- MAIN -->
 <div class="main">
 
-  <div id="ticker" class="ticker">INITIALISING AI CONTROL ENGINE...</div>
-
-  <div id="explain" class="panel">AI reasoning will appear here...</div>
+  <div id="ticker" class="ticker"></div>
 
   <div id="view"></div>
 
@@ -142,119 +134,79 @@ input {
 
 <script>
 
-// =========================
-// DB
-// =========================
 let DB = { records: [] };
 
-// =========================
-// LOAD / SAVE
-// =========================
-function save(){
-  localStorage.setItem("vault_v3", JSON.stringify(DB));
-}
-
+// LOAD
 function load(){
-  const d = localStorage.getItem("vault_v3");
+  const d = localStorage.getItem("vault_v4");
   if(d) DB = JSON.parse(d);
+}
+function save(){
+  localStorage.setItem("vault_v4", JSON.stringify(DB));
 }
 load();
 
-// =========================
 // NORMALISE
-// =========================
 function norm(r){
   return {
     ID: r?.ID ?? Date.now(),
-    Name: (r?.Name ?? "Untitled").trim(),
-    Status: (r?.Status ?? "PENDING").toString().trim().toUpperCase()
+    Name: (r?.Name ?? "").trim(),
+    Status: (r?.Status ?? "PENDING").toUpperCase().trim()
   };
 }
 
-// =========================
-// SCORE ENGINE (AI)
-// =========================
-function score(r){
+// ADD RECORD
+function addRecord(){
+  const name = document.getElementById("name").value.trim();
+  if(!name) return;
 
-  let s = 0;
+  DB.records.push({
+    ID: Date.now(),
+    Name: name,
+    Status: "PENDING"
+  });
 
-  if(r.Status === "PENDING") s += 50;
-  if(r.Status === "RTS") s -= 30;
-
-  // simple stability bonus
-  if(r.Name.length > 5) s += 5;
-
-  return s;
+  document.getElementById("name").value = "";
+  save();
+  render();
 }
 
-// =========================
-// IMPORT (WITH AUTO CLEAN)
-// =========================
-function triggerImport(){
-  document.getElementById("file").click();
+// BULK IMPORT
+function bulkImport(){
+  try {
+    const data = JSON.parse(document.getElementById("bulk").value);
+
+    if(!Array.isArray(data)) return alert("Must be array");
+
+    data.forEach(r=>{
+      DB.records.push(norm(r));
+    });
+
+    save();
+    render();
+
+  } catch {
+    alert("Invalid JSON");
+  }
 }
 
-document.getElementById("file").addEventListener("change", e => {
-  const file = e.target.files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-
-  reader.onload = ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-
-      const arr =
-        Array.isArray(data) ? data :
-        Array.isArray(data.records) ? data.records :
-        [];
-
-      const cleaned = arr.map(norm);
-
-      // merge duplicates
-      const map = new Map();
-
-      cleaned.forEach(r=>{
-        map.set(r.Name.toLowerCase(), r);
-      });
-
-      DB.records = [...map.values()];
-
-      save();
-      render();
-
-    } catch {
-      alert("Import failed");
-    }
-  };
-
-  reader.readAsText(file);
-});
-
-// =========================
-// NEXT PICK
-// =========================
+// NEXT ENGINE
 function getNext(){
-
   const list = DB.records
     .map(norm)
-    .filter(r => r.Status === "PENDING")
-    .sort((a,b)=>score(b)-score(a));
+    .filter(r => r.Status === "PENDING");
 
   return list[0] || null;
 }
 
-// =========================
 // MARK NEXT
-// =========================
 function markNext(){
-
   const next = getNext();
   if(!next) return;
 
   DB.records = DB.records.map(r =>
     r.Name === next.Name
-      ? {...norm(r), Status:"SENT"}
+      ? {...r, Status:"SENT"}
       : r
   );
 
@@ -262,64 +214,26 @@ function markNext(){
   render();
 }
 
-// =========================
-// EXPLAIN AI
-// =========================
-function explain(r){
-
-  if(!r) return "No active mission";
-
-  return `
-    🧠 AI SELECTION EXPLANATION
-
-    • Name: ${r.Name}
-    • Status: ${r.Status}
-    • Score: ${score(r)}
-
-    WHY SELECTED:
-    - Eligible (PENDING)
-    - Passed priority filter
-    - Highest current score in queue
-  `;
-}
-
-// =========================
-// STATS
-// =========================
-function stats(){
-
-  const s = {PENDING:0,SENT:0,SUCCESS:0,RTS:0};
-
-  DB.records.forEach(r=>{
-    const n = norm(r);
-    if(s[n.Status] !== undefined) s[n.Status]++;
-  });
-
-  document.getElementById("stats").innerHTML = `
-    PENDING: ${s.PENDING}<br>
-    SENT: ${s.SENT}<br>
-    SUCCESS: ${s.SUCCESS}<br>
-    RTS: ${s.RTS}
-  `;
-}
-
-// =========================
-// RENDER
-// =========================
-function render(){
-
+// TICKER (NEWS-LIKE FEED)
+function ticker(){
   const next = getNext();
 
+  if(!next){
+    document.getElementById("ticker").innerHTML = "NO ACTIVE ITEMS";
+    return;
+  }
+
   document.getElementById("ticker").innerHTML =
-    next ? `NEXT → <b>${next.Name}</b>` : "NO ACTIVE ITEMS";
+    `🔥 NEXT → <b>${next.Name}</b> | STATUS: ${next.Status}`;
+}
 
-  document.getElementById("explain").innerHTML = explain(next);
-
-  stats();
+// RENDER
+function render(){
+  ticker();
 
   const view = document.getElementById("view");
 
-  view.innerHTML = `<h3>CONTROL QUEUE</h3>`;
+  view.innerHTML = "<h3>QUEUE</h3>";
 
   DB.records.forEach(r=>{
     const n = norm(r);
@@ -333,7 +247,6 @@ function render(){
   });
 }
 
-// INIT
 load();
 render();
 
