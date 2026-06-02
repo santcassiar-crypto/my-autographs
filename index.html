@@ -3,223 +3,158 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS Status Dashboard</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VaultOS Stability Release 1</title>
 <style>
-body{
-    margin:0;
-    font-family:Arial;
-    background:#0b0f14;
-    color:#fff;
-}
-
-header{
-    padding:10px;
-    background:#111827;
-    position:sticky;
-    top:0;
-}
-
-.container{
-    display:grid;
-    grid-template-columns:320px 1fr;
-    height:calc(100vh - 50px);
-}
-
-.sidebar{
-    background:#0f172a;
-    padding:10px;
-    overflow:auto;
-}
-
-.main{
-    padding:10px;
-    overflow:auto;
-}
-
-input, select, textarea, button{
-    width:100%;
-    padding:8px;
-    margin:5px 0;
-    border-radius:6px;
-    border:1px solid #333;
-    background:#111;
-    color:#fff;
-}
-
-button{
-    background:#2563eb;
-    cursor:pointer;
-    border:none;
-}
-button:hover{background:#1d4ed8}
-
-.card{
-    background:#111827;
-    padding:10px;
-    margin:8px 0;
-    border-radius:8px;
-    border:1px solid #222;
-}
-
-.tag{
-    display:inline-block;
-    padding:2px 6px;
-    border-radius:4px;
-    font-size:11px;
-    margin-left:6px;
-}
-
-.PENDING{background:#f59e0b}
-.SUCCESS{background:#16a34a}
-.RTS{background:#ef4444}
-.LOGGED{background:#6366f1}
-.SENT{background:#0ea5e9}
-.FAILURE{background:#dc2626}
-
-.small{font-size:12px;opacity:0.7}
-
+body{margin:0;font-family:Arial;background:#0b0f14;color:#fff}
+header{background:#111827;padding:12px;position:sticky;top:0}
+.wrap{padding:12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.card{background:#111827;padding:10px;border-radius:8px}
+input,select,button,textarea{padding:8px;border-radius:6px;border:1px solid #333;background:#111;color:#fff}
+button{cursor:pointer}
+table{width:100%;border-collapse:collapse;margin-top:10px}
+td,th{border:1px solid #222;padding:6px}
+.drop{border:2px dashed #555;padding:20px;text-align:center;margin:10px 0}
+.log{max-height:180px;overflow:auto;background:#111827;padding:8px}
 </style>
 </head>
-
 <body>
+<header><h2>VaultOS Stability Release 1</h2></header>
+<div class="wrap">
 
-<header>VaultOS Status Dashboard (Fixed Schema Engine)</header>
+<div class="cards" id="stats"></div>
 
-<div class="container">
+<p>
+<input type="file" id="file" accept=".json">
+<button onclick="exportJSON()">Export JSON</button>
+<button onclick="backupJSON()">Backup</button>
+</p>
 
-<!-- SIDEBAR -->
-<div class="sidebar">
+<div class="drop" id="drop">Drag JSON file here</div>
+
+<p>
+<button onclick="importMode('replace')">Import Replace</button>
+<button onclick="importMode('merge')">Import Merge</button>
+</p>
+
+<p>
+<input id="search" placeholder="Search Name / Status / ID" oninput="render()">
+</p>
 
 <h3>Add Record</h3>
-
-<input id="name" placeholder="Name"/>
+<input id="name" placeholder="Name">
 <select id="status">
-    <option>PENDING</option>
-    <option>SUCCESS</option>
-    <option>RTS</option>
-    <option>LOGGED</option>
-    <option>SENT</option>
-    <option>FAILURE</option>
+<option>PENDING</option><option>SENT</option><option>LOGGED</option>
+<option>SUCCESS</option><option>RTS</option><option>FAILURE</option>
 </select>
-
 <button onclick="addRecord()">Add</button>
 
-<hr>
+<h3>Bulk Add</h3>
+<textarea id="bulk" rows="4" placeholder="One name per line"></textarea>
+<button onclick="bulkAdd()">Bulk Add</button>
 
-<input id="search" placeholder="Search ID / Name / Status" oninput="render()"/>
+<h3>Records</h3>
+<table>
+<thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Action</th></tr></thead>
+<tbody id="tbody"></tbody>
+</table>
 
-</div>
-
-<!-- MAIN -->
-<div class="main">
-
-<div id="output"></div>
-
-</div>
+<h3>Activity Log</h3>
+<div class="log" id="log"></div>
 
 </div>
 
 <script>
+let data=JSON.parse(localStorage.getItem('vaultos_sr1')||'[]');
+let pendingImport=null;
 
-let data = JSON.parse(localStorage.getItem("vault_status") || "[]");
-
-/* ---------- SAVE ---------- */
-function save(){
-    localStorage.setItem("vault_status", JSON.stringify(data));
+function save(){localStorage.setItem('vaultos_sr1',JSON.stringify(data));render();}
+function addLog(t){
+ let logs=JSON.parse(localStorage.getItem('vaultos_logs')||'[]');
+ logs.unshift(new Date().toLocaleString()+" - "+t);
+ localStorage.setItem('vaultos_logs',JSON.stringify(logs.slice(0,200)));
+ renderLogs();
 }
-
-/* ---------- ADD ---------- */
-function addRecord(){
-    const name = document.getElementById("name").value;
-    const status = document.getElementById("status").value;
-
-    if(!name) return;
-
-    data.unshift({
-        ID: Date.now(),
-        Name: name,
-        Status: status
-    });
-
-    document.getElementById("name").value = "";
-    save();
-    render();
+function renderLogs(){
+ let logs=JSON.parse(localStorage.getItem('vaultos_logs')||'[]');
+ document.getElementById('log').innerHTML=logs.join('<br>');
 }
-
-/* ---------- EDIT ---------- */
-function edit(id){
-    const item = data.find(x => x.ID === id);
-    if(!item) return;
-
-    const newName = prompt("Edit Name", item.Name);
-    const newStatus = prompt("Edit Status", item.Status);
-
-    if(newName !== null) item.Name = newName;
-    if(newStatus !== null) item.Status = newStatus;
-
-    save();
-    render();
-}
-
-/* ---------- DELETE ---------- */
-function del(id){
-    data = data.filter(x => x.ID !== id);
-    save();
-    render();
-}
-
-/* ---------- RENDER ---------- */
 function render(){
-
-    const q = document.getElementById("search").value.toLowerCase();
-    const out = document.getElementById("output");
-
-    out.innerHTML = "";
-
-    const filtered = data.filter(x =>
-        (x.Name || "").toLowerCase().includes(q) ||
-        (x.Status || "").toLowerCase().includes(q) ||
-        (x.ID + "").includes(q)
-    );
-
-    const groups = {};
-
-    filtered.forEach(x=>{
-        if(!groups[x.Status]) groups[x.Status] = [];
-        groups[x.Status].push(x);
-    });
-
-    Object.keys(groups).forEach(status=>{
-        const block = document.createElement("div");
-
-        block.innerHTML = `
-            <h3>${status}</h3>
-        `;
-
-        groups[status].forEach(r=>{
-            const div = document.createElement("div");
-            div.className="card";
-
-            div.innerHTML = `
-                <b>${r.Name}</b>
-                <span class="tag ${r.Status}">${r.Status}</span>
-                <div class="small">ID: ${r.ID}</div>
-                <button onclick="edit(${r.ID})">Edit</button>
-                <button onclick="del(${r.ID})">Delete</button>
-            `;
-
-            block.appendChild(div);
-        });
-
-        out.appendChild(block);
-    });
+ let q=(document.getElementById('search')?.value||'').toLowerCase();
+ let tb=document.getElementById('tbody');
+ tb.innerHTML='';
+ let filtered=data.filter(r=>
+ String(r.ID).includes(q)||
+ (r.Name||'').toLowerCase().includes(q)||
+ (r.Status||'').toLowerCase().includes(q)
+ );
+ filtered.forEach(r=>{
+  let tr=document.createElement('tr');
+  tr.innerHTML=`<td>${r.ID}</td>
+  <td contenteditable onblur="editName(${r.ID},this.innerText)">${r.Name}</td>
+  <td contenteditable onblur="editStatus(${r.ID},this.innerText)">${r.Status}</td>
+  <td><button onclick="delRec(${r.ID})">Delete</button></td>`;
+  tb.appendChild(tr);
+ });
+ let counts={TOTAL:data.length,PENDING:0,SENT:0,LOGGED:0,SUCCESS:0,RTS:0,FAILURE:0};
+ data.forEach(r=>{if(counts[r.Status]!=null)counts[r.Status]++;});
+ document.getElementById('stats').innerHTML=Object.entries(counts).map(([k,v])=>`<div class="card"><b>${k}</b><br>${v}</div>`).join('');
 }
+function addRecord(){
+ let n=document.getElementById('name').value.trim();
+ if(!n)return;
+ data.unshift({ID:Date.now(),Name:n,Status:document.getElementById('status').value});
+ addLog('Added '+n); save();
+}
+function bulkAdd(){
+ document.getElementById('bulk').value.split('\n').map(x=>x.trim()).filter(Boolean).forEach(n=>{
+  data.unshift({ID:Date.now()+Math.random(),Name:n,Status:'PENDING'});
+ });
+ addLog('Bulk add completed'); save();
+}
+function editName(id,v){let r=data.find(x=>x.ID==id); if(r){r.Name=v; save();}}
+function editStatus(id,v){let r=data.find(x=>x.ID==id); if(r){r.Status=v.toUpperCase(); save();}}
+function delRec(id){data=data.filter(x=>x.ID!=id); addLog('Deleted '+id); save();}
 
-render();
-
+function handleImported(arr,mode){
+ localStorage.setItem('vaultos_backup_'+Date.now(),JSON.stringify(data));
+ let mapped=arr.map(r=>({
+   ID:r.ID ?? r.id ?? Date.now()+Math.random(),
+   Name:r.Name ?? r.name ?? '',
+   Status:(r.Status ?? r.status ?? 'PENDING').toUpperCase()
+ }));
+ if(mode==='replace') data=mapped;
+ else data=[...data,...mapped];
+ addLog('Imported '+mapped.length+' records ('+mode+')');
+ save();
+}
+function importMode(mode){
+ if(!pendingImport){alert('Choose or drop a JSON file first'); return;}
+ handleImported(pendingImport,mode);
+}
+document.getElementById('file').addEventListener('change',e=>{
+ let f=e.target.files[0]; if(!f)return;
+ let r=new FileReader();
+ r.onload=()=>{pendingImport=JSON.parse(r.result); alert('File loaded. Click Import Replace or Import Merge.');};
+ r.readAsText(f);
+});
+let drop=document.getElementById('drop');
+drop.ondragover=e=>e.preventDefault();
+drop.ondrop=e=>{
+ e.preventDefault();
+ let f=e.dataTransfer.files[0];
+ let r=new FileReader();
+ r.onload=()=>{pendingImport=JSON.parse(r.result); alert('File loaded. Click Import Replace or Import Merge.');};
+ r.readAsText(f);
+};
+function exportJSON(){
+ let a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+ a.download='vaultos_export.json'; a.click();
+}
+function backupJSON(){exportJSON(); addLog('Backup exported');}
+render(); renderLogs();
 </script>
-
 </body>
 </html>
