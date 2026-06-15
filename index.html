@@ -1,53 +1,46 @@
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Mail Engine v2</title>
-
+<title>VaultOS Stability Release 1</title>
 <style>
 body{margin:0;font-family:Arial;background:#0b0f14;color:#fff}
 header{background:#111827;padding:12px;position:sticky;top:0}
 .wrap{padding:12px}
-
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
 .card{background:#111827;padding:10px;border-radius:8px}
-
-input,select,button,textarea{
-padding:8px;border-radius:6px;border:1px solid #333;background:#111;color:#fff
-}
+input,select,button,textarea{padding:8px;border-radius:6px;border:1px solid #333;background:#111;color:#fff}
 button{cursor:pointer}
-
 table{width:100%;border-collapse:collapse;margin-top:10px}
 td,th{border:1px solid #222;padding:6px}
-
-.log{max-height:160px;overflow:auto;background:#111827;padding:8px;margin-top:10px}
-
-.engine{margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
-
-.small{font-size:12px;color:#aaa}
+.drop{border:2px dashed #555;padding:20px;text-align:center;margin:10px 0}
+.log{max-height:180px;overflow:auto;background:#111827;padding:8px}
 </style>
 </head>
-
 <body>
-<header><h2>VaultOS Mail Engine v2</h2></header>
+
+<header><h2>VaultOS Stability Release 1</h2></header>
 
 <div class="wrap">
 
-<!-- STATS -->
 <div class="cards" id="stats"></div>
 
-<!-- ENGINE -->
-<h3>Weekly Engine Output</h3>
-<div class="engine" id="engine"></div>
-
-<!-- INPUTS -->
 <p>
-<input id="search" placeholder="Search..." oninput="render()">
+<input type="file" id="file" accept=".json">
+<button onclick="exportJSON()">Export JSON</button>
+<button onclick="backupJSON()">Backup</button>
+</p>
+
+<div class="drop" id="drop">Drag JSON file here</div>
+
+<p>
+<button onclick="importMode('replace')">Import Replace</button>
+<button onclick="importMode('merge')">Import Merge</button>
+</p>
+
+<p>
+<input id="search" placeholder="Search Name / Status / ID" oninput="render()">
 </p>
 
 <h3>Add Record</h3>
@@ -56,18 +49,12 @@ td,th{border:1px solid #222;padding:6px}
 <select id="status">
 <option>PENDING</option>
 <option>SENT</option>
+<option>LOGGED</option>
 <option>SUCCESS</option>
 <option>RTS</option>
 <option>FAILURE</option>
+<option>NOT ACTIVE</option>
 </select>
-
-<select id="tag">
-<option>🟢 CONFIRMED</option>
-<option>🟡 POSSIBLE</option>
-<option>🔴 UNVERIFIED</option>
-</select>
-
-<input id="category" placeholder="Category (Theatre / Sport / Film)">
 
 <button onclick="addRecord()">Add</button>
 
@@ -75,171 +62,93 @@ td,th{border:1px solid #222;padding:6px}
 <textarea id="bulk" rows="4" placeholder="One name per line"></textarea>
 <button onclick="bulkAdd()">Bulk Add</button>
 
-<!-- TABLE -->
 <h3>Records</h3>
 <table>
 <thead>
-<tr>
-<th>ID</th>
-<th>Name</th>
-<th>Status</th>
-<th>Tag</th>
-<th>Category</th>
-<th>Action</th>
-</tr>
+<tr><th>ID</th><th>Name</th><th>Status</th><th>Action</th></tr>
 </thead>
 <tbody id="tbody"></tbody>
 </table>
 
-<!-- LOG -->
 <h3>Activity Log</h3>
 <div class="log" id="log"></div>
 
 </div>
 
 <script>
-let data = JSON.parse(localStorage.getItem('vaultos_v2') || '[]');
+let data=JSON.parse(localStorage.getItem('vaultos_sr1')||'[]');
+let pendingImport=null;
 
-/* ---------------- SAVE ---------------- */
 function save(){
- localStorage.setItem('vaultos_v2', JSON.stringify(data));
- render();
+  localStorage.setItem('vaultos_sr1',JSON.stringify(data));
+  render();
 }
 
-/* ---------------- LOG ---------------- */
-function log(t){
- let logs = JSON.parse(localStorage.getItem('vaultos_logs_v2') || '[]');
+function addLog(t){
+ let logs=JSON.parse(localStorage.getItem('vaultos_logs')||'[]');
  logs.unshift(new Date().toLocaleString()+" - "+t);
- localStorage.setItem('vaultos_logs_v2', JSON.stringify(logs.slice(0,200)));
+ localStorage.setItem('vaultos_logs',JSON.stringify(logs.slice(0,200)));
  renderLogs();
 }
 
 function renderLogs(){
- let logs = JSON.parse(localStorage.getItem('vaultos_logs_v2') || '[]');
- document.getElementById('log').innerHTML = logs.join('<br>');
+ let logs=JSON.parse(localStorage.getItem('vaultos_logs')||'[]');
+ document.getElementById('log').innerHTML=logs.join('<br>');
 }
 
-/* ---------------- PRIORITY SCORE ---------------- */
-function score(r){
- let s = 0;
- if(r.Tag === "🟢 CONFIRMED") s += 4;
- if(r.Tag === "🟡 POSSIBLE") s += 2;
- if(r.Category === "Theatre") s += 3;
- if(r.Category === "Sport") s += 2;
- if(r.Status !== "FAILURE") s += 1;
- return s;
-}
-
-/* ---------------- RELEASE RADAR ---------------- */
-function releaseRadar(r){
- if(!r.ReleaseDate) return r;
-
- let now = new Date();
- let rd = new Date(r.ReleaseDate);
-
- if(rd <= now && r.Tag !== "🔴 UNVERIFIED"){
-  r.Active = true;
-  r.Status = "READY";
- } else {
-  r.Active = false;
- }
-
- return r;
-}
-
-/* ---------------- WEEKLY ENGINE ---------------- */
-function engine(){
- let send=[],hold=[],remove=[];
-
- data.forEach(r=>{
-
-  if(r.Tag === "🔴 UNVERIFIED"){
-    remove.push(r);
-    return;
-  }
-
-  if(r.Tag === "🟡 POSSIBLE" && !r.Active){
-    hold.push(r);
-    return;
-  }
-
-  if(r.Tag === "🟢 CONFIRMED" && r.Active){
-    if(r.Status !== "SUCCESS"){
-      send.push(r);
-    }
-  }
-
- });
-
- send.sort((a,b)=>score(b)-score(a));
-
- return {send,hold,remove};
-}
-
-/* ---------------- RENDER ---------------- */
 function render(){
-
- data = data.map(releaseRadar);
-
- let q = (document.getElementById('search').value||'').toLowerCase();
-
- let tb = document.getElementById('tbody');
+ let q=(document.getElementById('search')?.value||'').toLowerCase();
+ let tb=document.getElementById('tbody');
  tb.innerHTML='';
 
- let filtered = data.filter(r =>
- (r.Name||'').toLowerCase().includes(q) ||
- (r.Status||'').toLowerCase().includes(q) ||
- (r.Tag||'').toLowerCase().includes(q)
+ let filtered=data.filter(r=>
+  String(r.ID).includes(q)||
+  (r.Name||'').toLowerCase().includes(q)||
+  (r.Status||'').toLowerCase().includes(q)
  );
 
  filtered.forEach(r=>{
   let tr=document.createElement('tr');
   tr.innerHTML=`
   <td>${r.ID}</td>
-  <td contenteditable onblur="edit(${r.ID},'Name',this.innerText)">${r.Name}</td>
-  <td contenteditable onblur="edit(${r.ID},'Status',this.innerText)">${r.Status}</td>
-  <td contenteditable onblur="edit(${r.ID},'Tag',this.innerText)">${r.Tag}</td>
-  <td contenteditable onblur="edit(${r.ID},'Category',this.innerText)">${r.Category||''}</td>
-  <td><button onclick="del(${r.ID})">Delete</button></td>`;
+  <td contenteditable onblur="editName(${r.ID},this.innerText)">${r.Name}</td>
+  <td contenteditable onblur="editStatus(${r.ID},this.innerText)">${r.Status}</td>
+  <td><button onclick="delRec(${r.ID})">Delete</button></td>`;
   tb.appendChild(tr);
  });
 
- let c = {TOTAL:data.length,SUCCESS:0,PENDING:0,RTS:0,FAILURE:0};
- data.forEach(r=>{if(c[r.Status]!=null)c[r.Status]++;});
+ let counts={
+  TOTAL:data.length,
+  PENDING:0,
+  SENT:0,
+  LOGGED:0,
+  SUCCESS:0,
+  RTS:0,
+  FAILURE:0,
+  "NOT ACTIVE":0
+ };
 
- document.getElementById('stats').innerHTML =
- Object.entries(c).map(([k,v])=>
- `<div class="card"><b>${k}</b><br>${v}</div>`
- ).join('');
+ data.forEach(r=>{
+  if(counts[r.Status]!=null)counts[r.Status]++;
+ });
 
- renderEngine();
+ document.getElementById('stats').innerHTML=
+ Object.entries(counts)
+ .map(([k,v])=>`<div class="card"><b>${k}</b><br>${v}</div>`)
+ .join('');
 }
 
-/* ---------------- ENGINE UI ---------------- */
-function renderEngine(){
- let e = engine();
-
- document.getElementById('engine').innerHTML = `
- <div class="card">🟢 SEND<br><b>${e.send.length}</b></div>
- <div class="card">🟡 HOLD<br><b>${e.hold.length}</b></div>
- <div class="card">🔴 REMOVE<br><b>${e.remove.length}</b></div>
- `;
-}
-
-/* ---------------- CRUD ---------------- */
 function addRecord(){
  let n=document.getElementById('name').value.trim();
- if(!n) return;
+ if(!n)return;
 
  data.unshift({
   ID: Date.now(),
   Name: n,
-  Status: document.getElementById('status').value,
-  Tag: document.getElementById('tag').value,
-  Category: document.getElementById('category').value
+  Status: document.getElementById('status').value
  });
 
- log("Added "+n);
+ addLog('Added '+n);
  save();
 }
 
@@ -252,28 +161,101 @@ function bulkAdd(){
   data.unshift({
    ID: Date.now()+Math.random(),
    Name:n,
-   Status:"PENDING",
-   Tag:"🟡 POSSIBLE",
-   Category:"Theatre"
+   Status:'PENDING'
   });
  });
 
- log("Bulk add completed");
+ addLog('Bulk add completed');
  save();
 }
 
-function edit(id,key,val){
+function editName(id,v){
  let r=data.find(x=>x.ID==id);
- if(r){r[key]=val; save();}
+ if(r){ r.Name=v.trim(); save(); }
 }
 
-function del(id){
+function editStatus(id,v){
+ let r=data.find(x=>x.ID==id);
+ if(r){
+  let val=v.toUpperCase().trim();
+  r.Status=val;
+  save();
+ }
+}
+
+function delRec(id){
  data=data.filter(x=>x.ID!=id);
- log("Deleted "+id);
+ addLog('Deleted '+id);
  save();
 }
 
-/* ---------------- INIT ---------------- */
+function handleImported(arr,mode){
+ localStorage.setItem('vaultos_backup_'+Date.now(),JSON.stringify(data));
+
+ let mapped=arr.map(r=>({
+   ID:r.ID ?? r.id ?? Date.now()+Math.random(),
+   Name:r.Name ?? r.name ?? '',
+   Status:(r.Status ?? r.status ?? 'PENDING').toUpperCase()
+ }));
+
+ if(mode==='replace') data=mapped;
+ else data=[...data,...mapped];
+
+ addLog('Imported '+mapped.length+' records ('+mode+')');
+ save();
+}
+
+function importMode(mode){
+ if(!pendingImport){
+  alert('Choose or drop a JSON file first');
+  return;
+ }
+ handleImported(pendingImport,mode);
+}
+
+document.getElementById('file').addEventListener('change',e=>{
+ let f=e.target.files[0]; if(!f)return;
+ let r=new FileReader();
+ r.onload=()=>{
+  try{
+   pendingImport=JSON.parse(r.result);
+   alert('File loaded. Click Import Replace or Import Merge.');
+  }catch(e){
+   alert('Invalid JSON file');
+  }
+ };
+ r.readAsText(f);
+});
+
+let drop=document.getElementById('drop');
+drop.ondragover=e=>e.preventDefault();
+drop.ondrop=e=>{
+ e.preventDefault();
+ let f=e.dataTransfer.files[0];
+ let r=new FileReader();
+ r.onload=()=>{
+  try{
+   pendingImport=JSON.parse(r.result);
+   alert('File loaded. Click Import Replace or Import Merge.');
+  }catch(err){
+   alert('Invalid JSON file');
+  }
+ };
+ r.readAsText(f);
+};
+
+function exportJSON(){
+ let a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
+ a.download='vaultos_export.json';
+ a.click();
+}
+
+function backupJSON(){
+ exportJSON();
+ addLog('Backup exported');
+}
+
 render();
 renderLogs();
 </script>
