@@ -1,264 +1,176 @@
+
+
+
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS Stability Release 1</title>
+<title>VaultOS Stability Release 3</title>
 <style>
-body{margin:0;font-family:Arial;background:#0b0f14;color:#fff}
+body{margin:0;background:#0b0f14;color:#fff;font-family:Arial}
 header{background:#111827;padding:12px;position:sticky;top:0}
 .wrap{padding:12px}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.cards,.filters,.formgrid{display:grid;gap:8px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.filters,.formgrid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 .card{background:#111827;padding:10px;border-radius:8px}
-input,select,button,textarea{padding:8px;border-radius:6px;border:1px solid #333;background:#111;color:#fff}
-button{cursor:pointer}
-table{width:100%;border-collapse:collapse;margin-top:10px}
+input,select,button,textarea{background:#111;color:#fff;border:1px solid #333;padding:8px;border-radius:6px}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
 td,th{border:1px solid #222;padding:6px}
-.drop{border:2px dashed #555;padding:20px;text-align:center;margin:10px 0}
-.log{max-height:180px;overflow:auto;background:#111827;padding:8px}
+.log{background:#111827;padding:8px;max-height:180px;overflow:auto}
+.good{color:#7CFC98}.bad{color:#ff7b7b}
 </style>
 </head>
 <body>
-
-<header><h2>VaultOS Stability Release 1</h2></header>
-
+<header><h2>VaultOS Stability Release 3</h2></header>
 <div class="wrap">
 
 <div class="cards" id="stats"></div>
 
-<p>
-<input type="file" id="file" accept=".json">
-<button onclick="exportJSON()">Export JSON</button>
-<button onclick="backupJSON()">Backup</button>
-</p>
-
-<div class="drop" id="drop">Drag JSON file here</div>
-
-<p>
-<button onclick="importMode('replace')">Import Replace</button>
-<button onclick="importMode('merge')">Import Merge</button>
-</p>
-
-<p>
-<input id="search" placeholder="Search Name / Status / ID" oninput="render()">
-</p>
+<h3>Filters</h3>
+<div class="filters">
+<input id="search" placeholder="Search..." oninput="render()">
+<select id="routeFilter" onchange="render()">
+<option value="">All Routes</option>
+<option>Theatre</option><option>Foundation</option><option>Club</option>
+<option>Academy</option><option>Agency</option><option>Office</option>
+<option>Event</option><option>Home</option>
+</select>
+<select id="outcomeFilter" onchange="render()">
+<option value="">All Outcomes</option>
+<option>Pending</option><option>Success</option><option>RTS</option>
+<option>Failure</option><option>Planned</option><option>Sent</option>
+</select>
+</div>
 
 <h3>Add Record</h3>
+<div class="formgrid">
 <input id="name" placeholder="Name">
+<input id="route" placeholder="Route Type">
+<input id="system" placeholder="System">
+<select id="strength"><option>A</option><option>B</option><option>C</option><option>X</option></select>
+<select id="likelihood"><option>Very High</option><option>High</option><option>Medium</option><option>Low</option><option>Moonshot</option></select>
+<select id="outcome"><option>Pending</option><option>Success</option><option>RTS</option><option>Failure</option><option>Planned</option><option>Sent</option></select>
+<input id="datesent" placeholder="Date Sent">
+<input id="notes" placeholder="Notes">
+</div>
+<p><button onclick="addRecord()">Add Record</button>
+<button onclick="exportJSON()">Export</button></p>
 
-<select id="status">
-<option>PENDING</option>
-<option>SENT</option>
-<option>LOGGED</option>
-<option>SUCCESS</option>
-<option>RTS</option>
-<option>FAILURE</option>
-<option>NOT ACTIVE</option>
-</select>
-
-<button onclick="addRecord()">Add</button>
-
-<h3>Bulk Add</h3>
-<textarea id="bulk" rows="4" placeholder="One name per line"></textarea>
-<button onclick="bulkAdd()">Bulk Add</button>
+<h3>Success Analytics</h3>
+<div id="analytics" class="card"></div>
 
 <h3>Records</h3>
 <table>
 <thead>
-<tr><th>ID</th><th>Name</th><th>Status</th><th>Action</th></tr>
+<tr>
+<th>Name</th><th>Route</th><th>Strength</th><th>Likelihood</th><th>Outcome</th><th>Notes</th><th>Delete</th>
+</tr>
 </thead>
 <tbody id="tbody"></tbody>
 </table>
 
 <h3>Activity Log</h3>
-<div class="log" id="log"></div>
-
-</div>
+<div id="log" class="log"></div>
 
 <script>
-let data=JSON.parse(localStorage.getItem('vaultos_sr1')||'[]');
-let pendingImport=null;
+let data=JSON.parse(localStorage.getItem('vaultos_sr3')||'[]');
 
 function save(){
-  localStorage.setItem('vaultos_sr1',JSON.stringify(data));
-  render();
+ localStorage.setItem('vaultos_sr3',JSON.stringify(data));
+ render();
 }
 
-function addLog(t){
- let logs=JSON.parse(localStorage.getItem('vaultos_logs')||'[]');
- logs.unshift(new Date().toLocaleString()+" - "+t);
- localStorage.setItem('vaultos_logs',JSON.stringify(logs.slice(0,200)));
- renderLogs();
-}
-
-function renderLogs(){
- let logs=JSON.parse(localStorage.getItem('vaultos_logs')||'[]');
- document.getElementById('log').innerHTML=logs.join('<br>');
-}
-
-function render(){
- let q=(document.getElementById('search')?.value||'').toLowerCase();
- let tb=document.getElementById('tbody');
- tb.innerHTML='';
-
- let filtered=data.filter(r=>
-  String(r.ID).includes(q)||
-  (r.Name||'').toLowerCase().includes(q)||
-  (r.Status||'').toLowerCase().includes(q)
- );
-
- filtered.forEach(r=>{
-  let tr=document.createElement('tr');
-  tr.innerHTML=`
-  <td>${r.ID}</td>
-  <td contenteditable onblur="editName(${r.ID},this.innerText)">${r.Name}</td>
-  <td contenteditable onblur="editStatus(${r.ID},this.innerText)">${r.Status}</td>
-  <td><button onclick="delRec(${r.ID})">Delete</button></td>`;
-  tb.appendChild(tr);
- });
-
- let counts={
-  TOTAL:data.length,
-  PENDING:0,
-  SENT:0,
-  LOGGED:0,
-  SUCCESS:0,
-  RTS:0,
-  FAILURE:0,
-  "NOT ACTIVE":0
- };
-
- data.forEach(r=>{
-  if(counts[r.Status]!=null)counts[r.Status]++;
- });
-
- document.getElementById('stats').innerHTML=
- Object.entries(counts)
- .map(([k,v])=>`<div class="card"><b>${k}</b><br>${v}</div>`)
- .join('');
+function log(msg){
+ let l=JSON.parse(localStorage.getItem('vaultos_sr3_logs')||'[]');
+ l.unshift(new Date().toLocaleString()+" - "+msg);
+ localStorage.setItem('vaultos_sr3_logs',JSON.stringify(l.slice(0,300)));
+ document.getElementById('log').innerHTML=l.join('<br>');
 }
 
 function addRecord(){
- let n=document.getElementById('name').value.trim();
- if(!n)return;
-
  data.unshift({
-  ID: Date.now(),
-  Name: n,
-  Status: document.getElementById('status').value
+  id:Date.now(),
+  name:name.value,
+  route:route.value,
+  system:system.value,
+  strength:strength.value,
+  likelihood:likelihood.value,
+  outcome:outcome.value,
+  notes:notes.value,
+  date:datesent.value
+ });
+ log('Added '+name.value);
+ save();
+}
+
+function del(id){
+ data=data.filter(x=>x.id!=id);
+ log('Deleted '+id);
+ save();
+}
+
+function render(){
+ let q=(search.value||'').toLowerCase();
+ let rf=routeFilter.value;
+ let of=outcomeFilter.value;
+
+ let rows=data.filter(r=>
+ (!rf||r.route===rf) &&
+ (!of||r.outcome===of) &&
+ JSON.stringify(r).toLowerCase().includes(q)
+ );
+
+ tbody.innerHTML=rows.map(r=>`
+ <tr>
+ <td>${r.name}</td>
+ <td>${r.route}</td>
+ <td>${r.strength}</td>
+ <td>${r.likelihood}</td>
+ <td>${r.outcome}</td>
+ <td>${r.notes||''}</td>
+ <td><button onclick="del(${r.id})">X</button></td>
+ </tr>`).join('');
+
+ let success=data.filter(x=>x.outcome==='Success').length;
+ let pending=data.filter(x=>x.outcome==='Pending').length;
+ let moon=data.filter(x=>x.likelihood==='Moonshot').length;
+ let aRoutes=data.filter(x=>x.strength==='A').length;
+
+ stats.innerHTML=`
+ <div class="card"><b>Total</b><br>${data.length}</div>
+ <div class="card"><b>Success</b><br>${success}</div>
+ <div class="card"><b>Pending</b><br>${pending}</div>
+ <div class="card"><b>A Routes</b><br>${aRoutes}</div>
+ <div class="card"><b>Moonshots</b><br>${moon}</div>`;
+
+ let routeStats={};
+ data.forEach(r=>{
+   if(!routeStats[r.route]) routeStats[r.route]={sent:0,success:0};
+   routeStats[r.route].sent++;
+   if(r.outcome==='Success') routeStats[r.route].success++;
  });
 
- addLog('Added '+n);
- save();
+ analytics.innerHTML=Object.entries(routeStats).map(([k,v])=>{
+   let pct=v.sent?Math.round((v.success/v.sent)*100):0;
+   return `<div>${k}: ${v.success}/${v.sent} (${pct}%)</div>`;
+ }).join('') || 'No data yet';
 }
-
-function bulkAdd(){
- document.getElementById('bulk').value
- .split('\n')
- .map(x=>x.trim())
- .filter(Boolean)
- .forEach(n=>{
-  data.unshift({
-   ID: Date.now()+Math.random(),
-   Name:n,
-   Status:'PENDING'
-  });
- });
-
- addLog('Bulk add completed');
- save();
-}
-
-function editName(id,v){
- let r=data.find(x=>x.ID==id);
- if(r){ r.Name=v.trim(); save(); }
-}
-
-function editStatus(id,v){
- let r=data.find(x=>x.ID==id);
- if(r){
-  let val=v.toUpperCase().trim();
-  r.Status=val;
-  save();
- }
-}
-
-function delRec(id){
- data=data.filter(x=>x.ID!=id);
- addLog('Deleted '+id);
- save();
-}
-
-function handleImported(arr,mode){
- localStorage.setItem('vaultos_backup_'+Date.now(),JSON.stringify(data));
-
- let mapped=arr.map(r=>({
-   ID:r.ID ?? r.id ?? Date.now()+Math.random(),
-   Name:r.Name ?? r.name ?? '',
-   Status:(r.Status ?? r.status ?? 'PENDING').toUpperCase()
- }));
-
- if(mode==='replace') data=mapped;
- else data=[...data,...mapped];
-
- addLog('Imported '+mapped.length+' records ('+mode+')');
- save();
-}
-
-function importMode(mode){
- if(!pendingImport){
-  alert('Choose or drop a JSON file first');
-  return;
- }
- handleImported(pendingImport,mode);
-}
-
-document.getElementById('file').addEventListener('change',e=>{
- let f=e.target.files[0]; if(!f)return;
- let r=new FileReader();
- r.onload=()=>{
-  try{
-   pendingImport=JSON.parse(r.result);
-   alert('File loaded. Click Import Replace or Import Merge.');
-  }catch(e){
-   alert('Invalid JSON file');
-  }
- };
- r.readAsText(f);
-});
-
-let drop=document.getElementById('drop');
-drop.ondragover=e=>e.preventDefault();
-drop.ondrop=e=>{
- e.preventDefault();
- let f=e.dataTransfer.files[0];
- let r=new FileReader();
- r.onload=()=>{
-  try{
-   pendingImport=JSON.parse(r.result);
-   alert('File loaded. Click Import Replace or Import Merge.');
-  }catch(err){
-   alert('Invalid JSON file');
-  }
- };
- r.readAsText(f);
-};
 
 function exportJSON(){
  let a=document.createElement('a');
  a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
- a.download='vaultos_export.json';
+ a.download='vaultos_sr3_export.json';
  a.click();
 }
 
-function backupJSON(){
- exportJSON();
- addLog('Backup exported');
-}
-
+document.getElementById('log').innerHTML=(JSON.parse(localStorage.getItem('vaultos_sr3_logs')||'[]')).join('<br>');
 render();
-renderLogs();
 </script>
-
+</div>
 </body>
 </html>
