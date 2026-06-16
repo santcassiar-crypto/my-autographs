@@ -5,472 +5,107 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS SR3.1</title>
-
+<title>VaultOS SR3.2</title>
 <style>
 body{margin:0;background:#0b0f14;color:#fff;font-family:Arial}
-header{background:#111827;padding:12px;position:sticky;top:0}
+header{background:#111827;padding:12px}
 .wrap{padding:12px}
-.cards,.filters,.formgrid{display:grid;gap:8px}
+.cards,.grid{display:grid;gap:8px}
 .cards{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
-.filters,.formgrid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
 .card{background:#111827;padding:10px;border-radius:8px}
-input,select,button,textarea{
-background:#111;color:#fff;border:1px solid #333;padding:8px;border-radius:6px
-}
-button{cursor:pointer}
-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
+input,select,button{background:#111;color:#fff;border:1px solid #333;padding:8px;border-radius:6px}
+table{width:100%;border-collapse:collapse;margin-top:10px}
 td,th{border:1px solid #222;padding:6px}
-.log{background:#111827;padding:8px;max-height:180px;overflow:auto}
+.log{background:#111827;padding:8px}
 </style>
-
 </head>
-
 <body>
-
-<header>
-<h2>VaultOS SR3.1 - Record Manager</h2>
-</header>
-
+<header><h2>VaultOS SR3.2</h2></header>
 <div class="wrap">
 
+<div id="stats" class="cards"></div>
 
-<div class="cards" id="stats"></div>
-
-
-<h3>Add / Edit Record</h3>
-
-<div class="formgrid">
-
+<h3>Add / Edit</h3>
+<div class="grid">
 <input id="name" placeholder="Name">
-
-<input id="route" placeholder="Route">
-
-<input id="system" placeholder="System">
-
+<select id="route">
+<option>Unknown</option><option>Home</option><option>Theatre</option>
+<option>Agency</option><option>Production Office</option><option>Foundation</option>
+<option>Club</option><option>Academy</option><option>Event</option>
+</select>
 <select id="strength">
-<option>A</option>
-<option>B</option>
-<option>C</option>
-<option>X</option>
+<option>Unrated</option><option>A</option><option>B</option><option>C</option><option>X</option>
 </select>
-
-
 <select id="likelihood">
-<option>Very High</option>
-<option>High</option>
-<option>Medium</option>
-<option>Low</option>
-<option>Moonshot</option>
+<option>Unrated</option><option>Very High</option><option>High</option><option>Medium</option><option>Low</option><option>Moonshot</option>
 </select>
-
-
 <select id="outcome">
-<option>PENDING</option>
-<option>SUCCESS</option>
-<option>RTS</option>
-<option>FAILURE</option>
-<option>PLANNED</option>
-<option>SENT</option>
-<option>NOT ACTIVE</option>
+<option>PENDING</option><option>SUCCESS</option><option>RTS</option><option>FAILURE</option><option>NOT ACTIVE</option><option>PLANNED</option><option>SENT</option>
 </select>
-
-
-<input id="datesent" placeholder="Date Sent">
-
 <input id="notes" placeholder="Notes">
-
 </div>
-
 
 <p>
-
-<button onclick="saveRecord()">Save Record</button>
-
-<button onclick="clearForm()">Clear</button>
-
-<button onclick="exportJSON()">Export JSON</button>
-
-<button onclick="document.getElementById('file').click()">Import JSON</button>
-
+<button onclick="saveRecord()">Save</button>
+<button onclick="document.getElementById('file').click()">Import Old JSON</button>
+<button onclick="exportJSON()">Export</button>
 <input id="file" type="file" accept=".json" style="display:none" onchange="importJSON(event)">
-
 </p>
 
-
 <h3>Filters</h3>
-
-<div class="filters">
-
-<input id="search" placeholder="Search..." oninput="render()">
-
-
-<select id="outcomeFilter" onchange="render()">
-<option value="">All Outcomes</option>
-<option>PENDING</option>
-<option>SUCCESS</option>
-<option>RTS</option>
-<option>FAILURE</option>
-<option>PLANNED</option>
-<option>SENT</option>
-<option>NOT ACTIVE</option>
+<select id="filter" onchange="render()">
+<option value="">All</option>
+<option value="review">Needs Review</option>
+<option value="Unknown">Unknown Route</option>
+<option value="Unrated">Unrated</option>
 </select>
-
-</div>
-
-
-
-<h3>Records</h3>
-
+<input id="search" placeholder="Search" oninput="render()">
 
 <table>
-
-<thead>
-
-<tr>
-<th>Name</th>
-<th>Route</th>
-<th>Outcome</th>
-<th>Notes</th>
-<th>Edit</th>
-<th>Delete</th>
-</tr>
-
-</thead>
-
-
+<thead><tr><th>Name</th><th>Route</th><th>Likelihood</th><th>Status</th><th>Notes</th><th>Edit</th><th>X</th></tr></thead>
 <tbody id="tbody"></tbody>
-
-
 </table>
 
-
-<h3>Analytics</h3>
-
-<div id="analytics" class="card"></div>
-
-
-<h3>Activity Log</h3>
-
+<h3>Log</h3>
 <div id="log" class="log"></div>
 
-
 <script>
-
-
 let data=JSON.parse(localStorage.getItem("vaultos_sr3")||"[]");
+let edit=null;
 
-let editing=null;
-
-
-
-function save(){
-
-localStorage.setItem(
-"vaultos_sr3",
-JSON.stringify(data)
-);
-
-render();
-
-}
-
-
-
-function log(t){
-
-let l=JSON.parse(localStorage.getItem("vaultos_sr3_logs")||"[]");
-
-l.unshift(new Date().toLocaleString()+" - "+t);
-
-localStorage.setItem(
-"vaultos_sr3_logs",
-JSON.stringify(l.slice(0,300))
-);
-
-document.getElementById("log").innerHTML=l.join("<br>");
-
-}
-
-
-
+function save(){localStorage.setItem("vaultos_sr3",JSON.stringify(data));render()}
+function log(t){let l=JSON.parse(localStorage.getItem("vaultos_sr3_logs")||"[]");l.unshift(new Date().toLocaleString()+" - "+t);localStorage.setItem("vaultos_sr3_logs",JSON.stringify(l.slice(0,200)));document.getElementById("log").innerHTML=l.join("<br>")}
 
 function saveRecord(){
-
-let record={
-
-id:editing||Date.now(),
-
-name:name.value,
-
-route:route.value,
-
-system:system.value,
-
-strength:strength.value,
-
-likelihood:likelihood.value,
-
-outcome:outcome.value,
-
-notes:notes.value,
-
-date:datesent.value
-
-};
-
-
-if(editing){
-
-let i=data.findIndex(x=>x.id==editing);
-
-data[i]=record;
-
-log("Updated "+record.name);
-
+let r={id:edit||Date.now(),name:name.value,route:route.value,strength:strength.value,likelihood:likelihood.value,outcome:outcome.value,notes:notes.value};
+if(edit){data[data.findIndex(x=>x.id==edit)]=r;log("Updated "+r.name)}
+else{data.unshift(r);log("Added "+r.name)}
+edit=null;clear();save()
 }
-
-else{
-
-data.unshift(record);
-
-log("Added "+record.name);
-
-}
-
-
-editing=null;
-
-clearForm();
-
-save();
-
-}
-
-
-
-
-function editRecord(id){
-
-let r=data.find(x=>x.id==id);
-
-if(!r)return;
-
-
-editing=id;
-
-
-name.value=r.name||"";
-route.value=r.route||"";
-system.value=r.system||"";
-strength.value=r.strength||"C";
-likelihood.value=r.likelihood||"Medium";
-outcome.value=r.outcome||"PENDING";
-datesent.value=r.date||"";
-notes.value=r.notes||"";
-
-
-window.scrollTo(0,0);
-
-}
-
-
-
-
-
-function clearForm(){
-
-editing=null;
-
-name.value="";
-route.value="";
-system.value="";
-notes.value="";
-datesent.value="";
-
-}
-
-
-
-function del(id){
-
-let r=data.find(x=>x.id==id);
-
-data=data.filter(x=>x.id!=id);
-
-log("Deleted "+(r?r.name:id));
-
-save();
-
-}
-
-
-
+function clear(){name.value="";notes.value="";edit=null}
+function editRecord(id){let r=data.find(x=>x.id==id);edit=id;name.value=r.name;route.value=r.route;strength.value=r.strength;likelihood.value=r.likelihood;outcome.value=r.outcome;notes.value=r.notes;scrollTo(0,0)}
+function del(id){data=data.filter(x=>x.id!=id);save()}
 
 function render(){
-
-
-let q=(search.value||"").toLowerCase();
-
-let of=outcomeFilter.value;
-
-
+let q=(search.value||"").toLowerCase(), f=filter.value;
 let rows=data.filter(r=>
-
-(!of||r.outcome===of)
-
-&&
-
-JSON.stringify(r).toLowerCase().includes(q)
-
+JSON.stringify(r).toLowerCase().includes(q) &&
+(!f || (f=="review"?(r.route=="Unknown"||r.strength=="Unrated"||r.likelihood=="Unrated"):r.route==f||r.strength==f))
 );
-
-
-
-tbody.innerHTML=rows.map(r=>`
-
-<tr>
-
-<td>${r.name}</td>
-
-<td>${r.route||""}</td>
-
-<td>${r.outcome}</td>
-
-<td>${r.notes||""}</td>
-
-<td>
-<button onclick="editRecord(${r.id})">Edit</button>
-</td>
-
-<td>
-<button onclick="del(${r.id})">X</button>
-</td>
-
-</tr>
-
-`).join("");
-
-
-
-let success=data.filter(x=>x.outcome==="SUCCESS").length;
-
-let pending=data.filter(x=>x.outcome==="PENDING").length;
-
-let inactive=data.filter(x=>x.outcome==="NOT ACTIVE").length;
-
-
-
-stats.innerHTML=`
-
-<div class="card">Total<br>${data.length}</div>
-
-<div class="card">SUCCESS<br>${success}</div>
-
-<div class="card">PENDING<br>${pending}</div>
-
-<div class="card">NOT ACTIVE<br>${inactive}</div>
-
-`;
-
-
-
-analytics.innerHTML=
-"Success rate: "+
-(data.length?Math.round(success/data.length*100):0)
-+"%";
-
+tbody.innerHTML=rows.map(r=>`<tr><td>${r.name}</td><td>${r.route}</td><td>${r.likelihood}</td><td>${r.outcome}</td><td>${r.notes||""}</td><td><button onclick="editRecord(${r.id})">Edit</button></td><td><button onclick="del(${r.id})">X</button></td></tr>`).join("");
+stats.innerHTML=`<div class="card">Total ${data.length}</div><div class="card">Success ${data.filter(x=>x.outcome=="SUCCESS").length}</div><div class="card">Needs Review ${data.filter(x=>x.route=="Unknown"||x.strength=="Unrated"||x.likelihood=="Unrated").length}</div>`;
 }
-
-
-
-
-
-function exportJSON(){
-
-let a=document.createElement("a");
-
-a.href=URL.createObjectURL(
-new Blob(
-[JSON.stringify(data,null,2)],
-{type:"application/json"}
-)
-);
-
-a.download="vaultos_sr31_export.json";
-
-a.click();
-
-}
-
-
-
-
 
 function importJSON(e){
-
-let file=e.target.files[0];
-
-if(!file)return;
-
-
-let reader=new FileReader();
-
-
-reader.onload=function(){
-
-let imported=JSON.parse(reader.result);
-
-
-data=imported.map(r=>({
-
-id:r.ID||r.id||Date.now(),
-
-name:r.Name||r.name||"",
-
-route:r.Route||"",
-
-system:r.System||"",
-
-strength:r.Strength||"C",
-
-likelihood:r.Likelihood||"Medium",
-
-outcome:(r.Status||"PENDING")
-.trim()
-.replace("SUCESS","SUCCESS"),
-
-notes:r.Notes||"",
-
-date:r.Date||""
-
-}));
-
-
-log("Imported "+data.length+" records");
-
-save();
-
-};
-
-
-reader.readAsText(file);
-
+let r=new FileReader();
+r.onload=()=>{let a=JSON.parse(r.result);data=a.map(x=>({id:x.ID||Date.now(),name:x.Name||"",route:"Unknown",strength:"Unrated",likelihood:"Unrated",outcome:(x.Status||"PENDING").trim().replace("SUCESS","SUCCESS"),notes:""}));log("Imported "+data.length+" records");save()};
+r.readAsText(e.target.files[0])
 }
-
-
-
-document.getElementById("log").innerHTML=
-
-(JSON.parse(localStorage.getItem("vaultos_sr3_logs")||"[]")).join("<br>");
-
-
+function exportJSON(){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.download="vaultos_sr32.json";a.click()}
+document.getElementById("log").innerHTML=(JSON.parse(localStorage.getItem("vaultos_sr3_logs")||"[]")).join("<br>");
 render();
-
-
 </script>
-
 </div>
-
 </body>
 </html>
