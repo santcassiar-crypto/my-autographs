@@ -1,9 +1,5 @@
 
 
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -27,8 +23,6 @@ button{cursor:pointer}
 table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}
 td,th{border:1px solid #222;padding:6px}
 .log{background:#111827;padding:8px;max-height:180px;overflow:auto}
-.good{color:#7CFC98}
-.bad{color:#ff7b7b}
 </style>
 </head>
 
@@ -38,7 +32,9 @@ td,th{border:1px solid #222;padding:6px}
 <h2>VaultOS Stability Release 3+</h2>
 </header>
 
+
 <div class="wrap">
+
 
 <div class="cards" id="stats"></div>
 
@@ -48,6 +44,7 @@ td,th{border:1px solid #222;padding:6px}
 <div class="filters">
 
 <input id="search" placeholder="Search..." oninput="render()">
+
 
 <select id="routeFilter" onchange="render()">
 <option value="">All Routes</option>
@@ -64,16 +61,17 @@ td,th{border:1px solid #222;padding:6px}
 
 <select id="outcomeFilter" onchange="render()">
 <option value="">All Outcomes</option>
-<option>Pending</option>
-<option>Success</option>
+<option>PENDING</option>
+<option>SUCCESS</option>
 <option>RTS</option>
-<option>Failure</option>
-<option>Planned</option>
-<option>Sent</option>
-<option>NO / NOT ACTIVE</option>
+<option>FAILURE</option>
+<option>PLANNED</option>
+<option>SENT</option>
+<option>NOT ACTIVE</option>
 </select>
 
 </div>
+
 
 
 <h3>Add Record</h3>
@@ -82,9 +80,10 @@ td,th{border:1px solid #222;padding:6px}
 
 <input id="name" placeholder="Name">
 
-<input id="route" placeholder="Route Type">
+<input id="route" placeholder="Route">
 
 <input id="system" placeholder="System">
+
 
 <select id="strength">
 <option>A</option>
@@ -104,13 +103,13 @@ td,th{border:1px solid #222;padding:6px}
 
 
 <select id="outcome">
-<option>Pending</option>
-<option>Success</option>
+<option>PENDING</option>
+<option>SUCCESS</option>
 <option>RTS</option>
-<option>Failure</option>
-<option>Planned</option>
-<option>Sent</option>
-<option>NO / NOT ACTIVE</option>
+<option>FAILURE</option>
+<option>PLANNED</option>
+<option>SENT</option>
+<option>NOT ACTIVE</option>
 </select>
 
 
@@ -122,15 +121,12 @@ td,th{border:1px solid #222;padding:6px}
 
 
 <p>
-
 <button onclick="addRecord()">Add Record</button>
-
 <button onclick="exportJSON()">Export JSON</button>
 
-<button onclick="document.getElementById('importFile').click()">Import JSON</button>
+<button onclick="document.getElementById('file').click()">Import JSON</button>
 
-<input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
-
+<input id="file" type="file" accept=".json" style="display:none" onchange="importJSON(event)">
 </p>
 
 
@@ -146,7 +142,6 @@ td,th{border:1px solid #222;padding:6px}
 <table>
 
 <thead>
-
 <tr>
 <th>Name</th>
 <th>Route</th>
@@ -156,7 +151,6 @@ td,th{border:1px solid #222;padding:6px}
 <th>Notes</th>
 <th>Delete</th>
 </tr>
-
 </thead>
 
 <tbody id="tbody"></tbody>
@@ -170,30 +164,18 @@ td,th{border:1px solid #222;padding:6px}
 <div id="log" class="log"></div>
 
 
+
 <script>
 
 
-let data=JSON.parse(localStorage.getItem('vaultos_sr3')||'[]');
+let data=JSON.parse(localStorage.getItem("vaultos_sr3")||"[]");
 
-
-// upgrade older records
-data=data.map(r=>({
-id:r.id||Date.now(),
-name:r.name||"",
-route:r.route||"",
-system:r.system||"",
-strength:r.strength||"C",
-likelihood:r.likelihood||"Medium",
-outcome:r.outcome||"Pending",
-notes:r.notes||"",
-date:r.date||""
-}));
 
 
 function save(){
 
 localStorage.setItem(
-'vaultos_sr3',
+"vaultos_sr3",
 JSON.stringify(data)
 );
 
@@ -203,10 +185,11 @@ render();
 
 
 
+
 function log(msg){
 
 let l=JSON.parse(
-localStorage.getItem('vaultos_sr3_logs')||'[]'
+localStorage.getItem("vaultos_sr3_logs")||"[]"
 );
 
 l.unshift(
@@ -214,13 +197,14 @@ new Date().toLocaleString()+" - "+msg
 );
 
 localStorage.setItem(
-'vaultos_sr3_logs',
+"vaultos_sr3_logs",
 JSON.stringify(l.slice(0,300))
 );
 
-document.getElementById('log').innerHTML=l.join("<br>");
+document.getElementById("log").innerHTML=l.join("<br>");
 
 }
+
 
 
 
@@ -257,6 +241,7 @@ save();
 
 
 
+
 function del(id){
 
 data=data.filter(x=>x.id!=id);
@@ -269,7 +254,10 @@ save();
 
 
 
+
+
 function render(){
+
 
 let q=(search.value||"").toLowerCase();
 
@@ -320,15 +308,13 @@ tbody.innerHTML=rows.map(r=>`
 
 
 
-let success=data.filter(x=>x.outcome==="Success").length;
+let success=data.filter(x=>x.outcome==="SUCCESS").length;
 
-let pending=data.filter(x=>x.outcome==="Pending").length;
+let pending=data.filter(x=>x.outcome==="PENDING").length;
 
-let inactive=data.filter(x=>x.outcome==="NO / NOT ACTIVE").length;
+let inactive=data.filter(x=>x.outcome==="NOT ACTIVE").length;
 
-let moon=data.filter(x=>x.likelihood==="Moonshot").length;
-
-let aRoutes=data.filter(x=>x.strength==="A").length;
+let rts=data.filter(x=>x.outcome==="RTS").length;
 
 
 
@@ -336,34 +322,30 @@ stats.innerHTML=`
 
 <div class="card"><b>Total</b><br>${data.length}</div>
 
-<div class="card"><b>Success</b><br>${success}</div>
+<div class="card"><b>SUCCESS</b><br>${success}</div>
 
-<div class="card"><b>Pending</b><br>${pending}</div>
+<div class="card"><b>PENDING</b><br>${pending}</div>
 
-<div class="card"><b>NO / NOT ACTIVE</b><br>${inactive}</div>
+<div class="card"><b>RTS</b><br>${rts}</div>
 
-<div class="card"><b>A Routes</b><br>${aRoutes}</div>
-
-<div class="card"><b>Moonshots</b><br>${moon}</div>
+<div class="card"><b>NOT ACTIVE</b><br>${inactive}</div>
 
 `;
 
 
 
-let routeStats={};
+let routes={};
 
 
 data.forEach(r=>{
 
-if(!routeStats[r.route])
-routeStats[r.route]={sent:0,success:0};
+if(!routes[r.route])
+routes[r.route]={total:0,success:0};
 
+routes[r.route].total++;
 
-routeStats[r.route].sent++;
-
-
-if(r.outcome==="Success")
-routeStats[r.route].success++;
+if(r.outcome==="SUCCESS")
+routes[r.route].success++;
 
 });
 
@@ -371,20 +353,16 @@ routeStats[r.route].success++;
 
 analytics.innerHTML=
 
-Object.entries(routeStats).map(([k,v])=>{
+Object.entries(routes).map(([k,v])=>
 
-let pct=v.sent?
-Math.round((v.success/v.sent)*100):0;
+`${k}: ${v.success}/${v.total}`
 
-
-return `<div>${k}: ${v.success}/${v.sent} (${pct}%)</div>`;
-
-}).join("")
+).join("<br>")
 
 ||"No data yet";
 
-
 }
+
 
 
 
@@ -394,10 +372,12 @@ function exportJSON(){
 let a=document.createElement("a");
 
 a.href=URL.createObjectURL(
+
 new Blob(
 [JSON.stringify(data,null,2)],
 {type:"application/json"}
 )
+
 );
 
 a.download="vaultos_sr3_export.json";
@@ -409,44 +389,65 @@ a.click();
 
 
 
+
 function importJSON(event){
+
 
 let file=event.target.files[0];
 
 if(!file)return;
 
 
+
 let reader=new FileReader();
+
 
 
 reader.onload=function(e){
 
+
 try{
+
 
 let imported=JSON.parse(e.target.result);
 
 
+
 data=imported.map(r=>({
 
-id:r.id||Date.now(),
 
-name:r.name||"",
+id:r.ID || r.id || Date.now(),
 
-route:r.route||"",
 
-system:r.system||"",
+name:r.Name || r.name || "",
 
-strength:r.strength||"C",
 
-likelihood:r.likelihood||"Medium",
+route:r.Route || r.route || "",
 
-outcome:r.outcome||"Pending",
 
-notes:r.notes||"",
+system:r.System || r.system || "",
 
-date:r.date||""
+
+strength:r.Strength || r.strength || "C",
+
+
+likelihood:r.Likelihood || r.likelihood || "Medium",
+
+
+outcome:(r.Status || r.status || r.outcome || "PENDING")
+.trim()
+.replace("SUCCESS","SUCCESS")
+.replace("SUCESS","SUCCESS"),
+
+
+notes:r.Notes || r.notes || "",
+
+
+date:r.Date || r.date || ""
+
 
 }));
+
 
 
 log("Imported "+data.length+" records");
@@ -457,26 +458,32 @@ save();
 
 }
 
-catch{
+catch(err){
 
-alert("Invalid JSON file");
+alert("Invalid JSON");
+
+console.log(err);
 
 }
+
 
 };
 
 
+
 reader.readAsText(file);
+
 
 }
 
 
 
 
-document.getElementById('log').innerHTML=
+
+document.getElementById("log").innerHTML=
 
 (JSON.parse(
-localStorage.getItem('vaultos_sr3_logs')||'[]'
+localStorage.getItem("vaultos_sr3_logs")||"[]"
 )).join("<br>");
 
 
@@ -491,3 +498,6 @@ render();
 
 </body>
 </html>
+
+
+
