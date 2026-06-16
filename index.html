@@ -1,12 +1,7 @@
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VaultOS SR3.3</title>
     <style>
         body { background: #0b0f14; color: #fff; font-family: sans-serif; padding: 20px; }
@@ -22,9 +17,8 @@
 
 <h2>VaultOS SR3.3</h2>
 
-<!-- Input Section -->
 <div class="card">
-    <h3>Add / Discover Target</h3>
+    <h3>Add Target</h3>
     <input id="name" placeholder="Name">
     <select id="type"><option value="radar">Radar</option><option value="active">Active</option></select>
     <input type="number" id="priority" placeholder="Priority (1-10)" min="1" max="10">
@@ -32,7 +26,6 @@
     <button onclick="saveRecord()">Save Entry</button>
 </div>
 
-<!-- Controls -->
 <div class="controls">
     <select id="viewFilter" onchange="render()">
         <option value="active">Active Targets</option>
@@ -43,7 +36,6 @@
     <input type="file" id="fileInput" style="display:none" onchange="importJSON(event)">
 </div>
 
-<!-- Table -->
 <table>
     <thead><tr><th>Name</th><th>Priority</th><th>Deadline</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody id="tbody"></tbody>
@@ -70,7 +62,6 @@
         let mode = document.getElementById('viewFilter').value;
         let tbody = document.getElementById('tbody');
         tbody.innerHTML = "";
-        
         data.filter(x => x.type === mode).sort((a,b) => b.priority - a.priority).forEach(r => {
             let isUrgent = r.deadline && new Date(r.deadline) < new Date();
             tbody.innerHTML += `<tr class="${isUrgent ? 'urgent' : ''}">
@@ -102,10 +93,22 @@
         const file = event.target.files[0];
         const reader = new FileReader();
         reader.onload = (e) => {
-            const imported = JSON.parse(e.target.result);
-            data = [...data, ...imported];
-            localStorage.setItem("vaultos_data", JSON.stringify(data));
-            render();
+            try {
+                const imported = JSON.parse(e.target.result);
+                // Intelligent mapping for both old and new formats
+                const mapped = imported.map(item => ({
+                    id: item.id || Date.now() + Math.random(),
+                    name: item.name || item.Name || "Unknown",
+                    type: item.type || "active",
+                    priority: item.priority || 0,
+                    deadline: item.deadline || "",
+                    status: item.outcome || item.status || "PENDING"
+                }));
+                data = [...data, ...mapped];
+                localStorage.setItem("vaultos_data", JSON.stringify(data));
+                render();
+                alert("Import successful!");
+            } catch (err) { alert("Invalid JSON format."); }
         };
         reader.readAsText(file);
     }
