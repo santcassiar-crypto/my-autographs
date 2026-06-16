@@ -3,81 +3,122 @@
 
 
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>VaultOS SR3.3</title>
-<style>
-    body{background:#0b0f14;color:#fff;font-family:sans-serif;padding:20px}
-    .card{background:#111827;padding:15px;border-radius:8px;margin-bottom:10px}
-    input,select,button{background:#111;color:#fff;border:1px solid #333;padding:8px;border-radius:4px}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    td,th{border:1px solid #222;padding:8px;text-align:left}
-    .urgent{background:#450a0a}
-</style></head><body>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VaultOS SR3.3</title>
+    <style>
+        body { background: #0b0f14; color: #fff; font-family: sans-serif; padding: 20px; }
+        .card { background: #111827; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
+        input, select, button { background: #111; color: #fff; border: 1px solid #333; padding: 8px; border-radius: 4px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        td, th { border: 1px solid #222; padding: 10px; text-align: left; }
+        .urgent { background: #450a0a; }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
 
 <h2>VaultOS SR3.3</h2>
+
+<!-- Input Section -->
 <div class="card">
+    <h3>Add / Discover Target</h3>
     <input id="name" placeholder="Name">
     <select id="type"><option value="radar">Radar</option><option value="active">Active</option></select>
-    <input type="number" id="priority" placeholder="Score (1-10)" min="1" max="10">
+    <input type="number" id="priority" placeholder="Priority (1-10)" min="1" max="10">
     <input type="date" id="deadline">
-    <button onclick="saveRecord()">Add/Update</button>
+    <button onclick="saveRecord()">Save Entry</button>
 </div>
 
-<select id="viewFilter" onchange="render()">
-    <option value="active">Active Targets</option>
-    <option value="radar">Radar Queue</option>
-</select>
+<!-- Controls -->
+<div class="controls">
+    <select id="viewFilter" onchange="render()">
+        <option value="active">Active Targets</option>
+        <option value="radar">Radar Queue</option>
+    </select>
+    <button onclick="document.getElementById('fileInput').click()">📥 Import JSON</button>
+    <button onclick="exportJSON()">📤 Export Backup</button>
+    <input type="file" id="fileInput" style="display:none" onchange="importJSON(event)">
+</div>
 
-<table id="tbl"><thead><tr><th>Name</th><th>Priority</th><th>Deadline</th><th>Status</th><th>Actions</th></tr></thead><tbody id="tbody"></tbody></table>
+<!-- Table -->
+<table>
+    <thead><tr><th>Name</th><th>Priority</th><th>Deadline</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody id="tbody"></tbody>
+</table>
 
 <script>
-let data = JSON.parse(localStorage.getItem("vaultos_data") || "[]");
+    let data = JSON.parse(localStorage.getItem("vaultos_data") || "[]");
 
-function saveRecord() {
-    let entry = {
-        id: Date.now(),
-        name: document.getElementById('name').value,
-        type: document.getElementById('type').value,
-        priority: document.getElementById('priority').value || 0,
-        deadline: document.getElementById('deadline').value,
-        status: "PENDING"
-    };
-    data.push(entry);
-    localStorage.setItem("vaultos_data", JSON.stringify(data));
+    function saveRecord() {
+        let entry = {
+            id: Date.now(),
+            name: document.getElementById('name').value,
+            type: document.getElementById('type').value,
+            priority: document.getElementById('priority').value || 0,
+            deadline: document.getElementById('deadline').value,
+            status: "PENDING"
+        };
+        data.push(entry);
+        localStorage.setItem("vaultos_data", JSON.stringify(data));
+        render();
+    }
+
+    function render() {
+        let mode = document.getElementById('viewFilter').value;
+        let tbody = document.getElementById('tbody');
+        tbody.innerHTML = "";
+        
+        data.filter(x => x.type === mode).sort((a,b) => b.priority - a.priority).forEach(r => {
+            let isUrgent = r.deadline && new Date(r.deadline) < new Date();
+            tbody.innerHTML += `<tr class="${isUrgent ? 'urgent' : ''}">
+                <td>${r.name}</td>
+                <td>${r.priority}</td>
+                <td>${r.deadline || '-'}</td>
+                <td>${r.status}</td>
+                <td>
+                    ${r.type === 'radar' ? `<button onclick="promote(${r.id})">🚀 Promote</button>` : ''}
+                    <button onclick="del(${r.id})">X</button>
+                </td>
+            </tr>`;
+        });
+    }
+
+    function promote(id) {
+        data.find(x => x.id == id).type = 'active';
+        localStorage.setItem("vaultos_data", JSON.stringify(data));
+        render();
+    }
+
+    function del(id) {
+        data = data.filter(x => x.id != id);
+        localStorage.setItem("vaultos_data", JSON.stringify(data));
+        render();
+    }
+
+    function importJSON(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const imported = JSON.parse(e.target.result);
+            data = [...data, ...imported];
+            localStorage.setItem("vaultos_data", JSON.stringify(data));
+            render();
+        };
+        reader.readAsText(file);
+    }
+
+    function exportJSON() {
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "vaultos_backup.json";
+        a.click();
+    }
+
     render();
-}
-
-function render() {
-    let mode = document.getElementById('viewFilter').value;
-    let tbody = document.getElementById('tbody');
-    tbody.innerHTML = "";
-    
-    data.filter(x => x.type === mode).sort((a,b) => b.priority - a.priority).forEach(r => {
-        let isUrgent = r.deadline && new Date(r.deadline) < new Date();
-        tbody.innerHTML += `<tr class="${isUrgent ? 'urgent' : ''}">
-            <td>${r.name}</td>
-            <td>${r.priority}</td>
-            <td>${r.deadline || '-'}</td>
-            <td>${r.status}</td>
-            <td>
-                ${r.type === 'radar' ? `<button onclick="promote(${r.id})">🚀 Promote</button>` : ''}
-                <button onclick="del(${r.id})">X</button>
-            </td>
-        </tr>`;
-    });
-}
-
-function promote(id) {
-    data.find(x => x.id == id).type = 'active';
-    localStorage.setItem("vaultos_data", JSON.stringify(data));
-    render();
-}
-
-function del(id) {
-    data = data.filter(x => x.id != id);
-    localStorage.setItem("vaultos_data", JSON.stringify(data));
-    render();
-}
-
-render();
 </script>
-</body></html>
+</body>
+</html>
