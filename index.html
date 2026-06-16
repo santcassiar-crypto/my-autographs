@@ -1,125 +1,83 @@
 
 
+
+
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS SR3.2</title>
+<html lang="en"><head><meta charset="UTF-8"><title>VaultOS SR3.3</title>
 <style>
-body{margin:0;background:#0b0f14;color:#fff;font-family:Arial}
-header{background:#111827;padding:12px}
-.wrap{padding:12px}
-.cards,.grid{display:grid;gap:8px}
-.cards{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
-.grid{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-.card{background:#111827;padding:10px;border-radius:8px}
-input,select,button{background:#111;color:#fff;border:1px solid #333;padding:8px;border-radius:6px}
-table{width:100%;border-collapse:collapse;margin-top:10px}
-td,th{border:1px solid #222;padding:6px}
-.log{background:#111827;padding:8px}
-</style>
-</head>
-<body>
-<header><h2>VaultOS SR3.2</h2></header>
-<div class="wrap">
+    body{background:#0b0f14;color:#fff;font-family:sans-serif;padding:20px}
+    .card{background:#111827;padding:15px;border-radius:8px;margin-bottom:10px}
+    input,select,button{background:#111;color:#fff;border:1px solid #333;padding:8px;border-radius:4px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    td,th{border:1px solid #222;padding:8px;text-align:left}
+    .urgent{background:#450a0a}
+</style></head><body>
 
-  📰 VAULTOS NEWS TICKER
-
-[16 JUN] Branagh TTM sent today • Waiting for return
-   ⚡ High priority theatre window
-
-[16 JUN] Rosamund Pike - Inter Alia running now
-   🎭 Stage door / agent watch
-
-[15 JUN] New signing opportunities detected
-   ✉ Check UK targets
-
-[14 JUN] Stamp stock: 4x 1st Class remaining
-   ⚠ Switch to 2nd Class for lower priority
-
-<div id="stats" class="cards"></div>
-
-<h3>Add / Edit</h3>
-<div class="grid">
-<input id="name" placeholder="Name">
-<select id="route">
-<option>Unknown</option><option>Home</option><option>Theatre</option>
-<option>Agency</option><option>Production Office</option><option>Foundation</option>
-<option>Club</option><option>Academy</option><option>Event</option>
-</select>
-<select id="strength">
-<option>Unrated</option><option>A</option><option>B</option><option>C</option><option>X</option>
-</select>
-<select id="likelihood">
-<option>Unrated</option><option>Very High</option><option>High</option><option>Medium</option><option>Low</option><option>Moonshot</option>
-</select>
-<select id="outcome">
-<option>PENDING</option><option>SUCCESS</option><option>RTS</option><option>FAILURE</option><option>NOT ACTIVE</option><option>PLANNED</option><option>SENT</option>
-</select>
-<input id="notes" placeholder="Notes">
+<h2>VaultOS SR3.3</h2>
+<div class="card">
+    <input id="name" placeholder="Name">
+    <select id="type"><option value="radar">Radar</option><option value="active">Active</option></select>
+    <input type="number" id="priority" placeholder="Score (1-10)" min="1" max="10">
+    <input type="date" id="deadline">
+    <button onclick="saveRecord()">Add/Update</button>
 </div>
 
-<p>
-<button onclick="saveRecord()">Save</button>
-<button onclick="document.getElementById('file').click()">Import Old JSON</button>
-<button onclick="exportJSON()">Export</button>
-<input id="file" type="file" accept=".json" style="display:none" onchange="importJSON(event)">
-</p>
-
-<h3>Filters</h3>
-<select id="filter" onchange="render()">
-<option value="">All</option>
-<option value="review">Needs Review</option>
-<option value="Unknown">Unknown Route</option>
-<option value="Unrated">Unrated</option>
+<select id="viewFilter" onchange="render()">
+    <option value="active">Active Targets</option>
+    <option value="radar">Radar Queue</option>
 </select>
-<input id="search" placeholder="Search" oninput="render()">
 
-<table>
-<thead><tr><th>Name</th><th>Route</th><th>Likelihood</th><th>Status</th><th>Notes</th><th>Edit</th><th>X</th></tr></thead>
-<tbody id="tbody"></tbody>
-</table>
-
-<h3>Log</h3>
-<div id="log" class="log"></div>
+<table id="tbl"><thead><tr><th>Name</th><th>Priority</th><th>Deadline</th><th>Status</th><th>Actions</th></tr></thead><tbody id="tbody"></tbody></table>
 
 <script>
-let data=JSON.parse(localStorage.getItem("vaultos_sr3")||"[]");
-let edit=null;
+let data = JSON.parse(localStorage.getItem("vaultos_data") || "[]");
 
-function save(){localStorage.setItem("vaultos_sr3",JSON.stringify(data));render()}
-function log(t){let l=JSON.parse(localStorage.getItem("vaultos_sr3_logs")||"[]");l.unshift(new Date().toLocaleString()+" - "+t);localStorage.setItem("vaultos_sr3_logs",JSON.stringify(l.slice(0,200)));document.getElementById("log").innerHTML=l.join("<br>")}
-
-function saveRecord(){
-let r={id:edit||Date.now(),name:name.value,route:route.value,strength:strength.value,likelihood:likelihood.value,outcome:outcome.value,notes:notes.value};
-if(edit){data[data.findIndex(x=>x.id==edit)]=r;log("Updated "+r.name)}
-else{data.unshift(r);log("Added "+r.name)}
-edit=null;clear();save()
-}
-function clear(){name.value="";notes.value="";edit=null}
-function editRecord(id){let r=data.find(x=>x.id==id);edit=id;name.value=r.name;route.value=r.route;strength.value=r.strength;likelihood.value=r.likelihood;outcome.value=r.outcome;notes.value=r.notes;scrollTo(0,0)}
-function del(id){data=data.filter(x=>x.id!=id);save()}
-
-function render(){
-let q=(search.value||"").toLowerCase(), f=filter.value;
-let rows=data.filter(r=>
-JSON.stringify(r).toLowerCase().includes(q) &&
-(!f || (f=="review"?(r.route=="Unknown"||r.strength=="Unrated"||r.likelihood=="Unrated"):r.route==f||r.strength==f))
-);
-tbody.innerHTML=rows.map(r=>`<tr><td>${r.name}</td><td>${r.route}</td><td>${r.likelihood}</td><td>${r.outcome}</td><td>${r.notes||""}</td><td><button onclick="editRecord(${r.id})">Edit</button></td><td><button onclick="del(${r.id})">X</button></td></tr>`).join("");
-stats.innerHTML=`<div class="card">Total ${data.length}</div><div class="card">Success ${data.filter(x=>x.outcome=="SUCCESS").length}</div><div class="card">Needs Review ${data.filter(x=>x.route=="Unknown"||x.strength=="Unrated"||x.likelihood=="Unrated").length}</div>`;
+function saveRecord() {
+    let entry = {
+        id: Date.now(),
+        name: document.getElementById('name').value,
+        type: document.getElementById('type').value,
+        priority: document.getElementById('priority').value || 0,
+        deadline: document.getElementById('deadline').value,
+        status: "PENDING"
+    };
+    data.push(entry);
+    localStorage.setItem("vaultos_data", JSON.stringify(data));
+    render();
 }
 
-function importJSON(e){
-let r=new FileReader();
-r.onload=()=>{let a=JSON.parse(r.result);data=a.map(x=>({id:x.ID||Date.now(),name:x.Name||"",route:"Unknown",strength:"Unrated",likelihood:"Unrated",outcome:(x.Status||"PENDING").trim().replace("SUCESS","SUCCESS"),notes:""}));log("Imported "+data.length+" records");save()};
-r.readAsText(e.target.files[0])
+function render() {
+    let mode = document.getElementById('viewFilter').value;
+    let tbody = document.getElementById('tbody');
+    tbody.innerHTML = "";
+    
+    data.filter(x => x.type === mode).sort((a,b) => b.priority - a.priority).forEach(r => {
+        let isUrgent = r.deadline && new Date(r.deadline) < new Date();
+        tbody.innerHTML += `<tr class="${isUrgent ? 'urgent' : ''}">
+            <td>${r.name}</td>
+            <td>${r.priority}</td>
+            <td>${r.deadline || '-'}</td>
+            <td>${r.status}</td>
+            <td>
+                ${r.type === 'radar' ? `<button onclick="promote(${r.id})">🚀 Promote</button>` : ''}
+                <button onclick="del(${r.id})">X</button>
+            </td>
+        </tr>`;
+    });
 }
-function exportJSON(){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));a.download="vaultos_sr32.json";a.click()}
-document.getElementById("log").innerHTML=(JSON.parse(localStorage.getItem("vaultos_sr3_logs")||"[]")).join("<br>");
+
+function promote(id) {
+    data.find(x => x.id == id).type = 'active';
+    localStorage.setItem("vaultos_data", JSON.stringify(data));
+    render();
+}
+
+function del(id) {
+    data = data.filter(x => x.id != id);
+    localStorage.setItem("vaultos_data", JSON.stringify(data));
+    render();
+}
+
 render();
 </script>
-</div>
-</body>
-</html>
+</body></html>
