@@ -1,152 +1,98 @@
 
+
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS SR6</title>
+<meta charset="utf-8">
+<title>VaultOS Nexus 1.0 (SR7)</title>
 <style>
-body{font-family:Arial,sans-serif;background:#0b1220;color:#fff;margin:0;padding:20px}
+body{font-family:Arial;background:#0b1220;color:white;margin:0;padding:20px}
 .card{background:#111827;padding:15px;border-radius:10px;margin-bottom:15px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
 .stat{background:#1f2937;padding:10px;border-radius:8px}
-button{padding:8px 12px;margin:3px}
-input,select,textarea{width:100%;padding:8px;margin:4px 0}
+input,select{width:100%;padding:6px}
 table{width:100%;border-collapse:collapse}
-th,td{border-bottom:1px solid #374151;padding:8px;text-align:left}
-.tabs button{background:#2563eb;color:white;border:0;border-radius:6px}
-.hidden{display:none}
+th,td{border-bottom:1px solid #374151;padding:8px}
+button{padding:8px 12px;margin:2px}
 </style>
 </head>
 <body>
-<h1>VaultOS SR6</h1>
+<h1>VaultOS Nexus 1.0</h1>
 
 <div class="card">
 <div class="grid">
-<div class="stat">Targets <h2 id="targetsCount">0</h2></div>
-<div class="stat">Research <h2 id="researchCount">0</h2></div>
-<div class="stat">Returns <h2 id="returnsCount">0</h2></div>
-<div class="stat">Last Update <div id="lastUpdate">-</div></div>
+<div class="stat">Targets<h2 id="t">0</h2></div>
+<div class="stat">Research<h2 id="r">0</h2></div>
+<div class="stat">Returns<h2 id="ret">0</h2></div>
+<div class="stat">High Priority<h2 id="hp">0</h2></div>
 </div>
 </div>
 
-<div class="card tabs">
-<button onclick="showTab('targets')">Targets</button>
-<button onclick="showTab('research')">Research</button>
-<button onclick="showTab('returns')">Returns</button>
-<button onclick="showTab('io')">Import/Export</button>
-</div>
-
-<div id="targets" class="card">
-<h2>Targets</h2>
+<div class="card">
+<input id="search" placeholder="Search..." oninput="render()">
 <button onclick="addTarget()">Add Target</button>
-<div id="targetsTable"></div>
-</div>
-
-<div id="research" class="card hidden">
-<h2>Research Queue</h2>
 <button onclick="addResearch()">Add Research</button>
-<div id="researchTable"></div>
+<input type="file" id="file">
+<button onclick="imp()">Import</button>
+<button onclick="exp()">Export</button>
 </div>
 
-<div id="returns" class="card hidden">
-<h2>Returns</h2>
-<div id="returnsTable"></div>
-</div>
-
-<div id="io" class="card hidden">
-<h2>Import / Export</h2>
-<input type="file" id="importFile">
-<button onclick="importJSON()">Import JSON</button>
-<button onclick="exportJSON()">Export JSON</button>
-</div>
+<div class="card"><h2>Targets</h2><div id="targets"></div></div>
+<div class="card"><h2>Research</h2><div id="research"></div></div>
+<div class="card"><h2>Returns</h2><div id="returns"></div></div>
 
 <script>
-let vault=JSON.parse(localStorage.getItem('vaultos_sr6')||'{"targets":[],"research":[],"returns":[]}');
-
-function save(){localStorage.setItem('vaultos_sr6',JSON.stringify(vault));update();}
-function showTab(id){
-document.querySelectorAll('.card').forEach(x=>{
- if(['targets','research','returns','io'].includes(x.id)) x.classList.add('hidden');
-});
-document.getElementById(id).classList.remove('hidden');
+let db=JSON.parse(localStorage.getItem('vault_nexus')||'{"targets":[],"research":[],"returns":[]}');
+function save(){localStorage.setItem('vault_nexus',JSON.stringify(db));}
+function dashboard(){
+t.innerText=db.targets.length;
+r.innerText=db.research.length;
+ret.innerText=db.returns.length;
+hp.innerText=db.targets.filter(x=>x.priority==="★★★★★").length;
 }
+function render(){
+let q=document.getElementById('search').value.toLowerCase();
+targets.innerHTML='<table><tr><th>Name</th><th>Status</th><th>Priority</th><th>Notes</th><th></th></tr>'+
+db.targets.filter(x=>JSON.stringify(x).toLowerCase().includes(q)).map((x,i)=>
+`<tr><td><input value="${x.name}" onchange="db.targets[${i}].name=this.value;refresh()"></td>
+<td><select onchange="db.targets[${i}].status=this.value;refresh()">
+<option ${x.status=='RESEARCH'?'selected':''}>RESEARCH</option>
+<option ${x.status=='SENT'?'selected':''}>SENT</option>
+<option ${x.status=='WAITING'?'selected':''}>WAITING</option>
+</select></td>
+<td><select onchange="db.targets[${i}].priority=this.value;refresh()">
+<option>★★★★★</option><option>★★★★</option><option>★★★</option><option>★★</option><option>★</option>
+</select></td>
+<td><input value="${x.notes||''}" onchange="db.targets[${i}].notes=this.value;refresh()"></td>
+<td><button onclick="returned(${i})">Return</button></td></tr>`).join('')+'</table>';
 
-function update(){
-document.getElementById('targetsCount').innerText=vault.targets.length;
-document.getElementById('researchCount').innerText=vault.research.length;
-document.getElementById('returnsCount').innerText=vault.returns.length;
-document.getElementById('lastUpdate').innerText=new Date().toLocaleTimeString();
+research.innerHTML='<table><tr><th>Name</th><th></th></tr>'+db.research.map((x,i)=>
+`<tr><td>${x.name}</td><td><button onclick="promote(${i})">Promote</button></td></tr>`).join('')+'</table>';
 
-document.getElementById('targetsTable').innerHTML=`<table><tr><th>Name</th><th>Status</th><th>Priority</th><th>Notes</th><th></th></tr>${
-vault.targets.map((t,i)=>`<tr><td>${t.name}</td><td>${t.status}</td><td>${t.priority}</td><td>${t.notes||''}</td><td><button onclick="markReturned(${i})">Returned</button></td></tr>`).join('')
-}</table>`;
-
-document.getElementById('researchTable').innerHTML=`<table><tr><th>Name</th><th>Potential</th><th></th></tr>${
-vault.research.map((t,i)=>`<tr><td>${t.name}</td><td>${t.potential}</td><td><button onclick="promote(${i})">Promote</button></td></tr>`).join('')
-}</table>`;
-
-document.getElementById('returnsTable').innerHTML=`<table><tr><th>Name</th></tr>${
-vault.returns.map(t=>`<tr><td>${t.name}</td></tr>`).join('')
-}</table>`;
+returns.innerHTML='<table><tr><th>Name</th></tr>'+db.returns.map(x=>`<tr><td>${x.name}</td></tr>`).join('')+'</table>';
+dashboard(); save();
 }
-
-function addTarget(){
-let n=prompt('Target name');
-if(!n) return;
-vault.targets.push({name:n,status:'RESEARCH',priority:'★★★',notes:''});
-save();
-}
-
-function addResearch(){
-let n=prompt('Research target name');
-if(!n) return;
-vault.research.push({name:n,potential:'Medium'});
-save();
-}
-
-function promote(i){
-let r=vault.research[i];
-vault.targets.push({name:r.name,status:'RESEARCH',priority:'★★★',notes:''});
-vault.research.splice(i,1);
-save();
-}
-
-function markReturned(i){
-vault.returns.push(vault.targets[i]);
-vault.targets.splice(i,1);
-save();
-}
-
-function importJSON(){
-let f=document.getElementById('importFile').files[0];
-if(!f) return;
+function refresh(){render();}
+function addTarget(){let n=prompt('Name'); if(n){db.targets.push({name:n,status:'RESEARCH',priority:'★★★',notes:''}); render();}}
+function addResearch(){let n=prompt('Name'); if(n){db.research.push({name:n}); render();}}
+function promote(i){db.targets.push({name:db.research[i].name,status:'RESEARCH',priority:'★★★',notes:''}); db.research.splice(i,1); render();}
+function returned(i){db.returns.push(db.targets[i]); db.targets.splice(i,1); render();}
+function imp(){
+let f=file.files[0]; if(!f)return;
 let r=new FileReader();
 r.onload=e=>{
- let data=JSON.parse(e.target.result);
- let records=[];
- if(Array.isArray(data)) records=data;
- else if(Array.isArray(data.records)) records=data.records;
- else if(Array.isArray(data.targets)) records=data.targets;
- else records=[data];
- vault.targets=records.map(x=>({
-   name:x.Name||x.name||'Unknown',
-   status:x.Status||x.status||'RESEARCH',
-   priority:x.priority||'★★★',
-   notes:x.Notes||x.notes||''
- }));
- save();
+ let d=JSON.parse(e.target.result), rec=[];
+ if(Array.isArray(d)) rec=d; else if(Array.isArray(d.records)) rec=d.records; else if(Array.isArray(d.targets)) rec=d.targets; else rec=[d];
+ db.targets=rec.map(x=>({name:x.Name||x.name||'Unknown',status:x.Status||x.status||'RESEARCH',priority:'★★★',notes:x.Notes||x.notes||''}));
+ render();
 };
 r.readAsText(f);
 }
-
-function exportJSON(){
+function exp(){
 let a=document.createElement('a');
-a.href=URL.createObjectURL(new Blob([JSON.stringify(vault,null,2)],{type:'application/json'}));
-a.download='VaultOS_SR6.json';
-a.click();
+a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));
+a.download='VaultOS_Nexus.json'; a.click();
 }
-update();
+render();
 </script>
-</body>
-</html>
+</body></html>
