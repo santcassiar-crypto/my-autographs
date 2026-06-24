@@ -2,116 +2,85 @@
 
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>VaultOS SR7</title>
-<style>
-body{font-family:Arial,sans-serif;margin:20px;background:#f4f6f8}
-.card{background:white;padding:15px;margin:10px 0;border-radius:8px}
-button{padding:8px 12px;margin:5px}
-table{width:100%;border-collapse:collapse;background:white}
-td,th{border:1px solid #ccc;padding:8px}
-input,select{padding:6px}
-</style>
+    <meta charset="UTF-8">
+    <title>VaultOS SR7 | Professional Dashboard</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; }
+        aside { width: 250px; background: #fff; height: 100vh; border-right: 1px solid #e2e8f0; padding: 20px; }
+        main { flex: 1; padding: 2rem; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f1f5f9; text-align: left; padding: 12px; font-size: 0.85rem; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        input, select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        .badge { padding: 4px 8px; border-radius: 99px; font-size: 0.75rem; background: #e2e8f0; }
+    </style>
 </head>
 <body>
-<h1>VaultOS SR7</h1>
 
-<div class="card">
-<h3>Dashboard</h3>
-<div id="stats"></div>
-</div>
+<aside>
+    <h3>VaultOS SR7</h3>
+    <div id="stats"></div>
+    <hr>
+    <input type="text" id="search" placeholder="Search targets..." onkeyup="render()">
+</aside>
 
-<div class="card">
-<h3>Import JSON</h3>
-<input type="file" id="file" accept=".json">
-<button onclick="importJSON()">Import</button>
-<button onclick="exportJSON()">Export</button>
-<p id="message"></p>
-</div>
+<main>
+    <div class="card">
+        <h3>Add New Target</h3>
+        <input id="name" placeholder="Name">
+        <select id="category">
+            <option>Autograph Target</option><option>Fan Mail</option>
+            <option>Research</option><option>Completed</option>
+        </select>
+        <button onclick="addTarget()">Add Target</button>
+    </div>
 
-<div class="card">
-<h3>Add Target</h3>
-<input id="name" placeholder="Name">
-<select id="category">
-<option>Autograph Target</option>
-<option>Fan Mail</option>
-<option>Research</option>
-<option>Follow Up</option>
-<option>Completed</option>
-<option>Unknown</option>
-</select>
-<button onclick="addTarget()">Add</button>
-</div>
-
-<table>
-<thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Strength</th><th>Likelihood</th><th>Notes</th></tr></thead>
-<tbody id="table"></tbody>
-</table>
+    <div class="card">
+        <table id="targetTable">
+            <thead>
+                <tr><th>Name</th><th>Category</th><th>Notes</th></tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</main>
 
 <script>
-let data=[];
+    let data = JSON.parse(localStorage.getItem('vaultData')) || [];
 
-function normalise(x){
- return {
-  name:x.name||x.Name||"",
-  category:x.category||x.Category||x.type||x.Type||detectCategory(x),
-  status:x.status||x.Status||"",
-  strength:x.strength||x.Strength||"",
-  likelihood:x.likelihood||x.Likelihood||"",
-  notes:x.notes||x.Notes||""
- };
-}
+    function render() {
+        const filter = document.getElementById('search').value.toLowerCase();
+        const tbody = document.getElementById('tableBody');
+        const filtered = data.filter(x => x.name.toLowerCase().includes(filter));
+        
+        tbody.innerHTML = filtered.map(x => `
+            <tr>
+                <td><strong>${x.name}</strong></td>
+                <td><span class="badge">${x.category}</span></td>
+                <td>${x.notes || ''}</td>
+            </tr>`).join("");
+        
+        localStorage.setItem('vaultData', JSON.stringify(data));
+        updateStats();
+    }
 
-function detectCategory(x){
- let text=JSON.stringify(x).toLowerCase();
- if(text.includes("sent")||text.includes("fan")) return "Fan Mail";
- if(text.includes("complete")||text.includes("signed")) return "Completed";
- return "Unknown";
-}
+    function updateStats() {
+        const counts = data.reduce((acc, x) => ({...acc, [x.category]: (acc[x.category] || 0) + 1}), {});
+        document.getElementById('stats').innerHTML = Object.entries(counts)
+            .map(([cat, count]) => `<p>${cat}: <b>${count}</b></p>`).join("");
+    }
 
-function importJSON(){
- let f=document.getElementById("file").files[0];
- if(!f)return;
- let r=new FileReader();
- r.onload=e=>{
-  let parsed=JSON.parse(e.target.result);
-  if(!Array.isArray(parsed)) parsed=[parsed];
-  data=parsed.map(normalise);
-  render();
-  document.getElementById("message").innerText=data.length+" records imported";
- };
- r.readAsText(f);
-}
+    function addTarget() {
+        data.push({ name: document.getElementById('name').value, category: document.getElementById('category').value });
+        render();
+    }
 
-function addTarget(){
- data.push(normalise({
-  name:document.getElementById("name").value,
-  category:document.getElementById("category").value
- }));
- render();
-}
-
-function render(){
- document.getElementById("table").innerHTML=data.map(x=>
- `<tr><td>${x.name}</td><td>${x.category}</td><td>${x.status}</td><td>${x.strength}</td><td>${x.likelihood}</td><td>${x.notes}</td></tr>`
- ).join("");
-
- let counts={};
- data.forEach(x=>counts[x.category]=(counts[x.category]||0)+1);
- document.getElementById("stats").innerText=Object.entries(counts).map(x=>x[0]+": "+x[1]).join(" | ");
-}
-
-function exportJSON(){
- let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
- let a=document.createElement("a");
- a.href=URL.createObjectURL(blob);
- a.download="VaultOS_SR7_export.json";
- a.click();
-}
-
-render();
+    render();
 </script>
 </body>
 </html>
