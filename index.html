@@ -9,24 +9,25 @@
     <style>
         :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; }
         body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; }
-        aside { width: 250px; background: #fff; height: 100vh; border-right: 1px solid #e2e8f0; padding: 20px; }
+        aside { width: 260px; background: #fff; height: 100vh; border-right: 1px solid #e2e8f0; padding: 20px; position: sticky; top: 0; }
         main { flex: 1; padding: 2rem; }
         .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #f1f5f9; text-align: left; padding: 12px; font-size: 0.85rem; text-transform: uppercase; }
+        th { background: #f1f5f9; text-align: left; padding: 12px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
         td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-        input, select { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
-        .badge { padding: 4px 8px; border-radius: 99px; font-size: 0.75rem; background: #e2e8f0; }
+        input, select, button { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; padding: 8px 16px; }
+        button:hover { background: #1d4ed8; }
+        .badge { padding: 4px 8px; border-radius: 99px; font-size: 0.75rem; background: #e2e8f0; font-weight: 600; }
+        .stats-box { margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
 <aside>
     <h3>VaultOS SR7</h3>
-    <div id="stats"></div>
-    <hr>
-    <input type="text" id="search" placeholder="Search targets..." onkeyup="render()">
+    <div id="stats" class="stats-box"></div>
+    <input type="text" id="search" placeholder="Search targets..." onkeyup="render()" style="width: 90%;">
 </aside>
 
 <main>
@@ -41,6 +42,14 @@
     </div>
 
     <div class="card">
+        <h3>Data Management</h3>
+        <input type="file" id="file" accept=".json">
+        <button onclick="importJSON()">Import JSON</button>
+        <button onclick="exportJSON()">Export JSON</button>
+    </div>
+
+    <div class="card">
+        <h3>Target List</h3>
         <table id="targetTable">
             <thead>
                 <tr><th>Name</th><th>Category</th><th>Notes</th></tr>
@@ -76,8 +85,26 @@
     }
 
     function addTarget() {
-        data.push({ name: document.getElementById('name').value, category: document.getElementById('category').value });
+        const name = document.getElementById('name').value;
+        if (!name) return;
+        data.push({ name: name, category: document.getElementById('category').value, notes: "" });
         render();
+    }
+
+    function importJSON() {
+        const fileInput = document.getElementById('file');
+        if (!fileInput.files.length) return alert("Select a file first.");
+        const reader = new FileReader();
+        reader.onload = e => { data = JSON.parse(e.target.result); render(); };
+        reader.readAsText(fileInput.files[0]);
+    }
+
+    function exportJSON() {
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "VaultOS_Export.json";
+        a.click();
     }
 
     render();
