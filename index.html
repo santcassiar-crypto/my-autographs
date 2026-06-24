@@ -1,98 +1,117 @@
 
 
+
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<title>VaultOS Nexus 1.0 (SR7)</title>
+<meta charset="UTF-8">
+<title>VaultOS SR7</title>
 <style>
-body{font-family:Arial;background:#0b1220;color:white;margin:0;padding:20px}
-.card{background:#111827;padding:15px;border-radius:10px;margin-bottom:15px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
-.stat{background:#1f2937;padding:10px;border-radius:8px}
-input,select{width:100%;padding:6px}
-table{width:100%;border-collapse:collapse}
-th,td{border-bottom:1px solid #374151;padding:8px}
-button{padding:8px 12px;margin:2px}
+body{font-family:Arial,sans-serif;margin:20px;background:#f4f6f8}
+.card{background:white;padding:15px;margin:10px 0;border-radius:8px}
+button{padding:8px 12px;margin:5px}
+table{width:100%;border-collapse:collapse;background:white}
+td,th{border:1px solid #ccc;padding:8px}
+input,select{padding:6px}
 </style>
 </head>
 <body>
-<h1>VaultOS Nexus 1.0</h1>
+<h1>VaultOS SR7</h1>
 
 <div class="card">
-<div class="grid">
-<div class="stat">Targets<h2 id="t">0</h2></div>
-<div class="stat">Research<h2 id="r">0</h2></div>
-<div class="stat">Returns<h2 id="ret">0</h2></div>
-<div class="stat">High Priority<h2 id="hp">0</h2></div>
-</div>
+<h3>Dashboard</h3>
+<div id="stats"></div>
 </div>
 
 <div class="card">
-<input id="search" placeholder="Search..." oninput="render()">
-<button onclick="addTarget()">Add Target</button>
-<button onclick="addResearch()">Add Research</button>
-<input type="file" id="file">
-<button onclick="imp()">Import</button>
-<button onclick="exp()">Export</button>
+<h3>Import JSON</h3>
+<input type="file" id="file" accept=".json">
+<button onclick="importJSON()">Import</button>
+<button onclick="exportJSON()">Export</button>
+<p id="message"></p>
 </div>
 
-<div class="card"><h2>Targets</h2><div id="targets"></div></div>
-<div class="card"><h2>Research</h2><div id="research"></div></div>
-<div class="card"><h2>Returns</h2><div id="returns"></div></div>
+<div class="card">
+<h3>Add Target</h3>
+<input id="name" placeholder="Name">
+<select id="category">
+<option>Autograph Target</option>
+<option>Fan Mail</option>
+<option>Research</option>
+<option>Follow Up</option>
+<option>Completed</option>
+<option>Unknown</option>
+</select>
+<button onclick="addTarget()">Add</button>
+</div>
+
+<table>
+<thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Strength</th><th>Likelihood</th><th>Notes</th></tr></thead>
+<tbody id="table"></tbody>
+</table>
 
 <script>
-let db=JSON.parse(localStorage.getItem('vault_nexus')||'{"targets":[],"research":[],"returns":[]}');
-function save(){localStorage.setItem('vault_nexus',JSON.stringify(db));}
-function dashboard(){
-t.innerText=db.targets.length;
-r.innerText=db.research.length;
-ret.innerText=db.returns.length;
-hp.innerText=db.targets.filter(x=>x.priority==="★★★★★").length;
-}
-function render(){
-let q=document.getElementById('search').value.toLowerCase();
-targets.innerHTML='<table><tr><th>Name</th><th>Status</th><th>Priority</th><th>Notes</th><th></th></tr>'+
-db.targets.filter(x=>JSON.stringify(x).toLowerCase().includes(q)).map((x,i)=>
-`<tr><td><input value="${x.name}" onchange="db.targets[${i}].name=this.value;refresh()"></td>
-<td><select onchange="db.targets[${i}].status=this.value;refresh()">
-<option ${x.status=='RESEARCH'?'selected':''}>RESEARCH</option>
-<option ${x.status=='SENT'?'selected':''}>SENT</option>
-<option ${x.status=='WAITING'?'selected':''}>WAITING</option>
-</select></td>
-<td><select onchange="db.targets[${i}].priority=this.value;refresh()">
-<option>★★★★★</option><option>★★★★</option><option>★★★</option><option>★★</option><option>★</option>
-</select></td>
-<td><input value="${x.notes||''}" onchange="db.targets[${i}].notes=this.value;refresh()"></td>
-<td><button onclick="returned(${i})">Return</button></td></tr>`).join('')+'</table>';
+let data=[];
 
-research.innerHTML='<table><tr><th>Name</th><th></th></tr>'+db.research.map((x,i)=>
-`<tr><td>${x.name}</td><td><button onclick="promote(${i})">Promote</button></td></tr>`).join('')+'</table>';
-
-returns.innerHTML='<table><tr><th>Name</th></tr>'+db.returns.map(x=>`<tr><td>${x.name}</td></tr>`).join('')+'</table>';
-dashboard(); save();
+function normalise(x){
+ return {
+  name:x.name||x.Name||"",
+  category:x.category||x.Category||x.type||x.Type||detectCategory(x),
+  status:x.status||x.Status||"",
+  strength:x.strength||x.Strength||"",
+  likelihood:x.likelihood||x.Likelihood||"",
+  notes:x.notes||x.Notes||""
+ };
 }
-function refresh(){render();}
-function addTarget(){let n=prompt('Name'); if(n){db.targets.push({name:n,status:'RESEARCH',priority:'★★★',notes:''}); render();}}
-function addResearch(){let n=prompt('Name'); if(n){db.research.push({name:n}); render();}}
-function promote(i){db.targets.push({name:db.research[i].name,status:'RESEARCH',priority:'★★★',notes:''}); db.research.splice(i,1); render();}
-function returned(i){db.returns.push(db.targets[i]); db.targets.splice(i,1); render();}
-function imp(){
-let f=file.files[0]; if(!f)return;
-let r=new FileReader();
-r.onload=e=>{
- let d=JSON.parse(e.target.result), rec=[];
- if(Array.isArray(d)) rec=d; else if(Array.isArray(d.records)) rec=d.records; else if(Array.isArray(d.targets)) rec=d.targets; else rec=[d];
- db.targets=rec.map(x=>({name:x.Name||x.name||'Unknown',status:x.Status||x.status||'RESEARCH',priority:'★★★',notes:x.Notes||x.notes||''}));
+
+function detectCategory(x){
+ let text=JSON.stringify(x).toLowerCase();
+ if(text.includes("sent")||text.includes("fan")) return "Fan Mail";
+ if(text.includes("complete")||text.includes("signed")) return "Completed";
+ return "Unknown";
+}
+
+function importJSON(){
+ let f=document.getElementById("file").files[0];
+ if(!f)return;
+ let r=new FileReader();
+ r.onload=e=>{
+  let parsed=JSON.parse(e.target.result);
+  if(!Array.isArray(parsed)) parsed=[parsed];
+  data=parsed.map(normalise);
+  render();
+  document.getElementById("message").innerText=data.length+" records imported";
+ };
+ r.readAsText(f);
+}
+
+function addTarget(){
+ data.push(normalise({
+  name:document.getElementById("name").value,
+  category:document.getElementById("category").value
+ }));
  render();
-};
-r.readAsText(f);
 }
-function exp(){
-let a=document.createElement('a');
-a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:'application/json'}));
-a.download='VaultOS_Nexus.json'; a.click();
+
+function render(){
+ document.getElementById("table").innerHTML=data.map(x=>
+ `<tr><td>${x.name}</td><td>${x.category}</td><td>${x.status}</td><td>${x.strength}</td><td>${x.likelihood}</td><td>${x.notes}</td></tr>`
+ ).join("");
+
+ let counts={};
+ data.forEach(x=>counts[x.category]=(counts[x.category]||0)+1);
+ document.getElementById("stats").innerText=Object.entries(counts).map(x=>x[0]+": "+x[1]).join(" | ");
 }
+
+function exportJSON(){
+ let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="VaultOS_SR7_export.json";
+ a.click();
+}
+
 render();
 </script>
-</body></html>
+</body>
+</html>
