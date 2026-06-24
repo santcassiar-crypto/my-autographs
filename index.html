@@ -2,65 +2,85 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>VaultOS SR7 | Fixed Import</title>
+    <title>VaultOS SR7 | Full Management</title>
     <style>
-        :root { --bg: #0f172a; --panel: #1e293b; --text: #f1f5f9; --accent: #3b82f6; --danger: #7f1d1d; }
+        :root { --bg: #0f172a; --panel: #1e293b; --text: #f1f5f9; --accent: #3b82f6; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; }
-        aside { width: 300px; background: var(--panel); height: 100vh; padding: 20px; border-right: 1px solid #334155; }
-        main { flex: 1; padding: 40px; }
+        main { flex: 1; padding: 20px; }
         .card { background: var(--panel); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
-        input, button, textarea { background: #334155; color: white; border: 1px solid #475569; padding: 10px; border-radius: 6px; margin: 5px; }
-        button { cursor: pointer; }
+        input, select, textarea, button { background: #334155; color: white; border: 1px solid #475569; padding: 8px; border-radius: 6px; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        td, th { padding: 12px; border-bottom: 1px solid #334155; text-align: left; }
+        td, th { padding: 10px; border-bottom: 1px solid #334155; }
     </style>
 </head>
 <body>
 
-<aside>
-    <h2>VaultOS SR7</h2>
-    <textarea id="scratchpad" style="width:90%; height:300px; background:#0f172a; color:#fff;" placeholder="Scrapbook..."></textarea>
-</aside>
-
 <main>
     <div class="card">
-        <button onclick="document.getElementById('importFile').click()">Import Your JSON</button>
+        <h3>Add / Edit Record</h3>
+        <input id="inName" placeholder="Name">
+        <input id="inStatus" placeholder="Status (e.g. PENDING)">
+        <input id="inProb" type="number" placeholder="Prob %" min="0" max="100">
+        <textarea id="inNotes" placeholder="Notes..."></textarea>
+        <button onclick="saveRecord()">Save Record</button>
+        <button onclick="document.getElementById('importFile').click()" style="background:#059669">Import JSON</button>
         <input type="file" id="importFile" style="display:none" onchange="importData(event)">
-        <div id="status" style="margin-top:10px; font-size:0.9rem;"></div>
     </div>
+
     <div class="card">
         <table>
-            <thead><tr><th>Name</th><th>Status</th></tr></thead>
+            <thead><tr><th>Name</th><th>Status</th><th>Prob</th><th>Notes</th><th>Actions</th></tr></thead>
             <tbody id="tableBody"></tbody>
         </table>
     </div>
 </main>
 
 <script>
-    let vault = { list: [], sends: [], notes: "" };
+    let records = JSON.parse(localStorage.getItem('vaultRecords')) || [];
 
     function render() {
-        const tbody = document.getElementById('tableBody');
-        tbody.innerHTML = vault.list.map(x => `
+        document.getElementById('tableBody').innerHTML = records.map((r, i) => `
             <tr>
-                <td>${x.Name}</td>
-                <td>${x.Status}</td>
+                <td>${r.Name}</td>
+                <td>${r.Status}</td>
+                <td>${r.Prob || 0}%</td>
+                <td>${r.Notes || ""}</td>
+                <td><button onclick="edit(${i})">Edit</button> <button onclick="del(${i})">Del</button></td>
             </tr>`).join("");
-        document.getElementById('status').innerText = `Loaded ${vault.list.length} records successfully.`;
     }
+
+    function saveRecord() {
+        const r = {
+            Name: document.getElementById('inName').value,
+            Status: document.getElementById('inStatus').value,
+            Prob: document.getElementById('inProb').value,
+            Notes: document.getElementById('inNotes').value
+        };
+        records.push(r);
+        localStorage.setItem('vaultRecords', JSON.stringify(records));
+        render();
+    }
+
+    function edit(i) {
+        const r = records[i];
+        document.getElementById('inName').value = r.Name;
+        document.getElementById('inStatus').value = r.Status;
+        document.getElementById('inProb').value = r.Prob;
+        document.getElementById('inNotes').value = r.Notes;
+        del(i);
+    }
+
+    function del(i) { records.splice(i, 1); localStorage.setItem('vaultRecords', JSON.stringify(records)); render(); }
 
     function importData(e) {
         const reader = new FileReader();
         reader.onload = (ev) => {
-            try {
-                // This specifically looks for the array format you provided
-                const data = JSON.parse(ev.target.result);
-                vault.list = Array.isArray(data) ? data : (data.list || []);
-                render();
-            } catch(err) { alert("Error parsing JSON: " + err.message); }
+            records = JSON.parse(ev.target.result);
+            render();
         };
         reader.readAsText(e.target.files[0]);
     }
+    render();
 </script>
 </body>
 </html>
