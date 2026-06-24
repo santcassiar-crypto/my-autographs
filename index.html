@@ -1,1200 +1,152 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-
-<title>VaultOS SR6 Intelligence</title>
-
+<title>VaultOS SR6</title>
 <style>
-
-*{
-box-sizing:border-box
-}
-
-body{
-margin:0;
-background:#070b14;
-color:#fff;
-font-family:Arial,Helvetica,sans-serif;
-padding:20px
-}
-
-h1{
-color:#60a5fa;
-margin-bottom:5px
-}
-
-h2{
-color:#93c5fd
-}
-
-.small{
-color:#94a3b8;
-font-size:13px
-}
-
-
-.card{
-background:#111827;
-border-radius:12px;
-padding:18px;
-margin-bottom:18px;
-box-shadow:0 0 15px #000
-}
-
-
-.grid{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-gap:15px
-}
-
-
-.stat{
-background:#1f2937;
-padding:15px;
-border-radius:10px
-}
-
-
-.stat-title{
-font-size:13px;
-color:#94a3b8
-}
-
-
-.stat-number{
-font-size:30px;
-color:#34d399;
-margin-top:5px
-}
-
-
-button{
-
-background:#2563eb;
-border:0;
-padding:10px 14px;
-border-radius:7px;
-color:white;
-cursor:pointer;
-margin:3px
-
-}
-
-
-button:hover{
-background:#1d4ed8
-}
-
-
-input,select,textarea{
-
-width:100%;
-background:#020617;
-border:1px solid #374151;
-color:white;
-padding:9px;
-border-radius:6px
-
-}
-
-
-.tabs{
-
-display:flex;
-gap:8px;
-flex-wrap:wrap
-
-}
-
-
-.tab{
-
-background:#1e293b
-
-}
-
-
-.live{
-
-color:#34d399;
-font-weight:bold
-
-}
-
-
-.feed{
-
-max-height:250px;
-overflow:auto
-
-}
-
-
-.feed-item{
-
-padding:8px;
-border-bottom:1px solid #374151;
-font-size:14px
-
-}
-
-
-.high{
-color:#34d399
-}
-
-.medium{
-color:#fbbf24
-}
-
-.low{
-color:#f87171
-}
-
-
-table{
-
-width:100%;
-border-collapse:collapse
-
-}
-
-
-th,td{
-
-padding:9px;
-border-bottom:1px solid #374151;
-text-align:left
-
-}
-
-
-th{
-
-color:#93c5fd
-
-}
-
-
-.hidden{
-display:none
-}
-
-
+body{font-family:Arial,sans-serif;background:#0b1220;color:#fff;margin:0;padding:20px}
+.card{background:#111827;padding:15px;border-radius:10px;margin-bottom:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.stat{background:#1f2937;padding:10px;border-radius:8px}
+button{padding:8px 12px;margin:3px}
+input,select,textarea{width:100%;padding:8px;margin:4px 0}
+table{width:100%;border-collapse:collapse}
+th,td{border-bottom:1px solid #374151;padding:8px;text-align:left}
+.tabs button{background:#2563eb;color:white;border:0;border-radius:6px}
+.hidden{display:none}
 </style>
-
 </head>
-
 <body>
-
-
 <h1>VaultOS SR6</h1>
 
-<div class="small">
-Autograph Target Intelligence System |
-<span class="live">● LIVE</span>
-</div>
-
-
-
 <div class="card">
-
-<h2>Live Dashboard</h2>
-
-
 <div class="grid">
-
-
-<div class="stat">
-<div class="stat-title">
-TOTAL TARGETS
-</div>
-<div class="stat-number" id="totalTargets">
-0
+<div class="stat">Targets <h2 id="targetsCount">0</h2></div>
+<div class="stat">Research <h2 id="researchCount">0</h2></div>
+<div class="stat">Returns <h2 id="returnsCount">0</h2></div>
+<div class="stat">Last Update <div id="lastUpdate">-</div></div>
 </div>
 </div>
 
-
-<div class="stat">
-<div class="stat-title">
-RESEARCH QUEUE
-</div>
-<div class="stat-number" id="researchCount">
-0
-</div>
+<div class="card tabs">
+<button onclick="showTab('targets')">Targets</button>
+<button onclick="showTab('research')">Research</button>
+<button onclick="showTab('returns')">Returns</button>
+<button onclick="showTab('io')">Import/Export</button>
 </div>
 
-
-<div class="stat">
-<div class="stat-title">
-ACTIVE REQUESTS
-</div>
-<div class="stat-number" id="activeCount">
-0
-</div>
+<div id="targets" class="card">
+<h2>Targets</h2>
+<button onclick="addTarget()">Add Target</button>
+<div id="targetsTable"></div>
 </div>
 
-
-<div class="stat">
-<div class="stat-title">
-RETURNS
-</div>
-<div class="stat-number" id="returnCount">
-0
-</div>
-</div>
-
-
-<div class="stat">
-<div class="stat-title">
-HIGH PRIORITY
-</div>
-<div class="stat-number" id="priorityCount">
-0
-</div>
-</div>
-
-
-</div>
-
-
-<br>
-
-<div>
-Last update:
-<span id="lastUpdate">
--
-</span>
-</div>
-
-
-</div>
-
-
-
-
-<div class="card">
-
-
-<h2>Activity Feed</h2>
-
-<div class="feed" id="activity">
-
-</div>
-
-
-</div>
-
-
-
-
-
-<div class="card">
-
-
-<div class="tabs">
-
-<button class="tab" onclick="showTab('dashboard')">
-Dashboard
-</button>
-
-<button class="tab" onclick="showTab('targets')">
-Targets
-</button>
-
-<button class="tab" onclick="showTab('research')">
-Research
-</button>
-
-<button class="tab" onclick="showTab('returns')">
-Returns
-</button>
-
-</div>
-
-
-</div>
-
-
-
-
-
-<div id="dashboard">
-
-<div class="card">
-
-<h2>Intelligence Summary</h2>
-
-<p id="summary">
-
-Waiting for data...
-
-</p>
-
-</div>
-
-</div>
-
-
-
-
-
-<div id="targets" class="hidden">
-
-<div class="card">
-
-<h2>Active Targets</h2>
-
-<div id="targetArea">
-
-</div>
-
-</div>
-
-</div>
-
-
-
-
-
-<div id="research" class="hidden">
-
-<div class="card">
-
+<div id="research" class="card hidden">
 <h2>Research Queue</h2>
-
-<div id="researchArea">
-
+<button onclick="addResearch()">Add Research</button>
+<div id="researchTable"></div>
 </div>
 
+<div id="returns" class="card hidden">
+<h2>Returns</h2>
+<div id="returnsTable"></div>
 </div>
 
+<div id="io" class="card hidden">
+<h2>Import / Export</h2>
+<input type="file" id="importFile">
+<button onclick="importJSON()">Import JSON</button>
+<button onclick="exportJSON()">Export JSON</button>
 </div>
-
-
-
-
-
-<div id="returns" class="hidden">
-
-<div class="card">
-
-<h2>Return Tracking</h2>
-
-<div id="returnArea">
-
-</div>
-
-</div>
-
-</div>
-
-
-
-
-
 
 <script>
+let vault=JSON.parse(localStorage.getItem('vaultos_sr6')||'{"targets":[],"research":[],"returns":[]}');
 
-
-let vault={
-
-targets:[],
-research:[],
-returns:[],
-activity:[]
-
-};
-
-
-
-
-
-function save(){
-
-localStorage.setItem(
-"VaultOS_SR6",
-JSON.stringify(vault)
-);
-
-}
-
-
-
-
-
-function load(){
-
-let data=
-localStorage.getItem("VaultOS_SR6");
-
-
-if(data){
-
-vault=JSON.parse(data);
-
-}
-
-}
-
-
-
-
-function logAction(text){
-
-vault.activity.unshift({
-
-time:new Date().toLocaleString(),
-
-text:text
-
+function save(){localStorage.setItem('vaultos_sr6',JSON.stringify(vault));update();}
+function showTab(id){
+document.querySelectorAll('.card').forEach(x=>{
+ if(['targets','research','returns','io'].includes(x.id)) x.classList.add('hidden');
 });
-
-
-vault.activity=
-vault.activity.slice(0,50);
-
+document.getElementById(id).classList.remove('hidden');
 }
 
+function update(){
+document.getElementById('targetsCount').innerText=vault.targets.length;
+document.getElementById('researchCount').innerText=vault.research.length;
+document.getElementById('returnsCount').innerText=vault.returns.length;
+document.getElementById('lastUpdate').innerText=new Date().toLocaleTimeString();
 
+document.getElementById('targetsTable').innerHTML=`<table><tr><th>Name</th><th>Status</th><th>Priority</th><th>Notes</th><th></th></tr>${
+vault.targets.map((t,i)=>`<tr><td>${t.name}</td><td>${t.status}</td><td>${t.priority}</td><td>${t.notes||''}</td><td><button onclick="markReturned(${i})">Returned</button></td></tr>`).join('')
+}</table>`;
 
+document.getElementById('researchTable').innerHTML=`<table><tr><th>Name</th><th>Potential</th><th></th></tr>${
+vault.research.map((t,i)=>`<tr><td>${t.name}</td><td>${t.potential}</td><td><button onclick="promote(${i})">Promote</button></td></tr>`).join('')
+}</table>`;
 
-
-function score(x){
-
-
-let s=0;
-
-
-if(x.priority=="★★★★★")
-s+=50;
-
-else if(x.priority=="★★★★")
-s+=40;
-
-else if(x.priority=="★★★")
-s+=30;
-
-
-if(x.status=="RETURNED")
-s+=40;
-
-if(x.status=="SENT")
-s+=20;
-
-
-return s;
-
-
+document.getElementById('returnsTable').innerHTML=`<table><tr><th>Name</th></tr>${
+vault.returns.map(t=>`<tr><td>${t.name}</td></tr>`).join('')
+}</table>`;
 }
-
-
-
-
-
-
-function updateDashboard(){
-
-
-document.getElementById(
-"totalTargets"
-).innerHTML=
-vault.targets.length;
-
-
-document.getElementById(
-"researchCount"
-).innerHTML=
-vault.research.length;
-
-
-document.getElementById(
-"activeCount"
-).innerHTML=
-vault.targets.filter(
-x=>x.status=="SENT"||
-x.status=="WAITING"
-).length;
-
-
-document.getElementById(
-"returnCount"
-).innerHTML=
-vault.returns.length;
-
-
-document.getElementById(
-"priorityCount"
-).innerHTML=
-vault.targets.filter(
-x=>score(x)>=70
-).length;
-
-
-
-document.getElementById(
-"lastUpdate"
-).innerHTML=
-new Date().toLocaleTimeString();
-
-
-
-document.getElementById(
-"activity"
-).innerHTML=
-vault.activity.map(x=>
-
-`
-<div class="feed-item">
-${x.time}<br>
-${x.text}
-</div>
-
-`
-
-).join("");
-
-
-
-save();
-
-}
-
-
-
-
-function showTab(name){
-
-
-["dashboard","targets","research","returns"]
-
-.forEach(x=>{
-
-document.getElementById(x)
-.classList.add("hidden");
-
-});
-
-
-document.getElementById(name)
-.classList.remove("hidden");
-
-
-}
-
-
-
-
-setInterval(updateDashboard,1000);
-
-
-load();
-
-updateDashboard();
-
-
-</script>
-
-  <script>
-
 
 function addTarget(){
-
-
-let name=
-prompt("Target name");
-
-
-if(!name)return;
-
-
-vault.targets.push({
-
-id:Date.now(),
-
-name:name,
-
-category:"Sports",
-
-route:"",
-
-status:"RESEARCH",
-
-priority:"★★★",
-
-notes:""
-
-});
-
-
-logAction(
-"New target added: "+name
-);
-
-
-updateDashboard();
-
-renderTargets();
-
+let n=prompt('Target name');
+if(!n) return;
+vault.targets.push({name:n,status:'RESEARCH',priority:'★★★',notes:''});
+save();
 }
-
-
-
 
 function addResearch(){
-
-
-let name=
-prompt("Research target name");
-
-
-if(!name)return;
-
-
-vault.research.push({
-
-id:Date.now(),
-
-name:name,
-
-category:"",
-
-route:"",
-
-potential:"Medium",
-
-decision:"WATCH",
-
-notes:""
-
-
-});
-
-
-logAction(
-"Research added: "+name
-);
-
-
-updateDashboard();
-
-renderResearch();
-
-
+let n=prompt('Research target name');
+if(!n) return;
+vault.research.push({name:n,potential:'Medium'});
+save();
 }
 
-
-
-
-
-
-
-function moveToTargets(i){
-
-
-let x=vault.research[i];
-
-
-vault.targets.push({
-
-id:Date.now(),
-
-name:x.name,
-
-category:x.category,
-
-route:x.route,
-
-status:"RESEARCH",
-
-priority:"★★★",
-
-notes:x.notes
-
-
-});
-
-
+function promote(i){
+let r=vault.research[i];
+vault.targets.push({name:r.name,status:'RESEARCH',priority:'★★★',notes:''});
 vault.research.splice(i,1);
-
-
-logAction(
-x.name+" moved from research to targets"
-);
-
-
-updateDashboard();
-
-renderResearch();
-
-renderTargets();
-
-
+save();
 }
-
-
-
-
 
 function markReturned(i){
-
-
-let x=vault.targets[i];
-
-
-x.status="RETURNED";
-
-
-vault.returns.push(x);
-
-
+vault.returns.push(vault.targets[i]);
 vault.targets.splice(i,1);
-
-
-logAction(
-x.name+" marked as returned"
-);
-
-
-updateDashboard();
-
-renderTargets();
-
-renderReturns();
-
-
-}
-
-
-
-
-
-
-function renderTargets(){
-
-
-let area=
-document.getElementById("targetArea");
-
-
-if(!area)return;
-
-
-area.innerHTML=`
-
-<button onclick="addTarget()">
-+ Add Target
-</button>
-
-<table>
-
-<tr>
-
-<th>Name</th>
-<th>Status</th>
-<th>Priority</th>
-<th>Score</th>
-<th>Notes</th>
-<th></th>
-
-</tr>
-
-
-${
-vault.targets.map((x,i)=>`
-
-<tr>
-
-<td>${x.name}</td>
-
-<td>
-<select onchange="changeStatus(${i},this.value)">
-
-<option ${x.status=="RESEARCH"?"selected":""}>
-RESEARCH
-</option>
-
-<option ${x.status=="SENT"?"selected":""}>
-SENT
-</option>
-
-<option ${x.status=="WAITING"?"selected":""}>
-WAITING
-</option>
-
-<option ${x.status=="RETURNED"?"selected":""}>
-RETURNED
-</option>
-
-
-</select>
-</td>
-
-
-<td>
-<select onchange="changePriority(${i},this.value)">
-
-<option>${x.priority}</option>
-
-<option>★★★★★</option>
-<option>★★★★</option>
-<option>★★★</option>
-<option>★★</option>
-<option>★</option>
-
-</select>
-</td>
-
-
-<td>
-${score(x)}%
-</td>
-
-
-<td>
-<input value="${x.notes}"
-onchange="changeNote(${i},this.value)">
-</td>
-
-
-<td>
-
-<button onclick="markReturned(${i})">
-Return
-</button>
-
-</td>
-
-
-</tr>
-
-`).join("")
-}
-
-
-</table>
-
-`;
-
-}
-
-
-
-
-
-function renderResearch(){
-
-
-let area=
-document.getElementById("researchArea");
-
-
-if(!area)return;
-
-
-area.innerHTML=`
-
-<button onclick="addResearch()">
-+ Add Research
-</button>
-
-
-<table>
-
-<tr>
-
-<th>Name</th>
-<th>Potential</th>
-<th>Decision</th>
-<th>Notes</th>
-<th></th>
-
-</tr>
-
-
-${
-vault.research.map((x,i)=>`
-
-<tr>
-
-<td>
-${x.name}
-</td>
-
-
-<td>
-<select onchange="x.potential=this.value;save()">
-
-<option>${x.potential}</option>
-<option>High</option>
-<option>Medium</option>
-<option>Low</option>
-
-</select>
-</td>
-
-
-<td>
-${x.decision}
-</td>
-
-
-<td>
-<input value="${x.notes}"
-onchange="x.notes=this.value;save()">
-</td>
-
-
-<td>
-
-<button onclick="moveToTargets(${i})">
-Promote
-</button>
-
-</td>
-
-
-</tr>
-
-`).join("")
-}
-
-</table>
-
-`;
-
-}
-
-
-
-
-
-
-
-function renderReturns(){
-
-
-let area=
-document.getElementById("returnArea");
-
-
-if(!area)return;
-
-
-area.innerHTML=`
-
-<table>
-
-<tr>
-
-<th>Name</th>
-<th>Notes</th>
-
-</tr>
-
-
-${
-vault.returns.map(x=>`
-
-<tr>
-
-<td>${x.name}</td>
-
-<td>${x.notes}</td>
-
-</tr>
-
-
-`).join("")
-}
-
-</table>
-
-`;
-
-}
-
-
-
-
-
-
-function changeStatus(i,v){
-
-vault.targets[i].status=v;
-
-
-logAction(
-vault.targets[i].name+
-" status changed to "+
-v
-);
-
-
-updateDashboard();
-
-renderTargets();
-
-}
-
-
-
-
-function changePriority(i,v){
-
-vault.targets[i].priority=v;
-
-updateDashboard();
-
-renderTargets();
-
-}
-
-
-
-
-
-function changeNote(i,v){
-
-vault.targets[i].notes=v;
-
 save();
-
 }
 
-
-
-
-
-
-
-
-function importVaultJSON(){
-
-
-let input=document.createElement("input");
-
-input.type="file";
-
-input.accept=".json";
-
-
-input.onchange=e=>{
-
-
-let file=e.target.files[0];
-
-
-let reader=new FileReader();
-
-
-reader.onload=function(){
-
-let data=
-JSON.parse(reader.result);
-
-
-if(Array.isArray(data)){
-
-
-vault.targets=
-data.map(x=>({
-
-name:x.Name||x.name||"Unknown",
-
-route:x.Route||x.route||"",
-
-status:x.Status||x.status||"RESEARCH",
-
-priority:"★★★",
-
-notes:x.Notes||x.notes||""
-
-}));
-
-
-}
-
-
-logAction(
-"JSON import completed"
-);
-
-
-updateDashboard();
-
-renderTargets();
-
-
+function importJSON(){
+let f=document.getElementById('importFile').files[0];
+if(!f) return;
+let r=new FileReader();
+r.onload=e=>{
+ let data=JSON.parse(e.target.result);
+ let records=[];
+ if(Array.isArray(data)) records=data;
+ else if(Array.isArray(data.records)) records=data.records;
+ else if(Array.isArray(data.targets)) records=data.targets;
+ else records=[data];
+ vault.targets=records.map(x=>({
+   name:x.Name||x.name||'Unknown',
+   status:x.Status||x.status||'RESEARCH',
+   priority:x.priority||'★★★',
+   notes:x.Notes||x.notes||''
+ }));
+ save();
 };
-
-
-reader.readAsText(file);
-
-
-};
-
-
-input.click();
-
-
+r.readAsText(f);
 }
 
-
-
-
-
-
-
-function exportVault(){
-
-
-let blob=new Blob(
-
-[
-JSON.stringify(vault,null,2)
-],
-
-{
-type:"application/json"
-}
-
-);
-
-
-let a=document.createElement("a");
-
-
-a.href=
-URL.createObjectURL(blob);
-
-
-a.download=
-"VaultOS_SR6_Backup.json";
-
-
+function exportJSON(){
+let a=document.createElement('a');
+a.href=URL.createObjectURL(new Blob([JSON.stringify(vault,null,2)],{type:'application/json'}));
+a.download='VaultOS_SR6.json';
 a.click();
-
-
 }
-
-
-
-
-
-
-
-// initial render
-
-renderTargets();
-
-renderResearch();
-
-renderReturns();
-
-
+update();
 </script>
-
+</body>
+</html>
