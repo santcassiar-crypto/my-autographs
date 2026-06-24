@@ -1,127 +1,684 @@
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VaultOS SR4 JSON Repair</title>
+
+<title>VaultOS SR5</title>
+
 <style>
-body{margin:0;background:#0b0f14;color:#fff;font-family:Arial;padding:20px}
-h1{color:#60a5fa}
-.card{background:#111827;padding:15px;border-radius:10px;margin-bottom:15px}
-button{padding:10px 15px;border:0;border-radius:6px;background:#2563eb;color:white;cursor:pointer}
-input{margin:10px 0}
-table{width:100%;border-collapse:collapse}
-td,th{padding:8px;border-bottom:1px solid #374151;text-align:left}
-.ok{color:#34d399}
+
+body{
+margin:0;
+background:#080d16;
+color:white;
+font-family:Arial,Helvetica,sans-serif;
+padding:20px
+}
+
+h1{
+color:#60a5fa
+}
+
+.card{
+background:#111827;
+border-radius:12px;
+padding:18px;
+margin-bottom:18px;
+box-shadow:0 0 20px #000
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+gap:15px
+}
+
+.stat{
+background:#1f2937;
+padding:15px;
+border-radius:10px
+}
+
+.number{
+font-size:28px;
+color:#34d399
+}
+
+button{
+background:#2563eb;
+border:0;
+color:white;
+padding:10px 14px;
+border-radius:7px;
+cursor:pointer;
+margin:3px
+}
+
+button:hover{
+background:#1d4ed8
+}
+
+input,select,textarea{
+background:#020617;
+color:white;
+border:1px solid #374151;
+padding:8px;
+border-radius:6px;
+width:100%;
+box-sizing:border-box
+}
+
+table{
+width:100%;
+border-collapse:collapse
+}
+
+th,td{
+padding:10px;
+border-bottom:1px solid #374151;
+text-align:left
+}
+
+th{
+color:#93c5fd
+}
+
+.bad{
+color:#f87171
+}
+
+.good{
+color:#34d399
+}
+
+.warn{
+color:#fbbf24
+}
+
+.small{
+font-size:12px;
+color:#9ca3af
+}
+
 </style>
 </head>
+
+
 <body>
 
-<h1>VaultOS SR4</h1>
+
+<h1>VaultOS SR5</h1>
+<p class="small">
+JSON Repair • Target Management • Intelligence Dashboard
+</p>
+
 
 <div class="card">
+
+<div class="grid">
+
+<div class="stat">
+TOTAL
+<div class="number" id="total">0</div>
+</div>
+
+<div class="stat">
+ACTIVE
+<div class="number" id="active">0</div>
+</div>
+
+
+<div class="stat">
+COMPLETED
+<div class="number" id="complete">0</div>
+</div>
+
+
+<div class="stat">
+HIGH SCORE
+<div class="number" id="high">0</div>
+</div>
+
+</div>
+
+</div>
+
+
+
+<div class="card">
+
+<h3>Import / Export</h3>
+
 <input type="file" id="file" accept=".json">
+
+<br>
+
 <button onclick="importJSON()">Import JSON</button>
-<div id="report"></div>
-</div>
 
-<div class="card">
-<button onclick="addRecord()">Add Record</button>
 <button onclick="exportJSON()">Export JSON</button>
+
+<button onclick="exportCSV()">Export CSV</button>
+
+<button onclick="backup()">Backup</button>
+
+
+<div id="report"></div>
+
 </div>
 
+
+
+
 <div class="card">
-<table>
-<thead>
-<tr>
-<th>Name</th><th>Route</th><th>Status</th><th>Strength</th><th>Likelihood</th><th>Notes</th><th></th>
-</tr>
-</thead>
-<tbody id="rows"></tbody>
-</table>
+
+<h3>Controls</h3>
+
+
+<input id="search"
+placeholder="Search targets..."
+oninput="render()">
+
+
+<br><br>
+
+
+<select id="filter" onchange="render()">
+
+<option value="">All Status</option>
+<option>SENT</option>
+<option>WAITING</option>
+<option>RETURNED</option>
+<option>COMPLETED</option>
+
+</select>
+
+
+<button onclick="addRecord()">
++ Add Target
+</button>
+
+
 </div>
+
+
+
+
+
+<div class="card">
+
+<table>
+
+<thead>
+
+<tr>
+<th>Name</th>
+<th>Route</th>
+<th>Status</th>
+<th>Strength</th>
+<th>Likelihood</th>
+<th>Score</th>
+<th>Notes</th>
+<th></th>
+</tr>
+
+</thead>
+
+
+<tbody id="rows"></tbody>
+
+
+</table>
+
+</div>
+
+
+
+
 
 <script>
+
+
 let records=[];
 
-function clean(v){
- return v ?? "";
+
+
+function uid(){
+
+return "VX-"+Date.now()
+
 }
 
-function normaliseItem(i){
- return {
-  Name: clean(i.Name || i.name || i.Title || i.title),
-  Route: clean(i.Route || i.route || i.Address || i.address),
-  Status: clean(i.Status || i.status),
-  Strength: clean(i.Strength || i.strength),
-  Likelihood: clean(i.Likelihood || i.likelihood),
-  Notes: clean(i.Notes || i.notes)
- };
+
+
+function clean(v){
+
+return v ?? ""
+
 }
+
+
+
+function score(x){
+
+let s=0;
+
+
+if(x.Strength=="High")s+=40;
+else if(x.Strength=="Medium")s+=25;
+else s+=10;
+
+
+if(x.Likelihood=="High")s+=40;
+else if(x.Likelihood=="Medium")s+=25;
+else s+=10;
+
+
+if(x.Status=="RETURNED"||x.Status=="COMPLETED")
+s+=20;
+
+
+return s;
+
+}
+
+
+
+
+
+function normalise(i){
+
+
+return {
+
+
+id:i.id||uid(),
+
+
+Name:
+clean(i.Name||i.name||i.Title||i.title),
+
+
+Route:
+clean(i.Route||i.route||i.Address||i.address),
+
+
+Status:
+clean(i.Status||i.status||"PENDING"),
+
+
+Strength:
+clean(i.Strength||i.strength||"Medium"),
+
+
+Likelihood:
+clean(i.Likelihood||i.likelihood||"Medium"),
+
+
+Notes:
+clean(i.Notes||i.notes),
+
+
+created:
+i.created||new Date().toISOString()
+
+
+}
+
+
+}
+
+
+
+
+
+function save(){
+
+localStorage.setItem(
+"vaultos",
+JSON.stringify(records)
+)
+
+}
+
+
+
+
+
+function load(){
+
+let x=localStorage.getItem("vaultos");
+
+if(x){
+
+records=JSON.parse(x)
+
+}
+
+}
+
+
+
+function dashboard(){
+
+
+document.getElementById("total").innerHTML=
+records.length;
+
+
+document.getElementById("active").innerHTML=
+records.filter(x=>x.Status=="SENT"||x.Status=="WAITING").length;
+
+
+document.getElementById("complete").innerHTML=
+records.filter(x=>x.Status=="COMPLETED"||x.Status=="RETURNED").length;
+
+
+document.getElementById("high").innerHTML=
+records.filter(x=>score(x)>=80).length;
+
+
+}
+
+
+
+
+
+function esc(v){
+
+return String(v)
+.replaceAll("&","&amp;")
+.replaceAll("<","&lt;")
+.replaceAll(">","&gt;")
+
+}
+
+
+
+
 
 function render(){
- let r=document.getElementById("rows");
- r.innerHTML="";
- records.forEach((x,n)=>{
-  r.innerHTML+=`
-  <tr>
-  <td>${x.Name}</td>
-  <td>${x.Route}</td>
-  <td>${x.Status}</td>
-  <td>${x.Strength}</td>
-  <td>${x.Likelihood}</td>
-  <td>${x.Notes}</td>
-  <td><button onclick="records.splice(${n},1);render()">X</button></td>
-  </tr>`;
- });
+
+
+let body=document.getElementById("rows");
+
+body.innerHTML="";
+
+
+let q=
+document.getElementById("search").value.toLowerCase();
+
+
+let f=
+document.getElementById("filter").value;
+
+
+
+records
+.filter(x=>
+JSON.stringify(x)
+.toLowerCase()
+.includes(q))
+.filter(x=>
+!f||x.Status==f)
+.forEach((x,i)=>{
+
+
+body.innerHTML+=`
+
+<tr>
+
+<td>
+<input value="${esc(x.Name)}"
+onchange="edit(${i},'Name',this.value)">
+</td>
+
+
+<td>
+<input value="${esc(x.Route)}"
+onchange="edit(${i},'Route',this.value)">
+</td>
+
+
+<td>
+<select onchange="edit(${i},'Status',this.value)">
+
+<option ${x.Status=="PENDING"?"selected":""}>PENDING</option>
+<option ${x.Status=="SENT"?"selected":""}>SENT</option>
+<option ${x.Status=="WAITING"?"selected":""}>WAITING</option>
+<option ${x.Status=="RETURNED"?"selected":""}>RETURNED</option>
+<option ${x.Status=="COMPLETED"?"selected":""}>COMPLETED</option>
+
+</select>
+</td>
+
+
+<td>
+<select onchange="edit(${i},'Strength',this.value)">
+<option>${x.Strength}</option>
+<option>High</option>
+<option>Medium</option>
+<option>Low</option>
+</select>
+</td>
+
+
+<td>
+<select onchange="edit(${i},'Likelihood',this.value)">
+<option>${x.Likelihood}</option>
+<option>High</option>
+<option>Medium</option>
+<option>Low</option>
+</select>
+</td>
+
+
+<td>
+${score(x)}%
+</td>
+
+
+<td>
+<input value="${esc(x.Notes)}"
+onchange="edit(${i},'Notes',this.value)">
+</td>
+
+
+<td>
+<button onclick="remove(${i})">
+X
+</button>
+</td>
+
+
+</tr>
+
+`
+
+})
+
+
+dashboard();
+
+save();
+
 }
 
-function importJSON(){
- let f=document.getElementById("file").files[0];
- if(!f)return;
- let reader=new FileReader();
- reader.onload=e=>{
-  try{
-   let data=JSON.parse(e.target.result);
-   if(!Array.isArray(data)) data=[data];
-   records=data.map(normaliseItem);
-   document.getElementById("report").innerHTML=
-   `<p class="ok">IMPORT COMPLETE</p>
-   Records found: ${data.length}<br>
-   Valid records: ${records.length}<br>
-   Legacy field conversion: ENABLED`;
-   render();
-  }catch(err){
-   document.getElementById("report").innerHTML="Import failed: "+err;
-  }
- };
- reader.readAsText(f);
+
+
+
+function edit(i,k,v){
+
+records[i][k]=v;
+
+render();
+
 }
+
+
+
+function remove(i){
+
+records.splice(i,1);
+
+render();
+
+}
+
+
 
 function addRecord(){
- records.push({
- Name:"New Target",
- Route:"",
- Status:"PENDING",
- Strength:"Medium",
- Likelihood:"Medium",
- Notes:""
- });
- render();
+
+
+records.push({
+
+id:uid(),
+Name:"New Target",
+Route:"",
+Status:"PENDING",
+Strength:"Medium",
+Likelihood:"Medium",
+Notes:""
+
+});
+
+
+render();
+
 }
 
-function exportJSON(){
- let blob=new Blob([JSON.stringify(records,null,2)],{type:"application/json"});
- let a=document.createElement("a");
- a.href=URL.createObjectURL(blob);
- a.download="VaultOS_export.json";
- a.click();
+
+
+
+
+function importJSON(){
+
+
+let f=document.getElementById("file").files[0];
+
+if(!f)return;
+
+
+let r=new FileReader();
+
+
+r.onload=e=>{
+
+
+let data=JSON.parse(e.target.result);
+
+
+if(!Array.isArray(data))
+data=[data];
+
+
+records=data.map(normalise);
+
+
+document.getElementById("report").innerHTML=
+
+`
+<p class="good">
+IMPORT COMPLETE
+</p>
+
+Records repaired:
+${records.length}
+
+`;
+
+render();
+
+
+};
+
+
+r.readAsText(f);
+
+
 }
+
+
+
+
+
+
+function exportJSON(){
+
+
+let blob=new Blob(
+
+[JSON.stringify(records,null,2)],
+
+{type:"application/json"}
+
+);
+
+
+let a=document.createElement("a");
+
+a.href=URL.createObjectURL(blob);
+
+a.download="VaultOS_SR5.json";
+
+a.click();
+
+
+}
+
+
+
+
+function exportCSV(){
+
+
+let csv="Name,Route,Status,Strength,Likelihood,Score,Notes\n";
+
+
+records.forEach(x=>{
+
+csv+=`"${x.Name}","${x.Route}","${x.Status}","${x.Strength}","${x.Likelihood}","${score(x)}","${x.Notes}"\n`
+
+});
+
+
+let a=document.createElement("a");
+
+a.href=URL.createObjectURL(
+new Blob([csv])
+);
+
+a.download="VaultOS_SR5.csv";
+
+a.click();
+
+
+}
+
+
+
+
+function backup(){
+
+localStorage.setItem(
+"vaultos_backup",
+JSON.stringify(records)
+);
+
+
+alert("Backup created");
+
+}
+
+
+
+load();
+
+render();
+
+
 </script>
+
 
 </body>
 </html>
