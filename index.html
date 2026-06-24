@@ -2,113 +2,84 @@
 
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>VaultOS SR7 | Persistent Storage</title>
+    <title>VaultOS SR7 - Reliable</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; margin: 0; }
-        aside { width: 300px; background: #fff; border-right: 1px solid #ccc; height: 100vh; padding: 20px; }
-        main { flex: 1; padding: 20px; }
-        textarea { width: 100%; height: 200px; margin: 10px 0; }
-        table { width: 100%; border-collapse: collapse; background: #fff; }
-        td, th { border: 1px solid #ccc; padding: 10px; text-align: left; }
+        body { font-family: sans-serif; padding: 20px; }
+        .container { display: flex; gap: 20px; }
+        .box { border: 1px solid #000; padding: 15px; width: 45%; }
+        textarea { width: 100%; height: 200px; }
     </style>
 </head>
 <body>
 
-<aside>
-    <h3>Scrapbook</h3>
-    <textarea id="scratchpad" placeholder="Paste targets here..."></textarea>
-    <button onclick="saveEverything()">Save Scrapbook & List</button>
-    <div id="stats" style="margin-top:20px;"></div>
-</aside>
-
-<main>
-    <h3>Add Target</h3>
-    <input id="name" placeholder="Name">
-    <button onclick="addTarget()">Add to Table</button>
-    
-    <div style="margin: 20px 0;">
-        <input type="file" id="file" accept=".json">
-        <button onclick="importJSON()">Import JSON</button>
-        <button onclick="exportJSON()">Export JSON</button>
+<div class="container">
+    <div class="box">
+        <h3>Scrapbook (Notes)</h3>
+        <textarea id="notes" onblur="saveData()"></textarea>
     </div>
+    <div class="box">
+        <h3>Target List (Names)</h3>
+        <input id="name" placeholder="Name">
+        <button onclick="addEntry()">Add</button>
+        <ul id="list"></ul>
+    </div>
+</div>
 
-    <table id="targetTable">
-        <thead><tr><th>Name</th><th>Category</th><th>Action</th></tr></thead>
-        <tbody id="tableBody"></tbody>
-    </table>
-</main>
+<div style="margin-top:20px;">
+    <button onclick="exportData()">Export Data</button>
+    <input type="file" id="fileInput">
+    <button onclick="importData()">Import Data</button>
+</div>
 
 <script>
-    // 1. Initialize State
-    let state = { list: [], notes: "" };
+    // Load data immediately
+    let data = JSON.parse(localStorage.getItem('vaultData')) || { notes: "", items: [] };
 
-    // 2. Load from localStorage immediately on startup
-    window.onload = () => {
-        const saved = localStorage.getItem('vaultOS_data');
-        if (saved) {
-            state = JSON.parse(saved);
-            document.getElementById('scratchpad').value = state.notes;
-            render();
-        }
-    };
+    // Apply data to screen
+    document.getElementById('notes').value = data.notes;
+    updateList();
 
-    function render() {
-        const tbody = document.getElementById('tableBody');
-        tbody.innerHTML = state.list.map((x, i) => `
-            <tr>
-                <td>${x.name}</td>
-                <td>${x.category || 'Target'}</td>
-                <td><button onclick="deleteTarget(${i})">Delete</button></td>
-            </tr>`).join("");
-        updateStats();
+    function updateList() {
+        const listEl = document.getElementById('list');
+        listEl.innerHTML = data.items.map(i => `<li>${i}</li>`).join('');
     }
 
-    function saveEverything() {
-        state.notes = document.getElementById('scratchpad').value;
-        localStorage.setItem('vaultOS_data', JSON.stringify(state));
-        alert("Saved to static browser storage.");
+    function saveData() {
+        data.notes = document.getElementById('notes').value;
+        localStorage.setItem('vaultData', JSON.stringify(data));
+        console.log("Saved!");
     }
 
-    function addTarget() {
+    function addEntry() {
         const name = document.getElementById('name').value;
-        if(!name) return;
-        state.list.push({ name: name, category: "Autograph Target" });
-        saveEverything();
-        render();
+        if(name) {
+            data.items.push(name);
+            saveData();
+            updateList();
+            document.getElementById('name').value = "";
+        }
     }
 
-    function deleteTarget(i) {
-        state.list.splice(i, 1);
-        saveEverything();
-        render();
-    }
-
-    function importJSON() {
-        const file = document.getElementById('file').files[0];
-        const reader = new FileReader();
-        reader.onload = e => {
-            state = JSON.parse(e.target.result);
-            document.getElementById('scratchpad').value = state.notes;
-            localStorage.setItem('vaultOS_data', JSON.stringify(state));
-            render();
-            alert("Imported and saved to static storage.");
-        };
-        reader.readAsText(file);
-    }
-
-    function exportJSON() {
-        const blob = new Blob([JSON.stringify(state, null, 2)], {type: "application/json"});
+    function exportData() {
+        const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "VaultOS_Static.json";
+        a.download = "vaultData.json";
         a.click();
     }
 
-    function updateStats() {
-        document.getElementById('stats').innerText = "Targets: " + state.list.length;
+    function importData() {
+        const file = document.getElementById('fileInput').files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            data = JSON.parse(e.target.result);
+            localStorage.setItem('vaultData', JSON.stringify(data));
+            document.getElementById('notes').value = data.notes;
+            updateList();
+        };
+        reader.readAsText(file);
     }
 </script>
 </body>
