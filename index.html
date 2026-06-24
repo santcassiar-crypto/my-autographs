@@ -2,85 +2,82 @@
 
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>VaultOS SR7 - Reliable</title>
+    <meta charset="UTF-8">
+    <title>VaultOS SR7 Pro</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; }
-        .container { display: flex; gap: 20px; }
-        .box { border: 1px solid #000; padding: 15px; width: 45%; }
-        textarea { width: 100%; height: 200px; }
+        :root { --bg: #0f172a; --sidebar: #1e293b; --text: #f1f5f9; --accent: #3b82f6; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; }
+        aside { width: 260px; background: var(--sidebar); height: 100vh; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.3); }
+        main { flex: 1; padding: 40px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
+        input, select, button { background: #334155; color: white; border: 1px solid #475569; padding: 10px; border-radius: 6px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { text-align: left; padding: 10px; border-bottom: 2px solid #334155; color: #94a3b8; }
+        td { padding: 12px; border-bottom: 1px solid #334155; }
+        .badge { background: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="box">
-        <h3>Scrapbook (Notes)</h3>
-        <textarea id="notes" onblur="saveData()"></textarea>
-    </div>
-    <div class="box">
-        <h3>Target List (Names)</h3>
-        <input id="name" placeholder="Name">
-        <button onclick="addEntry()">Add</button>
-        <ul id="list"></ul>
-    </div>
-</div>
+<aside>
+    <h2>VaultOS SR7</h2>
+    <div id="stats"></div>
+    <hr style="border:0; border-top:1px solid #334155; margin: 20px 0;">
+    <h3>Scrapbook</h3>
+    <textarea id="scratchpad" style="width:100%; height:150px; background:#0f172a; color:#fff;" oninput="saveData()"></textarea>
+</aside>
 
-<div style="margin-top:20px;">
-    <button onclick="exportData()">Export Data</button>
-    <input type="file" id="fileInput">
-    <button onclick="importData()">Import Data</button>
-</div>
+<main>
+    <div class="card">
+        <input id="name" placeholder="Target Name...">
+        <button onclick="addTarget()">Add Target</button>
+        <button onclick="exportData()" style="background:#059669;">Export JSON</button>
+    </div>
+
+    <div class="card">
+        <table>
+            <thead><tr><th>Target Name</th><th>Category</th><th>Actions</th></tr></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</main>
 
 <script>
-    // Load data immediately
-    let data = JSON.parse(localStorage.getItem('vaultData')) || { notes: "", items: [] };
+    let vault = JSON.parse(localStorage.getItem('vaultData')) || { items: [], notes: "" };
+    document.getElementById('scratchpad').value = vault.notes;
 
-    // Apply data to screen
-    document.getElementById('notes').value = data.notes;
-    updateList();
+    function render() {
+        document.getElementById('tableBody').innerHTML = vault.items.map((x, i) => `
+            <tr>
+                <td>${x.name}</td>
+                <td><span class="badge">Autograph</span></td>
+                <td><button onclick="del(${i})">Delete</button></td>
+            </tr>`).join("");
+        updateStats();
+    }
 
-    function updateList() {
-        const listEl = document.getElementById('list');
-        listEl.innerHTML = data.items.map(i => `<li>${i}</li>`).join('');
+    function addTarget() {
+        const name = document.getElementById('name').value;
+        if (!name) return;
+        vault.items.push({ name });
+        saveData();
+        render();
     }
 
     function saveData() {
-        data.notes = document.getElementById('notes').value;
-        localStorage.setItem('vaultData', JSON.stringify(data));
-        console.log("Saved!");
+        vault.notes = document.getElementById('scratchpad').value;
+        localStorage.setItem('vaultData', JSON.stringify(vault));
     }
 
-    function addEntry() {
-        const name = document.getElementById('name').value;
-        if(name) {
-            data.items.push(name);
-            saveData();
-            updateList();
-            document.getElementById('name').value = "";
-        }
-    }
-
+    function del(i) { vault.items.splice(i, 1); saveData(); render(); }
+    function updateStats() { document.getElementById('stats').innerText = "Total Targets: " + vault.items.length; }
     function exportData() {
-        const blob = new Blob([JSON.stringify(data)], {type: "application/json"});
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = "vaultData.json";
-        a.click();
+        const blob = new Blob([JSON.stringify(vault)], {type: 'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'vault.json'; a.click();
     }
-
-    function importData() {
-        const file = document.getElementById('fileInput').files[0];
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            data = JSON.parse(e.target.result);
-            localStorage.setItem('vaultData', JSON.stringify(data));
-            document.getElementById('notes').value = data.notes;
-            updateList();
-        };
-        reader.readAsText(file);
-    }
+    render();
 </script>
 </body>
 </html>
