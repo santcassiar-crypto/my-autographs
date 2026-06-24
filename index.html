@@ -2,49 +2,60 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>VaultOS SR7 | Full Management</title>
+    <title>VaultOS SR7 | Persistent</title>
     <style>
-        :root { --bg: #0f172a; --panel: #1e293b; --text: #f1f5f9; --accent: #3b82f6; }
+        :root { --bg: #0f172a; --panel: #1e293b; --text: #f1f5f9; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; }
+        aside { width: 300px; background: var(--panel); padding: 20px; border-right: 1px solid #334155; height: 100vh; }
         main { flex: 1; padding: 20px; }
         .card { background: var(--panel); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
-        input, select, textarea, button { background: #334155; color: white; border: 1px solid #475569; padding: 8px; border-radius: 6px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        td, th { padding: 10px; border-bottom: 1px solid #334155; }
+        input, textarea, button { background: #334155; color: white; border: 1px solid #475569; padding: 8px; border-radius: 6px; margin: 4px; }
+        table { width: 100%; border-collapse: collapse; }
+        td, th { padding: 10px; border-bottom: 1px solid #334155; text-align: left; }
     </style>
 </head>
 <body>
 
+<aside>
+    <h3>Scrapbook</h3>
+    <textarea id="notes" style="width:90%; height:80vh; background:#0f172a; color:#fff;" oninput="saveVault()"></textarea>
+</aside>
+
 <main>
     <div class="card">
-        <h3>Add / Edit Record</h3>
         <input id="inName" placeholder="Name">
-        <input id="inStatus" placeholder="Status (e.g. PENDING)">
-        <input id="inProb" type="number" placeholder="Prob %" min="0" max="100">
-        <textarea id="inNotes" placeholder="Notes..."></textarea>
-        <button onclick="saveRecord()">Save Record</button>
-        <button onclick="document.getElementById('importFile').click()" style="background:#059669">Import JSON</button>
+        <input id="inStatus" placeholder="Status">
+        <input id="inProb" type="number" placeholder="Prob %">
+        <button onclick="saveRecord()">Save/Update Record</button>
+        <button onclick="document.getElementById('importFile').click()" style="background:#059669">Import</button>
         <input type="file" id="importFile" style="display:none" onchange="importData(event)">
     </div>
-
     <div class="card">
         <table>
-            <thead><tr><th>Name</th><th>Status</th><th>Prob</th><th>Notes</th><th>Actions</th></tr></thead>
+            <thead><tr><th>Name</th><th>Status</th><th>Prob</th><th>Action</th></tr></thead>
             <tbody id="tableBody"></tbody>
         </table>
     </div>
 </main>
 
 <script>
-    let records = JSON.parse(localStorage.getItem('vaultRecords')) || [];
+    // Load full state from localStorage
+    let vault = JSON.parse(localStorage.getItem('vaultSR7')) || { records: [], notes: "" };
+    
+    // Initialize UI
+    document.getElementById('notes').value = vault.notes;
+
+    function saveVault() {
+        vault.notes = document.getElementById('notes').value;
+        localStorage.setItem('vaultSR7', JSON.stringify(vault));
+    }
 
     function render() {
-        document.getElementById('tableBody').innerHTML = records.map((r, i) => `
+        document.getElementById('tableBody').innerHTML = vault.records.map((r, i) => `
             <tr>
                 <td>${r.Name}</td>
                 <td>${r.Status}</td>
                 <td>${r.Prob || 0}%</td>
-                <td>${r.Notes || ""}</td>
                 <td><button onclick="edit(${i})">Edit</button> <button onclick="del(${i})">Del</button></td>
             </tr>`).join("");
     }
@@ -53,29 +64,30 @@
         const r = {
             Name: document.getElementById('inName').value,
             Status: document.getElementById('inStatus').value,
-            Prob: document.getElementById('inProb').value,
-            Notes: document.getElementById('inNotes').value
+            Prob: document.getElementById('inProb').value
         };
-        records.push(r);
-        localStorage.setItem('vaultRecords', JSON.stringify(records));
+        vault.records.push(r);
+        saveVault();
         render();
     }
 
     function edit(i) {
-        const r = records[i];
+        const r = vault.records[i];
         document.getElementById('inName').value = r.Name;
         document.getElementById('inStatus').value = r.Status;
         document.getElementById('inProb').value = r.Prob;
-        document.getElementById('inNotes').value = r.Notes;
         del(i);
     }
 
-    function del(i) { records.splice(i, 1); localStorage.setItem('vaultRecords', JSON.stringify(records)); render(); }
+    function del(i) { vault.records.splice(i, 1); saveVault(); render(); }
 
     function importData(e) {
         const reader = new FileReader();
         reader.onload = (ev) => {
-            records = JSON.parse(ev.target.result);
+            const data = JSON.parse(ev.target.result);
+            // If importing the old raw list, map it to the new structure
+            vault.records = Array.isArray(data) ? data : (data.records || []);
+            saveVault();
             render();
         };
         reader.readAsText(e.target.files[0]);
