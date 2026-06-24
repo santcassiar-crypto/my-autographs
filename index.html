@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>VaultOS SR7 | Persistent</title>
+    <title>VaultOS SR7 | Dashboard</title>
     <style>
         :root { --bg: #0f172a; --panel: #1e293b; --text: #f1f5f9; }
         body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; }
@@ -11,7 +11,8 @@
         .card { background: var(--panel); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #334155; }
         input, textarea, button { background: #334155; color: white; border: 1px solid #475569; padding: 8px; border-radius: 6px; margin: 4px; }
         table { width: 100%; border-collapse: collapse; }
-        td, th { padding: 10px; border-bottom: 1px solid #334155; text-align: left; }
+        th { text-align: left; padding: 10px; border-bottom: 2px solid #334155; color: #94a3b8; }
+        td { padding: 10px; border-bottom: 1px solid #334155; }
     </style>
 </head>
 <body>
@@ -23,26 +24,25 @@
 
 <main>
     <div class="card">
-        <input id="inName" placeholder="Name">
-        <input id="inStatus" placeholder="Status">
-        <input id="inProb" type="number" placeholder="Prob %">
-        <button onclick="saveRecord()">Save/Update Record</button>
-        <button onclick="document.getElementById('importFile').click()" style="background:#059669">Import</button>
+        <h3>Dashboard Entry</h3>
+        <input id="inID" type="hidden">
+        <input id="inName" placeholder="Name" style="width: 300px;">
+        <button onclick="saveRecord()">Save Entry</button>
+        <button onclick="clearForm()">Clear</button>
+        <button onclick="document.getElementById('importFile').click()" style="background:#059669">Import List</button>
         <input type="file" id="importFile" style="display:none" onchange="importData(event)">
     </div>
+
     <div class="card">
         <table>
-            <thead><tr><th>Name</th><th>Status</th><th>Prob</th><th>Action</th></tr></thead>
+            <thead><tr><th>Name</th><th>Actions</th></tr></thead>
             <tbody id="tableBody"></tbody>
         </table>
     </div>
 </main>
 
 <script>
-    // Load full state from localStorage
     let vault = JSON.parse(localStorage.getItem('vaultSR7')) || { records: [], notes: "" };
-    
-    // Initialize UI
     document.getElementById('notes').value = vault.notes;
 
     function saveVault() {
@@ -54,29 +54,34 @@
         document.getElementById('tableBody').innerHTML = vault.records.map((r, i) => `
             <tr>
                 <td>${r.Name}</td>
-                <td>${r.Status}</td>
-                <td>${r.Prob || 0}%</td>
                 <td><button onclick="edit(${i})">Edit</button> <button onclick="del(${i})">Del</button></td>
             </tr>`).join("");
     }
 
     function saveRecord() {
-        const r = {
-            Name: document.getElementById('inName').value,
-            Status: document.getElementById('inStatus').value,
-            Prob: document.getElementById('inProb').value
-        };
-        vault.records.push(r);
+        const id = document.getElementById('inID').value;
+        const name = document.getElementById('inName').value;
+        if (!name) return;
+
+        if (id !== "") {
+            vault.records[id].Name = name;
+        } else {
+            vault.records.push({ Name: name });
+        }
+        
+        clearForm();
         saveVault();
         render();
     }
 
     function edit(i) {
-        const r = vault.records[i];
-        document.getElementById('inName').value = r.Name;
-        document.getElementById('inStatus').value = r.Status;
-        document.getElementById('inProb').value = r.Prob;
-        del(i);
+        document.getElementById('inID').value = i;
+        document.getElementById('inName').value = vault.records[i].Name;
+    }
+
+    function clearForm() {
+        document.getElementById('inID').value = "";
+        document.getElementById('inName').value = "";
     }
 
     function del(i) { vault.records.splice(i, 1); saveVault(); render(); }
@@ -85,8 +90,8 @@
         const reader = new FileReader();
         reader.onload = (ev) => {
             const data = JSON.parse(ev.target.result);
-            // If importing the old raw list, map it to the new structure
-            vault.records = Array.isArray(data) ? data : (data.records || []);
+            // Map incoming JSON to the simple format { Name: "..." }
+            vault.records = Array.isArray(data) ? data.map(r => ({Name: r.Name || r})) : (data.records || []);
             saveVault();
             render();
         };
