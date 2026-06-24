@@ -5,103 +5,96 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>VaultOS SR7 | Scrapbook Edition</title>
+    <title>VaultOS SR7 | Persistent Storage</title>
     <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --text: #1e293b; }
-        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); display: flex; margin: 0; }
-        aside { width: 300px; background: #fff; border-right: 1px solid #e2e8f0; height: 100vh; padding: 20px; overflow-y: auto; }
-        main { flex: 1; padding: 2rem; }
-        .card { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        textarea { width: 100%; height: 150px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; resize: vertical; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #f1f5f9; text-align: left; padding: 12px; font-size: 0.7rem; text-transform: uppercase; }
-        td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-        input, select, button { padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
-        button { background: var(--primary); color: white; cursor: pointer; }
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; margin: 0; }
+        aside { width: 300px; background: #fff; border-right: 1px solid #ccc; height: 100vh; padding: 20px; }
+        main { flex: 1; padding: 20px; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; }
+        table { width: 100%; border-collapse: collapse; background: #fff; }
+        td, th { border: 1px solid #ccc; padding: 10px; text-align: left; }
     </style>
 </head>
 <body>
 
 <aside>
     <h3>Scrapbook</h3>
-    <textarea id="scratchpad" placeholder="Paste ideas, team lists, or URLs here..." oninput="saveScratchpad()"></textarea>
-    <hr>
-    <div id="stats"></div>
-    <button onclick="exportJSON()" style="width: 100%;">Backup Data</button>
+    <textarea id="scratchpad" placeholder="Paste targets here..."></textarea>
+    <button onclick="saveEverything()">Save Scrapbook & List</button>
+    <div id="stats" style="margin-top:20px;"></div>
 </aside>
 
 <main>
-    <div class="card">
-        <h3>Add Target</h3>
-        <input id="name" placeholder="Name">
-        <select id="category">
-            <option>Autograph Target</option><option>Fan Mail</option>
-            <option>Research</option><option>Completed</option>
-        </select>
-        <button onclick="addTarget()">Add to List</button>
-    </div>
-
-    <div class="card">
+    <h3>Add Target</h3>
+    <input id="name" placeholder="Name">
+    <button onclick="addTarget()">Add to Table</button>
+    
+    <div style="margin: 20px 0;">
         <input type="file" id="file" accept=".json">
         <button onclick="importJSON()">Import JSON</button>
+        <button onclick="exportJSON()">Export JSON</button>
     </div>
 
-    <div class="card">
-        <table id="targetTable">
-            <thead><tr><th>Name</th><th>Category</th><th></th></tr></thead>
-            <tbody id="tableBody"></tbody>
-        </table>
-    </div>
+    <table id="targetTable">
+        <thead><tr><th>Name</th><th>Category</th><th>Action</th></tr></thead>
+        <tbody id="tableBody"></tbody>
+    </table>
 </main>
 
 <script>
-    let state = JSON.parse(localStorage.getItem('vaultData')) || { list: [], notes: "" };
-    document.getElementById('scratchpad').value = state.notes;
+    // 1. Initialize State
+    let state = { list: [], notes: "" };
+
+    // 2. Load from localStorage immediately on startup
+    window.onload = () => {
+        const saved = localStorage.getItem('vaultOS_data');
+        if (saved) {
+            state = JSON.parse(saved);
+            document.getElementById('scratchpad').value = state.notes;
+            render();
+        }
+    };
 
     function render() {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = state.list.map((x, i) => `
             <tr>
-                <td><strong>${x.name}</strong></td>
-                <td><small>${x.category}</small></td>
-                <td><button onclick="deleteTarget(${i})" style="background:#ef4444; padding:2px 8px;">×</button></td>
+                <td>${x.name}</td>
+                <td>${x.category || 'Target'}</td>
+                <td><button onclick="deleteTarget(${i})">Delete</button></td>
             </tr>`).join("");
-        localStorage.setItem('vaultData', JSON.stringify(state));
         updateStats();
     }
 
-    function saveScratchpad() {
+    function saveEverything() {
         state.notes = document.getElementById('scratchpad').value;
-        localStorage.setItem('vaultData', JSON.stringify(state));
+        localStorage.setItem('vaultOS_data', JSON.stringify(state));
+        alert("Saved to static browser storage.");
     }
 
     function addTarget() {
         const name = document.getElementById('name').value;
-        if (!name) return;
-        state.list.push({ name, category: document.getElementById('category').value });
-        document.getElementById('name').value = "";
+        if(!name) return;
+        state.list.push({ name: name, category: "Autograph Target" });
+        saveEverything();
         render();
     }
 
     function deleteTarget(i) {
         state.list.splice(i, 1);
+        saveEverything();
         render();
-    }
-
-    function updateStats() {
-        const counts = state.list.reduce((acc, x) => ({...acc, [x.category]: (acc[x.category] || 0) + 1}), {});
-        document.getElementById('stats').innerHTML = Object.entries(counts)
-            .map(([cat, count]) => `<p>${cat}: <b>${count}</b></p>`).join("");
     }
 
     function importJSON() {
         const file = document.getElementById('file').files[0];
-        if (!file) return;
         const reader = new FileReader();
-        reader.onload = e => { 
-            state = JSON.parse(e.target.result); 
+        reader.onload = e => {
+            state = JSON.parse(e.target.result);
             document.getElementById('scratchpad').value = state.notes;
-            render(); 
+            localStorage.setItem('vaultOS_data', JSON.stringify(state));
+            render();
+            alert("Imported and saved to static storage.");
         };
         reader.readAsText(file);
     }
@@ -110,11 +103,13 @@
         const blob = new Blob([JSON.stringify(state, null, 2)], {type: "application/json"});
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "VaultOS_Scrapbook.json";
+        a.download = "VaultOS_Static.json";
         a.click();
     }
 
-    render();
+    function updateStats() {
+        document.getElementById('stats').innerText = "Targets: " + state.list.length;
+    }
 </script>
 </body>
 </html>
