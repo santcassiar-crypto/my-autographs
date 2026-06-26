@@ -1,29 +1,29 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR8 Collector Edition</title>
+<title>VaultOS SR9 Collector Edition</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-body{margin:0;background:#0f172a;color:#f8fafc;font-family:Arial,sans-serif;display:flex}
-aside{width:260px;background:#1e293b;padding:20px;min-height:100vh}
+body{margin:0;background:#0f172a;color:#f8fafc;font-family:Arial;display:flex;min-height:100vh}
+aside{width:260px;background:#1e293b;padding:20px}
 main{flex:1;padding:20px}
 .card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px;margin-bottom:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 .stat{background:#334155;padding:15px;border-radius:10px}
 input,select,textarea,button{background:#334155;color:white;border:1px solid #475569;border-radius:6px;padding:8px;margin:4px}
-table{width:100%;border-collapse:collapse}
-td,th{padding:10px;border-bottom:1px solid #334155;text-align:left}
 button{cursor:pointer}
+table{width:100%;border-collapse:collapse}
+td,th{padding:10px;border-bottom:1px solid #334155}
 </style>
 </head>
 <body>
 <aside>
-<h2>VaultOS SR8</h2>
-<textarea id="notes" style="width:90%;height:70vh" placeholder="Collector notes..." oninput="save()"></textarea>
+<h2>VaultOS SR9</h2>
+<textarea id="notes" style="width:90%;height:70vh" placeholder="Collector notes..."></textarea>
 </aside>
-
 <main>
 <div class="card">
 <h2>Dashboard</h2>
@@ -40,6 +40,7 @@ button{cursor:pointer}
 <input id="name" placeholder="Name">
 <input id="sport" placeholder="Sport">
 <input id="team" placeholder="Team">
+<input id="route" placeholder="Route / Contact">
 <select id="status">
 <option>Research</option>
 <option>Ready</option>
@@ -47,7 +48,13 @@ button{cursor:pointer}
 <option>Received</option>
 <option>No Reply</option>
 </select>
-<button onclick="add()">Save</button>
+<select id="priority">
+<option>Normal</option>
+<option>High</option>
+<option>Top Target</option>
+</select>
+<textarea id="recordnotes" placeholder="Target notes"></textarea>
+<button onclick="add()">Save Target</button>
 <input type="file" onchange="importJSON(event)">
 <button onclick="exportJSON()">Export Backup</button>
 </div>
@@ -55,17 +62,19 @@ button{cursor:pointer}
 <div class="card">
 <input id="search" placeholder="Search..." oninput="render()">
 <table>
-<thead><tr><th>Name</th><th>Sport</th><th>Team</th><th>Status</th><th></th></tr></thead>
+<thead><tr><th>Name</th><th>Sport</th><th>Team</th><th>Status</th><th>Priority</th><th></th></tr></thead>
 <tbody id="list"></tbody>
 </table>
 </div>
 </main>
 
 <script>
-let vault=JSON.parse(localStorage.getItem("VaultOS_SR8"))||{records:[],notes:""};
-notes.value=vault.notes;
+let vault=JSON.parse(localStorage.getItem("VaultOS_SR9"))||{records:[],notes:""};
+notes.value=vault.notes||"";
 
-function save(){vault.notes=notes.value;localStorage.setItem("VaultOS_SR8",JSON.stringify(vault));}
+notes.oninput=()=>{vault.notes=notes.value;save()};
+
+function save(){localStorage.setItem("VaultOS_SR9",JSON.stringify(vault));}
 
 function add(){
 if(!name.value)return;
@@ -73,26 +82,39 @@ vault.records.push({
 Name:name.value,
 Sport:sport.value,
 Team:team.value,
+Route:route.value,
 Status:status.value,
+Priority:priority.value,
+Notes:recordnotes.value,
 Date:new Date().toLocaleDateString()
 });
-name.value=sport.value=team.value="";
+[name,sport,team,route,recordnotes].forEach(x=>x.value="");
 save();render();
 }
 
 function render(){
 let q=search.value.toLowerCase();
 list.innerHTML=vault.records.filter(x=>JSON.stringify(x).toLowerCase().includes(q)).map((x,i)=>
-`<tr><td>${x.Name}</td><td>${x.Sport}</td><td>${x.Team}</td><td>${x.Status}</td>
-<td><button onclick="del(${i})">X</button></td></tr>`).join("");
+`<tr>
+<td>${x.Name||""}</td>
+<td>${x.Sport||""}</td>
+<td>${x.Team||""}</td>
+<td>${x.Status||""}</td>
+<td>${x.Priority||""}</td>
+<td><button onclick="del(${i})">X</button></td>
+</tr>`).join("");
 
-total.innerHTML=vault.records.length;
-research.innerHTML=vault.records.filter(x=>x.Status=="Research").length;
-sent.innerHTML=vault.records.filter(x=>x.Status=="Sent").length;
-received.innerHTML=vault.records.filter(x=>x.Status=="Received").length;
+total.textContent=vault.records.length;
+research.textContent=vault.records.filter(x=>x.Status=="Research").length;
+sent.textContent=vault.records.filter(x=>x.Status=="Sent").length;
+received.textContent=vault.records.filter(x=>x.Status=="Received").length;
 }
 
-function del(i){vault.records.splice(i,1);save();render();}
+function del(i){
+vault.records.splice(i,1);
+save();
+render();
+}
 
 function importJSON(e){
 let r=new FileReader();
@@ -100,12 +122,16 @@ r.onload=function(){
 let d=JSON.parse(r.result);
 let arr=d.records||d;
 vault.records=arr.map(x=>({
-Name:x.Name||x.Player||x.Research||x.Target||x,
+Name:x.Name||x.name||x.Player||x.Target||"",
 Sport:x.Sport||"",
 Team:x.Team||"",
-Status:x.Status||"Research"
+Route:x.Route||"",
+Status:x.Status||"Research",
+Priority:x.Priority||"Normal",
+Notes:x.Notes||""
 }));
-save();render();
+save();
+render();
 };
 r.readAsText(e.target.files[0]);
 }
@@ -113,7 +139,7 @@ r.readAsText(e.target.files[0]);
 function exportJSON(){
 let a=document.createElement("a");
 a.href="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(vault,null,2));
-a.download="VaultOS_SR8_Backup.json";
+a.download="VaultOS_SR9_Backup.json";
 a.click();
 }
 
