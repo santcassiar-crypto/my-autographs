@@ -34,46 +34,68 @@ textarea{width:100%}
 
 <main>
 <section id="dash">
+
 <div class="card">
+
 <h2>Dashboard</h2>
-$("pending").textContent=vault.records.filter(x=>x.Status=="Pending").length;
 
-$("success").textContent=vault.records.filter(x=>x.Status=="Success").length;
+<div class="grid">
 
-$("rts").textContent=vault.records.filter(x=>x.Status=="RTS").length;
-
-$("award").textContent=vault.records.filter(x=>x.Status=="AWARD CIRCUIT – NON-ROUTING").length;
+<div class="stat">
+Targets<br>
+<b id="total">0</b>
 </div>
-</div>
-<div class="card"><h2>Activity</h2><div id="activity">Ready</div></div>
-</section>
 
-<section id="targets" style="display:none">
+<div class="stat">
+Pending<br>
+<b id="pending">0</b>
+</div>
+
+<div class="stat">
+Success<br>
+<b id="success">0</b>
+</div>
+
+<div class="stat">
+RTS<br>
+<b id="rts">0</b>
+</div>
+
+<div class="stat">
+AWARD CIRCUIT – NON-ROUTING<br>
+<b id="award">0</b>
+</div>
+
+<div class="stat">
+Research<br>
+<b id="research">0</b>
+</div>
+
+<div class="stat">
+Sent<br>
+<b id="sent">0</b>
+</div>
+
+<div class="stat">
+Received<br>
+<b id="received">0</b>
+</div>
+
+<div class="stat">
+Top Targets<br>
+<b id="top">0</b>
+</div>
+
+</div>
+
+</div>
+
+
 <div class="card">
-<h2>Add Target</h2>
-<input id="name" placeholder="Name">
-<input id="sport" placeholder="Sport">
-<input id="team" placeholder="Team">
-<input id="route" placeholder="Route">
-<select id="status">
-<option>Research</option><option>Ready</option><option>Sent</option><option>Received</option><option>No Reply</option>
-</select>
-<select id="priority">
-<option>Normal</option><option>High</option><option>Top Target</option>
-</select>
-<textarea id="rnotes" placeholder="Notes"></textarea>
-<button onclick="add()">Save Target</button>
-<input type="file" onchange="importJSON(event)">
-<button onclick="exportJSON()">Export JSON</button>
+<h2>Activity</h2>
+<div id="activity">Ready</div>
 </div>
 
-<div class="card">
-<input id="search" placeholder="Search" oninput="render()">
-<table>
-<thead><tr><th>Name</th><th>Sport</th><th>Team</th><th>Status</th><th>Priority</th><th></th></tr></thead>
-<tbody id="list"></tbody>
-</table>
-</div>
 </section>
 
 <section id="notes" style="display:none"></section>
