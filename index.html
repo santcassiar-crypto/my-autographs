@@ -1,30 +1,39 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR9 Collector Edition</title>
+<title>VaultOS SR10 Collector Edition</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-body{margin:0;background:#0f172a;color:#f8fafc;font-family:Arial;display:flex;min-height:100vh}
-aside{width:260px;background:#1e293b;padding:20px}
+:root{--bg:#0f172a;--panel:#1e293b;--panel2:#334155;--border:#475569;--text:#f8fafc;--accent:#38bdf8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial;display:flex;min-height:100vh}
+aside{width:270px;background:#020617;padding:20px;border-right:1px solid var(--border)}
 main{flex:1;padding:20px}
-.card{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:18px;margin-bottom:18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.stat{background:#334155;padding:15px;border-radius:10px}
-input,select,textarea,button{background:#334155;color:white;border:1px solid #475569;border-radius:6px;padding:8px;margin:4px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.stat{background:var(--panel2);padding:18px;border-radius:12px}
+.stat b{font-size:28px;color:var(--accent)}
+input,select,textarea,button{background:var(--panel2);color:white;border:1px solid var(--border);border-radius:8px;padding:10px;margin:4px}
 button{cursor:pointer}
 table{width:100%;border-collapse:collapse}
-td,th{padding:10px;border-bottom:1px solid #334155}
+td,th{padding:10px;border-bottom:1px solid var(--border);text-align:left}
+textarea{width:100%}
+@media(max-width:800px){body{display:block}aside{width:100%}}
 </style>
 </head>
 <body>
 <aside>
-<h2>VaultOS SR9</h2>
-<textarea id="notes" style="width:90%;height:70vh" placeholder="Collector notes..."></textarea>
+<h2>VaultOS SR10</h2>
+<p>Collector Command Centre</p>
+<button onclick="view('dash')">Dashboard</button>
+<button onclick="view('targets')">Targets</button>
+<button onclick="view('notes')">Notes</button>
+<textarea id="notes" placeholder="Collector notes"></textarea>
 </aside>
+
 <main>
+<section id="dash">
 <div class="card">
 <h2>Dashboard</h2>
 <div class="grid">
@@ -32,115 +41,99 @@ td,th{padding:10px;border-bottom:1px solid #334155}
 <div class="stat">Research<br><b id="research">0</b></div>
 <div class="stat">Sent<br><b id="sent">0</b></div>
 <div class="stat">Received<br><b id="received">0</b></div>
+<div class="stat">Top Targets<br><b id="top">0</b></div>
 </div>
 </div>
+<div class="card"><h2>Activity</h2><div id="activity">Ready</div></div>
+</section>
 
+<section id="targets" style="display:none">
 <div class="card">
 <h2>Add Target</h2>
 <input id="name" placeholder="Name">
 <input id="sport" placeholder="Sport">
 <input id="team" placeholder="Team">
-<input id="route" placeholder="Route / Contact">
+<input id="route" placeholder="Route">
 <select id="status">
-<option>Research</option>
-<option>Ready</option>
-<option>Sent</option>
-<option>Received</option>
-<option>No Reply</option>
+<option>Research</option><option>Ready</option><option>Sent</option><option>Received</option><option>No Reply</option>
 </select>
 <select id="priority">
-<option>Normal</option>
-<option>High</option>
-<option>Top Target</option>
+<option>Normal</option><option>High</option><option>Top Target</option>
 </select>
-<textarea id="recordnotes" placeholder="Target notes"></textarea>
+<textarea id="rnotes" placeholder="Notes"></textarea>
 <button onclick="add()">Save Target</button>
 <input type="file" onchange="importJSON(event)">
-<button onclick="exportJSON()">Export Backup</button>
+<button onclick="exportJSON()">Export JSON</button>
 </div>
 
 <div class="card">
-<input id="search" placeholder="Search..." oninput="render()">
+<input id="search" placeholder="Search" oninput="render()">
 <table>
 <thead><tr><th>Name</th><th>Sport</th><th>Team</th><th>Status</th><th>Priority</th><th></th></tr></thead>
 <tbody id="list"></tbody>
 </table>
 </div>
+</section>
+
+<section id="notes" style="display:none"></section>
 </main>
 
 <script>
-let vault=JSON.parse(localStorage.getItem("VaultOS_SR9"))||{records:[],notes:""};
-notes.value=vault.notes||"";
+let vault=JSON.parse(localStorage.getItem("VaultOS_SR10"))||{records:[],notes:""};
+let $=x=>document.getElementById(x);
 
-notes.oninput=()=>{vault.notes=notes.value;save()};
+$("notes").value=vault.notes||"";
+$("notes").oninput=()=>{vault.notes=$("notes").value;save()};
 
-function save(){localStorage.setItem("VaultOS_SR9",JSON.stringify(vault));}
+function save(){localStorage.setItem("VaultOS_SR10",JSON.stringify(vault))}
 
 function add(){
-if(!name.value)return;
+if(!$("name").value)return;
 vault.records.push({
-Name:name.value,
-Sport:sport.value,
-Team:team.value,
-Route:route.value,
-Status:status.value,
-Priority:priority.value,
-Notes:recordnotes.value,
+Name:$("name").value,
+Sport:$("sport").value,
+Team:$("team").value,
+Route:$("route").value,
+Status:$("status").value,
+Priority:$("priority").value,
+Notes:$("rnotes").value,
 Date:new Date().toLocaleDateString()
 });
-[name,sport,team,route,recordnotes].forEach(x=>x.value="");
+["name","sport","team","route","rnotes"].forEach(x=>$(x).value="");
 save();render();
 }
 
 function render(){
-let q=search.value.toLowerCase();
-list.innerHTML=vault.records.filter(x=>JSON.stringify(x).toLowerCase().includes(q)).map((x,i)=>
-`<tr>
-<td>${x.Name||""}</td>
-<td>${x.Sport||""}</td>
-<td>${x.Team||""}</td>
-<td>${x.Status||""}</td>
-<td>${x.Priority||""}</td>
-<td><button onclick="del(${i})">X</button></td>
-</tr>`).join("");
+let q=($("search")?.value||"").toLowerCase();
+$("list").innerHTML=vault.records.filter(x=>JSON.stringify(x).toLowerCase().includes(q)).map((x,i)=>`
+<tr><td>${x.Name}</td><td>${x.Sport}</td><td>${x.Team}</td><td>${x.Status}</td><td>${x.Priority}</td><td><button onclick="del(${i})">X</button></td></tr>`).join("");
 
-total.textContent=vault.records.length;
-research.textContent=vault.records.filter(x=>x.Status=="Research").length;
-sent.textContent=vault.records.filter(x=>x.Status=="Sent").length;
-received.textContent=vault.records.filter(x=>x.Status=="Received").length;
+$("total").textContent=vault.records.length;
+$("research").textContent=vault.records.filter(x=>x.Status=="Research").length;
+$("sent").textContent=vault.records.filter(x=>x.Status=="Sent").length;
+$("received").textContent=vault.records.filter(x=>x.Status=="Received").length;
+$("top").textContent=vault.records.filter(x=>x.Priority=="Top Target").length;
+$("activity").textContent=vault.records.length+" records loaded";
 }
 
-function del(i){
-vault.records.splice(i,1);
-save();
-render();
-}
-
-function importJSON(e){
-let r=new FileReader();
-r.onload=function(){
-let d=JSON.parse(r.result);
-let arr=d.records||d;
-vault.records=arr.map(x=>({
-Name:x.Name||x.name||x.Player||x.Target||"",
-Sport:x.Sport||"",
-Team:x.Team||"",
-Route:x.Route||"",
-Status:x.Status||"Research",
-Priority:x.Priority||"Normal",
-Notes:x.Notes||""
-}));
-save();
-render();
-};
-r.readAsText(e.target.files[0]);
-}
+function del(i){vault.records.splice(i,1);save();render()}
 
 function exportJSON(){
 let a=document.createElement("a");
 a.href="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(vault,null,2));
-a.download="VaultOS_SR9_Backup.json";
+a.download="VaultOS_SR10_Backup.json";
 a.click();
+}
+
+function importJSON(e){
+let r=new FileReader();
+r.onload=()=>{let d=JSON.parse(r.result);vault.records=d.records||d;save();render()};
+r.readAsText(e.target.files[0]);
+}
+
+function view(id){
+document.querySelectorAll("main section").forEach(s=>s.style.display="none");
+$(id).style.display="block";
 }
 
 render();
