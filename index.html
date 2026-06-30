@@ -2,131 +2,121 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR10 | Collector Edition</title>
+<title>VaultOS SR10 Collector Edition</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-    :root { --bg:#0f172a; --panel:#1e293b; --panel2:#334155; --text:#f8fafc; --accent:#38bdf8; --border:#475569; }
-    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; display: flex; min-height: 100vh; }
-    aside { width: 270px; background: #020617; padding: 20px; border-right: 1px solid var(--border); }
-    main { flex: 1; padding: 20px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
-    .stat { background: var(--panel2); padding: 20px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
-    .stat b { font-size: 32px; color: var(--accent); display: block; }
-    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
-    input, select, button { background: var(--panel2); color: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin: 4px; }
-    button { cursor: pointer; font-weight: bold; }
-    table { width: 100%; border-collapse: collapse; }
-    td, th { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
+:root{--bg:#0f172a;--panel:#1e293b;--panel2:#334155;--border:#475569;--text:#f8fafc;--accent:#38bdf8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial;display:flex;min-height:100vh}
+aside{width:270px;background:#020617;padding:20px;border-right:1px solid var(--border)}
+main{flex:1;padding:20px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.stat{background:var(--panel2);padding:18px;border-radius:12px}
+.stat b{font-size:28px;color:var(--accent)}
+input,select,textarea,button{background:var(--panel2);color:white;border:1px solid var(--border);border-radius:8px;padding:10px;margin:4px}
+button{cursor:pointer}
+table{width:100%;border-collapse:collapse}
+td,th{padding:10px;border-bottom:1px solid var(--border);text-align:left}
+textarea{width:100%}
+@media(max-width:800px){body{display:block}aside{width:100%}}
 </style>
 </head>
 <body>
 <aside>
-    <h2>VaultOS SR10</h2>
-    <button onclick="view('dash')" style="width:100%">Dashboard</button>
-    <button onclick="view('targets')" style="width:100%">Collection</button>
+<h2>VaultOS SR10</h2>
+<p>Collector Command Centre</p>
+<button onclick="view('dash')">Dashboard</button>
+<button onclick="view('targets')">Targets</button>
+<textarea id="notes" placeholder="Collector notes"></textarea>
 </aside>
 
-<main>
-    <section id="dash">
-        <h2>Dashboard</h2>
-        <div class="grid" id="stats-grid">
-            <div class="stat">Total<b id="total">0</b></div>
-            <div class="stat">Pending<b id="pending">0</b></div>
-            <div class="stat">Success<b id="success">0</b></div>
-            <div class="stat">RTS<b id="rts">0</b></div>
-            <div class="stat">Award Circuit<b id="award">0</b></div>
-        </div>
-    </section>
+<section id="targets" style="display:none">
+<div class="card">
+<h2>Add Target</h2>
+<input id="name" placeholder="Name">
+<select id="status">
+<option>Pending</option><option>Research</option><option>Sent</option>
+<option>Success</option><option>RTS</option><option>AWARD CIRCUIT – NON-ROUTING</option>
+</select>
+<button onclick="add()">Save Target</button>
+<button onclick="exportJSON()">Export JSON</button>
+<input type="file" id="fileInput" onchange="importJSON(event)">
+</div>
+<div class="card">
+<table>
+<thead><tr><th>Name</th><th>Status</th><th></th></tr></thead>
+<tbody id="list"></tbody>
+</table>
+</div>
+</section>
 
-    <section id="targets" style="display:none">
-        <div class="card">
-            <h2>Manage Collection</h2>
-            <input id="name" placeholder="Name">
-            <select id="status">
-                <option>Pending</option><option>Research</option><option>Sent</option>
-                <option>Success</option><option>RTS</option><option>AWARD CIRCUIT – NON-ROUTING</option>
-            </select>
-            <button onclick="add()">Save New</button>
-            <button onclick="exportJSON()">Export</button>
-            <input type="file" id="f" style="display:none">
-            <button onclick="document.getElementById('f').click()">Import</button>
-        </div>
-        <div class="card">
-            <table>
-                <thead><tr><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody id="list"></tbody>
-            </table>
-        </div>
-    </section>
+<main>
+<section id="dash">
+<div class="card">
+<h2>Dashboard</h2>
+<div class="grid">
+<div class="stat">Total<br><b id="total">0</b></div>
+<div class="stat">Pending<br><b id="pending">0</b></div>
+<div class="stat">Success<br><b id="success">0</b></div>
+<div class="stat">RTS<br><b id="rts">0</b></div>
+<div class="stat">Award Circuit<br><b id="award">0</b></div>
+</div>
+</div>
+</section>
 </main>
 
 <script>
-    let vault = JSON.parse(localStorage.getItem("VaultOS_SR10")) || {records:[]};
-    let $ = x => document.getElementById(x);
+let vault = {records:[]};
+let $ = x => document.getElementById(x);
 
-    // CENTRAL SYNC ENGINE
-    function sync() {
-        // Save to storage
-        localStorage.setItem("VaultOS_SR10", JSON.stringify(vault));
-        
-        // Update Table
-        $("list").innerHTML = vault.records.map((x,i) => `
-            <tr>
-                <td><input value="${x.Name}" onchange="update(${i}, 'Name', this.value)"></td>
-                <td>
-                    <select onchange="update(${i}, 'Status', this.value)">
-                        ${['Pending','Research','Sent','Success','RTS','AWARD CIRCUIT – NON-ROUTING'].map(s => 
-                            `<option value="${s}" ${x.Status==s?'selected':''}>${s}</option>`).join('')}
-                    </select>
-                </td>
-                <td><button onclick="del(${i})">X</button></td>
-            </tr>`).join("");
-        
-        // Update Dashboard
-        const count = (s) => vault.records.filter(x => (x.Status||"").trim() === s.trim()).length;
-        $("total").textContent = vault.records.length;
-        $("pending").textContent = count("Pending");
-        $("success").textContent = count("Success");
-        $("rts").textContent = count("RTS");
-        $("award").textContent = count("AWARD CIRCUIT – NON-ROUTING");
-    }
+function updateDashboard() {
+    $("total").textContent = vault.records.length;
+    $("pending").textContent = vault.records.filter(x => x.Status == "Pending").length;
+    $("success").textContent = vault.records.filter(x => x.Status == "Success").length;
+    $("rts").textContent = vault.records.filter(x => x.Status == "RTS").length;
+    $("award").textContent = vault.records.filter(x => x.Status == "AWARD CIRCUIT – NON-ROUTING").length;
+}
 
-    function add() {
-        if(!$("name").value) return;
-        vault.records.push({ Name:$("name").value, Status:$("status").value });
-        $("name").value = "";
-        sync();
-    }
+function renderList() {
+    $("list").innerHTML = vault.records.map((x,i) => `
+        <tr><td>${x.Name}</td><td>${x.Status}</td><td><button onclick="del(${i})">X</button></td></tr>`).join("");
+}
 
-    function update(i, field, value) {
-        vault.records[i][field] = value;
-        sync();
-    }
+function add() {
+    if(!$("name").value) return;
+    vault.records.push({Name:$("name").value, Status:$("status").value});
+    $("name").value = "";
+    refresh();
+}
 
-    function del(i) { vault.records.splice(i,1); sync(); }
+function del(i) { vault.records.splice(i,1); refresh(); }
 
-    function view(id) {
-        document.querySelectorAll("main section").forEach(s => s.style.display="none");
-        $(id).style.display="block";
-    }
+function refresh() {
+    renderList();
+    updateDashboard();
+}
 
-    $("f").addEventListener("change", function(e) {
-        let r = new FileReader();
-        r.onload = (e) => {
-            vault.records = JSON.parse(e.target.result).records || JSON.parse(e.target.result);
-            sync();
-        };
-        r.readAsText(e.target.files[0]);
-    });
+function exportJSON() {
+    let a = document.createElement("a");
+    a.href = "data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(vault));
+    a.download = "VaultOS_SR10_Backup.json";
+    a.click();
+}
 
-    function exportJSON() {
-        let a = document.createElement("a");
-        a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(vault));
-        a.download = "VaultOS_Backup.json";
-        a.click();
-    }
+function importJSON(e) {
+    let r = new FileReader();
+    r.onload = () => { vault = JSON.parse(r.result); refresh(); };
+    r.readAsText(e.target.files[0]);
+}
 
-    // Initial Run
-    sync();
+function view(id) {
+    document.querySelectorAll("section").forEach(s => s.style.display="none");
+    if(id == 'dash') $("dash").parentElement.style.display = "block";
+    else $(id).style.display = "block";
+}
+
+refresh();
 </script>
 </body>
 </html>
