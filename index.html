@@ -36,12 +36,13 @@ textarea{width:100%}
 <section id="dash">
 <div class="card">
 <h2>Dashboard</h2>
-<div class="grid">
-<div class="stat">Targets<br><b id="total">0</b></div>
-<div class="stat">Research<br><b id="research">0</b></div>
-<div class="stat">Sent<br><b id="sent">0</b></div>
-<div class="stat">Received<br><b id="received">0</b></div>
-<div class="stat">Top Targets<br><b id="top">0</b></div>
+$("pending").textContent=vault.records.filter(x=>x.Status=="Pending").length;
+
+$("success").textContent=vault.records.filter(x=>x.Status=="Success").length;
+
+$("rts").textContent=vault.records.filter(x=>x.Status=="RTS").length;
+
+$("award").textContent=vault.records.filter(x=>x.Status=="AWARD CIRCUIT – NON-ROUTING").length;
 </div>
 </div>
 <div class="card"><h2>Activity</h2><div id="activity">Ready</div></div>
