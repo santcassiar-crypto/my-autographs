@@ -9,7 +9,7 @@
     body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; display: flex; min-height: 100vh; }
     aside { width: 270px; background: #020617; padding: 20px; border-right: 1px solid var(--border); }
     main { flex: 1; padding: 20px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: stretch; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
     .stat { background: var(--panel2); padding: 20px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
     .stat b { font-size: 32px; color: var(--accent); display: block; }
     .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
@@ -17,7 +17,6 @@
     button { cursor: pointer; font-weight: bold; }
     table { width: 100%; border-collapse: collapse; }
     td, th { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
-    .edit-input { width: 100%; }
 </style>
 </head>
 <body>
@@ -41,7 +40,7 @@
 
     <section id="targets" style="display:none">
         <div class="card">
-            <h2>Add Entry</h2>
+            <h2>Manage Collection</h2>
             <input id="name" placeholder="Name">
             <select id="status">
                 <option>Pending</option><option>Research</option><option>Sent</option>
@@ -62,6 +61,7 @@
 </main>
 
 <script>
+    // Initialize or load existing data
     let vault = JSON.parse(localStorage.getItem("VaultOS_SR10")) || {records:[]};
     let $ = x => document.getElementById(x);
 
@@ -71,9 +71,10 @@
     }
 
     function render() {
+        // Render the list
         $("list").innerHTML = vault.records.map((x,i) => `
             <tr>
-                <td><input class="edit-input" value="${x.Name}" onchange="update(${i}, 'Name', this.value)"></td>
+                <td><input value="${x.Name}" onchange="update(${i}, 'Name', this.value)"></td>
                 <td>
                     <select onchange="update(${i}, 'Status', this.value)">
                         <option ${x.Status=='Pending'?'selected':''}>Pending</option>
@@ -87,11 +88,12 @@
                 <td><button onclick="del(${i})">X</button></td>
             </tr>`).join("");
         
+        // Sync Dashboard stats strictly by checking equality
         $("total").textContent = vault.records.length;
-        $("pending").textContent = vault.records.filter(x => x.Status == "Pending").length;
-        $("success").textContent = vault.records.filter(x => x.Status == "Success").length;
-        $("rts").textContent = vault.records.filter(x => x.Status == "RTS").length;
-        $("award").textContent = vault.records.filter(x => x.Status == "AWARD CIRCUIT – NON-ROUTING").length;
+        $("pending").textContent = vault.records.filter(x => x.Status === "Pending").length;
+        $("success").textContent = vault.records.filter(x => x.Status === "Success").length;
+        $("rts").textContent = vault.records.filter(x => x.Status === "RTS").length;
+        $("award").textContent = vault.records.filter(x => x.Status === "AWARD CIRCUIT – NON-ROUTING").length;
     }
 
     function update(i, field, value) {
@@ -122,7 +124,12 @@
 
     function importJSON(e) {
         let r = new FileReader();
-        r.onload = (e) => { vault = JSON.parse(e.target.result); saveAndSync(); };
+        r.onload = (e) => {
+            let data = JSON.parse(e.target.result);
+            // Defensive loading: handle raw arrays or objects with a 'records' key
+            vault.records = data.records || data; 
+            saveAndSync();
+        };
         r.readAsText(e.target.files[0]);
     }
 
