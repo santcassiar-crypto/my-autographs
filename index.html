@@ -48,7 +48,7 @@
             </select>
             <button onclick="add()">Save New</button>
             <button onclick="exportJSON()">Export</button>
-            <input type="file" id="f" onchange="importJSON(event)" style="display:none">
+            <input type="file" id="f" style="display:none">
             <button onclick="document.getElementById('f').click()">Import</button>
         </div>
         <div class="card">
@@ -61,9 +61,27 @@
 </main>
 
 <script>
-    // Initialize or load existing data
     let vault = JSON.parse(localStorage.getItem("VaultOS_SR10")) || {records:[]};
     let $ = x => document.getElementById(x);
+
+    // Event listener attached explicitly
+    $("f").addEventListener("change", function(e) {
+        let file = e.target.files[0];
+        if (!file) return;
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let data = JSON.parse(e.target.result);
+                vault.records = data.records || data;
+                saveAndSync();
+                alert("Data imported successfully!");
+            } catch (err) {
+                alert("Error importing file: " + err);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // Reset input to allow selecting same file again
+    });
 
     function view(id) {
         document.querySelectorAll("main section").forEach(s => s.style.display="none");
@@ -71,24 +89,18 @@
     }
 
     function render() {
-        // Render the list
         $("list").innerHTML = vault.records.map((x,i) => `
             <tr>
                 <td><input value="${x.Name}" onchange="update(${i}, 'Name', this.value)"></td>
                 <td>
                     <select onchange="update(${i}, 'Status', this.value)">
-                        <option ${x.Status=='Pending'?'selected':''}>Pending</option>
-                        <option ${x.Status=='Research'?'selected':''}>Research</option>
-                        <option ${x.Status=='Sent'?'selected':''}>Sent</option>
-                        <option ${x.Status=='Success'?'selected':''}>Success</option>
-                        <option ${x.Status=='RTS'?'selected':''}>RTS</option>
-                        <option ${x.Status=='AWARD CIRCUIT – NON-ROUTING'?'selected':''}>AWARD CIRCUIT – NON-ROUTING</option>
+                        ${['Pending','Research','Sent','Success','RTS','AWARD CIRCUIT – NON-ROUTING'].map(s => 
+                            `<option value="${s}" ${x.Status==s?'selected':''}>${s}</option>`).join('')}
                     </select>
                 </td>
                 <td><button onclick="del(${i})">X</button></td>
             </tr>`).join("");
         
-        // Sync Dashboard stats strictly by checking equality
         $("total").textContent = vault.records.length;
         $("pending").textContent = vault.records.filter(x => x.Status === "Pending").length;
         $("success").textContent = vault.records.filter(x => x.Status === "Success").length;
@@ -120,17 +132,6 @@
         a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(vault));
         a.download = "VaultOS_Backup.json";
         a.click();
-    }
-
-    function importJSON(e) {
-        let r = new FileReader();
-        r.onload = (e) => {
-            let data = JSON.parse(e.target.result);
-            // Defensive loading: handle raw arrays or objects with a 'records' key
-            vault.records = data.records || data; 
-            saveAndSync();
-        };
-        r.readAsText(e.target.files[0]);
     }
 
     render();
