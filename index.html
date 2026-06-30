@@ -191,8 +191,23 @@ save();render();
 }
 
 function render(){
+
 let q=($("search")?.value||"").toLowerCase();
-$("list").innerHTML=vault.records.filter(x=>JSON.stringify(x).toLowerCase().includes(q)).map((x,i)=>`
+
+if($("list")){
+$("list").innerHTML=vault.records
+.filter(x=>JSON.stringify(x).toLowerCase().includes(q))
+.map((x,i)=>`
+<tr>
+<td>${x.Name}</td>
+<td>${x.Sport}</td>
+<td>${x.Team}</td>
+<td>${x.Status}</td>
+<td>${x.Priority}</td>
+<td><button onclick="del(${i})">X</button></td>
+</tr>
+`).join("");
+}
 <tr><td>${x.Name}</td><td>${x.Sport}</td><td>${x.Team}</td><td>${x.Status}</td><td>${x.Priority}</td><td><button onclick="del(${i})">X</button></td></tr>`).join("");
 
 $("total").textContent=vault.records.length;
