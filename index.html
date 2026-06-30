@@ -9,17 +9,15 @@
     body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; display: flex; min-height: 100vh; }
     aside { width: 270px; background: #020617; padding: 20px; border-right: 1px solid var(--border); }
     main { flex: 1; padding: 20px; }
-    
-    /* Grid Alignment */
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: stretch; }
     .stat { background: var(--panel2); padding: 20px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
     .stat b { font-size: 32px; color: var(--accent); display: block; }
-
     .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
-    input, select, button { background: var(--panel2); color: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin: 4px; }
+    input, select, button { background: var(--panel2); color: white; border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin: 4px; }
     button { cursor: pointer; font-weight: bold; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; }
     td, th { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
+    .edit-input { width: 100%; }
 </style>
 </head>
 <body>
@@ -33,7 +31,7 @@
     <section id="dash">
         <h2>Dashboard</h2>
         <div class="grid">
-            <div class="stat">Total Records<b id="total">0</b></div>
+            <div class="stat">Total<b id="total">0</b></div>
             <div class="stat">Pending<b id="pending">0</b></div>
             <div class="stat">Success<b id="success">0</b></div>
             <div class="stat">RTS<b id="rts">0</b></div>
@@ -43,20 +41,20 @@
 
     <section id="targets" style="display:none">
         <div class="card">
-            <h2>Manage Collection</h2>
+            <h2>Add Entry</h2>
             <input id="name" placeholder="Name">
             <select id="status">
                 <option>Pending</option><option>Research</option><option>Sent</option>
                 <option>Success</option><option>RTS</option><option>AWARD CIRCUIT – NON-ROUTING</option>
             </select>
-            <button onclick="add()">Save</button>
-            <button onclick="exportJSON()">Export Backup</button>
-            <input type="file" id="fileInput" onchange="importJSON(event)" style="display:none">
-            <button onclick="document.getElementById('fileInput').click()">Import Backup</button>
+            <button onclick="add()">Save New</button>
+            <button onclick="exportJSON()">Export</button>
+            <input type="file" id="f" onchange="importJSON(event)" style="display:none">
+            <button onclick="document.getElementById('f').click()">Import</button>
         </div>
         <div class="card">
             <table>
-                <thead><tr><th>Name</th><th>Status</th><th>Action</th></tr></thead>
+                <thead><tr><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody id="list"></tbody>
             </table>
         </div>
@@ -74,15 +72,31 @@
 
     function render() {
         $("list").innerHTML = vault.records.map((x,i) => `
-            <tr><td>${x.Name}</td><td>${x.Status}</td>
-            <td><button onclick="del(${i})">X</button></td></tr>`).join("");
+            <tr>
+                <td><input class="edit-input" value="${x.Name}" onchange="update(${i}, 'Name', this.value)"></td>
+                <td>
+                    <select onchange="update(${i}, 'Status', this.value)">
+                        <option ${x.Status=='Pending'?'selected':''}>Pending</option>
+                        <option ${x.Status=='Research'?'selected':''}>Research</option>
+                        <option ${x.Status=='Sent'?'selected':''}>Sent</option>
+                        <option ${x.Status=='Success'?'selected':''}>Success</option>
+                        <option ${x.Status=='RTS'?'selected':''}>RTS</option>
+                        <option ${x.Status=='AWARD CIRCUIT – NON-ROUTING'?'selected':''}>AWARD CIRCUIT – NON-ROUTING</option>
+                    </select>
+                </td>
+                <td><button onclick="del(${i})">X</button></td>
+            </tr>`).join("");
         
-        // Sync Dashboard stats on render
         $("total").textContent = vault.records.length;
         $("pending").textContent = vault.records.filter(x => x.Status == "Pending").length;
         $("success").textContent = vault.records.filter(x => x.Status == "Success").length;
         $("rts").textContent = vault.records.filter(x => x.Status == "RTS").length;
         $("award").textContent = vault.records.filter(x => x.Status == "AWARD CIRCUIT – NON-ROUTING").length;
+    }
+
+    function update(i, field, value) {
+        vault.records[i][field] = value;
+        saveAndSync();
     }
 
     function add() {
@@ -92,10 +106,7 @@
         saveAndSync();
     }
 
-    function del(i) { 
-        vault.records.splice(i,1); 
-        saveAndSync(); 
-    }
+    function del(i) { vault.records.splice(i,1); saveAndSync(); }
 
     function saveAndSync() {
         localStorage.setItem("VaultOS_SR10", JSON.stringify(vault));
@@ -110,12 +121,9 @@
     }
 
     function importJSON(e) {
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            vault = JSON.parse(e.target.result);
-            saveAndSync();
-        };
-        reader.readAsText(e.target.files[0]);
+        let r = new FileReader();
+        r.onload = (e) => { vault = JSON.parse(e.target.result); saveAndSync(); };
+        r.readAsText(e.target.files[0]);
     }
 
     render();
