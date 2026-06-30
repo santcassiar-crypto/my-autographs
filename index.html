@@ -31,26 +31,6 @@ textarea{width:100%}
 <textarea id="notes" placeholder="Collector notes"></textarea>
 </aside>
 
-<section id="targets" style="display:none">
-<div class="card">
-<h2>Add Target</h2>
-<input id="name" placeholder="Name">
-<select id="status">
-<option>Pending</option><option>Research</option><option>Sent</option>
-<option>Success</option><option>RTS</option><option>AWARD CIRCUIT – NON-ROUTING</option>
-</select>
-<button onclick="add()">Save Target</button>
-<button onclick="exportJSON()">Export JSON</button>
-<input type="file" id="fileInput" onchange="importJSON(event)">
-</div>
-<div class="card">
-<table>
-<thead><tr><th>Name</th><th>Status</th><th></th></tr></thead>
-<tbody id="list"></tbody>
-</table>
-</div>
-</section>
-
 <main>
 <section id="dash">
 <div class="card">
@@ -64,59 +44,127 @@ textarea{width:100%}
 </div>
 </div>
 </section>
+
+<section id="targets" style="display:none">
+<div class="card">
+<h2>Add Target</h2>
+<input id="name" placeholder="Name" style="width: 250px;">
+<select id="status">
+<option>Pending</option>
+<option>Research</option>
+<option>Sent</option>
+<option>Success</option>
+<option>RTS</option>
+<option>AWARD CIRCUIT – NON-ROUTING</option>
+</select>
+<button onclick="add()">Save Target</button>
+<button onclick="exportJSON()">Export JSON</button>
+<input type="file" id="fileInput">
+</div>
+
+<div class="card">
+<table>
+<thead>
+<tr><th>Name</th><th>Status</th><th>Action</th></tr>
+</thead>
+<tbody id="list"></tbody>
+</table>
+</div>
+</section>
 </main>
 
 <script>
-let vault = {records:[]};
-let $ = x => document.getElementById(x);
+let vault = { records: [] };
 
-function updateDashboard() {
-    $("total").textContent = vault.records.length;
-    $("pending").textContent = vault.records.filter(x => x.Status == "Pending").length;
-    $("success").textContent = vault.records.filter(x => x.Status == "Success").length;
-    $("rts").textContent = vault.records.filter(x => x.Status == "RTS").length;
-    $("award").textContent = vault.records.filter(x => x.Status == "AWARD CIRCUIT – NON-ROUTING").length;
+function view(id) {
+    document.getElementById('dash').style.display = 'none';
+    document.getElementById('targets').style.display = 'none';
+    document.getElementById(id).style.display = 'block';
 }
 
-function renderList() {
-    $("list").innerHTML = vault.records.map((x,i) => `
-        <tr><td>${x.Name}</td><td>${x.Status}</td><td><button onclick="del(${i})">X</button></td></tr>`).join("");
+function render() {
+    let tbody = document.getElementById("list");
+    tbody.innerHTML = vault.records.map((x, i) => `
+        <tr>
+            <td><input value="${x.Name || ''}" oninput="updateRecord(${i}, 'Name', this.value)" style="background:transparent; border:none; color:white; width:100%; padding:4px;"></td>
+            <td>
+                <select onchange="updateRecord(${i}, 'Status', this.value)" style="background:var(--panel2); color:white; border:1px solid var(--border); padding:4px;">
+                    ${['Pending','Research','Sent','Success','RTS','AWARD CIRCUIT – NON-ROUTING'].map(st => 
+                        `<option value="${st}" ${x.Status === st ? 'selected' : ''}>${st}</option>`
+                    ).join('')}
+                </select>
+            </td>
+            <td><button onclick="del(${i})" style="background:#ef4444; color:white; border:none; border-radius:4px; padding:4px 8px;">X</button></td>
+        </tr>
+    `).join("");
+
+    syncDashboard();
 }
 
 function add() {
-    if(!$("name").value) return;
-    vault.records.push({Name:$("name").value, Status:$("status").value});
-    $("name").value = "";
-    refresh();
+    let nameInput = document.getElementById("name");
+    let statusSelect = document.getElementById("status");
+    if (!nameInput.value.trim()) return;
+
+    vault.records.push({
+        Name: nameInput.value.trim(),
+        Status: statusSelect.value
+    });
+    nameInput.value = "";
+    render();
 }
 
-function del(i) { vault.records.splice(i,1); refresh(); }
+function del(i) {
+    vault.records.splice(i, 1);
+    render();
+}
 
-function refresh() {
-    renderList();
-    updateDashboard();
+function updateRecord(i, field, value) {
+    vault.records[i][field] = value;
+    syncDashboard();
+}
+
+function syncDashboard() {
+    const checkStatus = (statusStr) => vault.records.filter(x => (x.Status || "").trim() === statusStr).length;
+
+    document.getElementById("total").textContent = vault.records.length;
+    document.getElementById("pending").textContent = checkStatus("Pending");
+    document.getElementById("success").textContent = checkStatus("Success");
+    document.getElementById("rts").textContent = checkStatus("RTS");
+    document.getElementById("award").textContent = checkStatus("AWARD CIRCUIT – NON-ROUTING");
 }
 
 function exportJSON() {
     let a = document.createElement("a");
-    a.href = "data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(vault));
+    a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(vault, null, 2));
     a.download = "VaultOS_SR10_Backup.json";
     a.click();
 }
 
-function importJSON(e) {
-    let r = new FileReader();
-    r.onload = () => { vault = JSON.parse(r.result); refresh(); };
-    r.readAsText(e.target.files[0]);
-}
+document.getElementById("fileInput").addEventListener("change", function(e) {
+    let file = e.target.files[0];
+    if (!file) return;
+    let reader = new FileReader();
+    reader.onload = function(evt) {
+        try {
+            let data = JSON.parse(evt.target.result);
+            let loadedRecords = data.records || data;
+            if (Array.isArray(loadedRecords)) {
+                vault.records = loadedRecords.map(item => ({
+                    Name: item.Name || item.name || "",
+                    Status: item.Status || item.status || "Pending"
+                }));
+                render();
+            }
+        } catch (err) {
+            alert("File parsing error.");
+        }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+});
 
-function view(id) {
-    document.querySelectorAll("section").forEach(s => s.style.display="none");
-    if(id == 'dash') $("dash").parentElement.style.display = "block";
-    else $(id).style.display = "block";
-}
-
-refresh();
+render();
 </script>
 </body>
 </html>
