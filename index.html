@@ -13,21 +13,17 @@ main{flex:1;padding:20px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
 .stat{background:var(--panel2);padding:18px;border-radius:12px}
 .stat b{font-size:28px;color:var(--accent)}
-input,select,textarea,button{background:var(--panel2);color:white;border:1px solid var(--border);border-radius:8px;padding:10px;margin:4px}
+input,select,button{background:var(--panel2);color:white;border:1px solid var(--border);border-radius:8px;padding:10px;margin:4px}
 button{cursor:pointer;font-weight:bold}
-button:hover{background:var(--border)}
 table{width:100%;border-collapse:collapse}
 td,th{padding:12px;border-bottom:1px solid var(--border);text-align:left}
-textarea{width:100%;resize:vertical}
 </style>
 </head>
 <body>
 <aside>
     <h2>VaultOS SR10</h2>
-    <p>Command Centre</p>
     <button onclick="view('dash')">Dashboard</button>
-    <button onclick="view('targets')">Targets & Inventory</button>
-    <textarea id="notes" placeholder="Collector notes..."></textarea>
+    <button onclick="view('targets')">Collection</button>
 </aside>
 
 <main>
@@ -39,29 +35,23 @@ textarea{width:100%;resize:vertical}
             <div class="stat">Success<br><b id="success">0</b></div>
             <div class="stat">RTS<br><b id="rts">0</b></div>
             <div class="stat">Award Circuit<br><b id="award">0</b></div>
-            <div class="stat">Top Targets<br><b id="top">0</b></div>
         </div>
-        <div class="card"><h3>System Status</h3><div id="activity">Ready</div></div>
     </section>
 
     <section id="targets" style="display:none">
         <div class="card">
-            <h2>Add New Entry</h2>
+            <h2>Add Entry</h2>
             <input id="name" placeholder="Name">
-            <input id="sport" placeholder="Sport">
-            <input id="team" placeholder="Team">
             <select id="status">
                 <option>Pending</option><option>Research</option><option>Sent</option>
                 <option>Success</option><option>RTS</option><option>AWARD CIRCUIT – NON-ROUTING</option>
             </select>
-            <select id="priority"><option>Normal</option><option>High</option><option>Top Target</option></select>
-            <button onclick="add()">Save Entry</button>
-            <button onclick="exportJSON()">Export JSON</button>
+            <button onclick="add()">Save</button>
+            <button onclick="exportJSON()">Export</button>
         </div>
         <div class="card">
-            <input id="search" placeholder="Search collection..." oninput="render()">
             <table>
-                <thead><tr><th>Name</th><th>Sport</th><th>Team</th><th>Status</th><th>Priority</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Status</th><th></th></tr></thead>
                 <tbody id="list"></tbody>
             </table>
         </div>
@@ -69,7 +59,7 @@ textarea{width:100%;resize:vertical}
 </main>
 
 <script>
-let vault = JSON.parse(localStorage.getItem("VaultOS_SR10")) || {records:[], notes:""};
+let vault = JSON.parse(localStorage.getItem("VaultOS_SR10")) || {records:[]};
 let $ = x => document.getElementById(x);
 
 function save() { localStorage.setItem("VaultOS_SR10", JSON.stringify(vault)); render(); }
@@ -80,10 +70,7 @@ function view(id) {
 
 function add() {
     if(!$("name").value) return;
-    vault.records.push({
-        Name:$("name").value, Sport:$("sport").value, Team:$("team").value,
-        Status:$("status").value, Priority:$("priority").value
-    });
+    vault.records.push({ Name:$("name").value, Status:$("status").value });
     $("name").value = "";
     save();
 }
@@ -91,9 +78,8 @@ function add() {
 function del(i) { vault.records.splice(i,1); save(); }
 
 function render() {
-    let q = $("search").value.toLowerCase();
-    $("list").innerHTML = vault.records.filter(x => JSON.stringify(x).toLowerCase().includes(q)).map((x,i) => `
-        <tr><td>${x.Name}</td><td>${x.Sport}</td><td>${x.Team}</td><td>${x.Status}</td><td>${x.Priority}</td>
+    $("list").innerHTML = vault.records.map((x,i) => `
+        <tr><td>${x.Name}</td><td>${x.Status}</td>
         <td><button onclick="del(${i})">X</button></td></tr>`).join("");
     
     $("total").textContent = vault.records.length;
@@ -101,8 +87,6 @@ function render() {
     $("success").textContent = vault.records.filter(x => x.Status == "Success").length;
     $("rts").textContent = vault.records.filter(x => x.Status == "RTS").length;
     $("award").textContent = vault.records.filter(x => x.Status == "AWARD CIRCUIT – NON-ROUTING").length;
-    $("top").textContent = vault.records.filter(x => x.Priority == "Top Target").length;
-    $("activity").textContent = "Database synced - " + new Date().toLocaleTimeString();
 }
 
 function exportJSON() {
