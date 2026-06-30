@@ -32,6 +32,70 @@ textarea{width:100%}
 <textarea id="notes" placeholder="Collector notes"></textarea>
 </aside>
 
+  <section id="targets" style="display:none">
+
+<div class="card">
+
+<h2>Add Target</h2>
+
+<input id="name" placeholder="Name">
+<input id="sport" placeholder="Sport">
+<input id="team" placeholder="Team">
+<input id="route" placeholder="Route">
+
+<select id="status">
+<option>Pending</option>
+<option>Research</option>
+<option>Ready</option>
+<option>Sent</option>
+<option>Success</option>
+<option>RTS</option>
+<option>AWARD CIRCUIT – NON-ROUTING</option>
+<option>No Reply</option>
+</select>
+
+<select id="priority">
+<option>Normal</option>
+<option>High</option>
+<option>Top Target</option>
+</select>
+
+<textarea id="rnotes" placeholder="Notes"></textarea>
+
+<button onclick="add()">Save Target</button>
+
+<button onclick="exportJSON()">Export JSON</button>
+
+<input type="file" onchange="importJSON(event)">
+
+</div>
+
+
+<div class="card">
+
+<input id="search" placeholder="Search" oninput="render()">
+
+<table>
+
+<thead>
+<tr>
+<th>Name</th>
+<th>Sport</th>
+<th>Team</th>
+<th>Status</th>
+<th>Priority</th>
+<th></th>
+</tr>
+</thead>
+
+<tbody id="list"></tbody>
+
+</table>
+
+</div>
+
+</section>
+
 <main>
 <section id="dash">
 
