@@ -64,23 +64,17 @@
     let vault = JSON.parse(localStorage.getItem("VaultOS_SR10")) || {records:[]};
     let $ = x => document.getElementById(x);
 
-    // Event listener attached explicitly
     $("f").addEventListener("change", function(e) {
         let file = e.target.files[0];
         if (!file) return;
         let reader = new FileReader();
         reader.onload = function(e) {
-            try {
-                let data = JSON.parse(e.target.result);
-                vault.records = data.records || data;
-                saveAndSync();
-                alert("Data imported successfully!");
-            } catch (err) {
-                alert("Error importing file: " + err);
-            }
+            let data = JSON.parse(e.target.result);
+            vault.records = data.records || data;
+            saveAndSync();
         };
         reader.readAsText(file);
-        e.target.value = ''; // Reset input to allow selecting same file again
+        e.target.value = '';
     });
 
     function view(id) {
@@ -101,11 +95,16 @@
                 <td><button onclick="del(${i})">X</button></td>
             </tr>`).join("");
         
+        // Robust Sync: normalize statuses to match filter strings
+        const count = (status) => vault.records.filter(x => 
+            (x.Status || "").trim().toUpperCase() === status.trim().toUpperCase()
+        ).length;
+
         $("total").textContent = vault.records.length;
-        $("pending").textContent = vault.records.filter(x => x.Status === "Pending").length;
-        $("success").textContent = vault.records.filter(x => x.Status === "Success").length;
-        $("rts").textContent = vault.records.filter(x => x.Status === "RTS").length;
-        $("award").textContent = vault.records.filter(x => x.Status === "AWARD CIRCUIT – NON-ROUTING").length;
+        $("pending").textContent = count("Pending");
+        $("success").textContent = count("Success");
+        $("rts").textContent = count("RTS");
+        $("award").textContent = count("AWARD CIRCUIT – NON-ROUTING");
     }
 
     function update(i, field, value) {
