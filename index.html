@@ -5,7 +5,6 @@
 <title>VaultOS SR10 | Collector Edition</title>
 <style>
     :root { --bg:#0f172a; --panel:#1e293b; --panel2:#334155; --text:#f8fafc; --accent:#38bdf8; --border:#475569; }
-    * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; display: flex; min-height: 100vh; }
     aside { width: 270px; background: #020617; padding: 20px; border-right: 1px solid var(--border); }
     main { flex: 1; padding: 20px; }
@@ -29,7 +28,7 @@
 <main>
     <section id="dash">
         <h2>Dashboard</h2>
-        <div class="grid">
+        <div class="grid" id="stats-grid">
             <div class="stat">Total<b id="total">0</b></div>
             <div class="stat">Pending<b id="pending">0</b></div>
             <div class="stat">Success<b id="success">0</b></div>
@@ -64,25 +63,12 @@
     let vault = JSON.parse(localStorage.getItem("VaultOS_SR10")) || {records:[]};
     let $ = x => document.getElementById(x);
 
-    $("f").addEventListener("change", function(e) {
-        let file = e.target.files[0];
-        if (!file) return;
-        let reader = new FileReader();
-        reader.onload = function(e) {
-            let data = JSON.parse(e.target.result);
-            vault.records = data.records || data;
-            saveAndSync();
-        };
-        reader.readAsText(file);
-        e.target.value = '';
-    });
-
-    function view(id) {
-        document.querySelectorAll("main section").forEach(s => s.style.display="none");
-        $(id).style.display="block";
-    }
-
-    function render() {
+    // CENTRAL SYNC ENGINE
+    function sync() {
+        // Save to storage
+        localStorage.setItem("VaultOS_SR10", JSON.stringify(vault));
+        
+        // Update Table
         $("list").innerHTML = vault.records.map((x,i) => `
             <tr>
                 <td><input value="${x.Name}" onchange="update(${i}, 'Name', this.value)"></td>
@@ -95,11 +81,8 @@
                 <td><button onclick="del(${i})">X</button></td>
             </tr>`).join("");
         
-        // Robust Sync: normalize statuses to match filter strings
-        const count = (status) => vault.records.filter(x => 
-            (x.Status || "").trim().toUpperCase() === status.trim().toUpperCase()
-        ).length;
-
+        // Update Dashboard
+        const count = (s) => vault.records.filter(x => (x.Status||"").trim() === s.trim()).length;
         $("total").textContent = vault.records.length;
         $("pending").textContent = count("Pending");
         $("success").textContent = count("Success");
@@ -107,24 +90,33 @@
         $("award").textContent = count("AWARD CIRCUIT – NON-ROUTING");
     }
 
-    function update(i, field, value) {
-        vault.records[i][field] = value;
-        saveAndSync();
-    }
-
     function add() {
         if(!$("name").value) return;
         vault.records.push({ Name:$("name").value, Status:$("status").value });
         $("name").value = "";
-        saveAndSync();
+        sync();
     }
 
-    function del(i) { vault.records.splice(i,1); saveAndSync(); }
-
-    function saveAndSync() {
-        localStorage.setItem("VaultOS_SR10", JSON.stringify(vault));
-        render();
+    function update(i, field, value) {
+        vault.records[i][field] = value;
+        sync();
     }
+
+    function del(i) { vault.records.splice(i,1); sync(); }
+
+    function view(id) {
+        document.querySelectorAll("main section").forEach(s => s.style.display="none");
+        $(id).style.display="block";
+    }
+
+    $("f").addEventListener("change", function(e) {
+        let r = new FileReader();
+        r.onload = (e) => {
+            vault.records = JSON.parse(e.target.result).records || JSON.parse(e.target.result);
+            sync();
+        };
+        r.readAsText(e.target.files[0]);
+    });
 
     function exportJSON() {
         let a = document.createElement("a");
@@ -133,7 +125,8 @@
         a.click();
     }
 
-    render();
+    // Initial Run
+    sync();
 </script>
 </body>
 </html>
