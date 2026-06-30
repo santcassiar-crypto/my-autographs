@@ -4,54 +4,59 @@
 <meta charset="UTF-8">
 <title>VaultOS SR10 | Collector Edition</title>
 <style>
-:root{--bg:#0f172a;--panel:#1e293b;--panel2:#334155;--border:#475569;--text:#f8fafc;--accent:#38bdf8}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui, sans-serif;display:flex;min-height:100vh}
-aside{width:270px;background:#020617;padding:20px;border-right:1px solid var(--border)}
-main{flex:1;padding:20px}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
-.stat{background:var(--panel2);padding:18px;border-radius:12px}
-.stat b{font-size:28px;color:var(--accent)}
-input,select,button{background:var(--panel2);color:white;border:1px solid var(--border);border-radius:8px;padding:10px;margin:4px}
-button{cursor:pointer;font-weight:bold}
-table{width:100%;border-collapse:collapse}
-td,th{padding:12px;border-bottom:1px solid var(--border);text-align:left}
+    :root { --bg:#0f172a; --panel:#1e293b; --panel2:#334155; --text:#f8fafc; --accent:#38bdf8; --border:#475569; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; display: flex; min-height: 100vh; }
+    aside { width: 270px; background: #020617; padding: 20px; border-right: 1px solid var(--border); }
+    main { flex: 1; padding: 20px; }
+    
+    /* Grid Alignment */
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; align-items: stretch; }
+    .stat { background: var(--panel2); padding: 20px; border-radius: 12px; border: 1px solid var(--border); text-align: center; }
+    .stat b { font-size: 32px; color: var(--accent); display: block; }
+
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 20px; }
+    input, select, button { background: var(--panel2); color: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin: 4px; }
+    button { cursor: pointer; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    td, th { padding: 12px; border-bottom: 1px solid var(--border); text-align: left; }
 </style>
 </head>
 <body>
 <aside>
     <h2>VaultOS SR10</h2>
-    <button onclick="view('dash')">Dashboard</button>
-    <button onclick="view('targets')">Collection</button>
+    <button onclick="view('dash')" style="width:100%">Dashboard</button>
+    <button onclick="view('targets')" style="width:100%">Collection</button>
 </aside>
 
 <main>
     <section id="dash">
         <h2>Dashboard</h2>
         <div class="grid">
-            <div class="stat">Total<br><b id="total">0</b></div>
-            <div class="stat">Pending<br><b id="pending">0</b></div>
-            <div class="stat">Success<br><b id="success">0</b></div>
-            <div class="stat">RTS<br><b id="rts">0</b></div>
-            <div class="stat">Award Circuit<br><b id="award">0</b></div>
+            <div class="stat">Total Records<b id="total">0</b></div>
+            <div class="stat">Pending<b id="pending">0</b></div>
+            <div class="stat">Success<b id="success">0</b></div>
+            <div class="stat">RTS<b id="rts">0</b></div>
+            <div class="stat">Award Circuit<b id="award">0</b></div>
         </div>
     </section>
 
     <section id="targets" style="display:none">
         <div class="card">
-            <h2>Add Entry</h2>
+            <h2>Manage Collection</h2>
             <input id="name" placeholder="Name">
             <select id="status">
                 <option>Pending</option><option>Research</option><option>Sent</option>
                 <option>Success</option><option>RTS</option><option>AWARD CIRCUIT – NON-ROUTING</option>
             </select>
             <button onclick="add()">Save</button>
-            <button onclick="exportJSON()">Export</button>
+            <button onclick="exportJSON()">Export Backup</button>
+            <input type="file" id="fileInput" onchange="importJSON(event)" style="display:none">
+            <button onclick="document.getElementById('fileInput').click()">Import Backup</button>
         </div>
         <div class="card">
             <table>
-                <thead><tr><th>Name</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody id="list"></tbody>
             </table>
         </div>
@@ -59,44 +64,61 @@ td,th{padding:12px;border-bottom:1px solid var(--border);text-align:left}
 </main>
 
 <script>
-let vault = JSON.parse(localStorage.getItem("VaultOS_SR10")) || {records:[]};
-let $ = x => document.getElementById(x);
+    let vault = JSON.parse(localStorage.getItem("VaultOS_SR10")) || {records:[]};
+    let $ = x => document.getElementById(x);
 
-function save() { localStorage.setItem("VaultOS_SR10", JSON.stringify(vault)); render(); }
-function view(id) {
-    document.querySelectorAll("main section").forEach(s => s.style.display="none");
-    $(id).style.display="block";
-}
+    function view(id) {
+        document.querySelectorAll("main section").forEach(s => s.style.display="none");
+        $(id).style.display="block";
+    }
 
-function add() {
-    if(!$("name").value) return;
-    vault.records.push({ Name:$("name").value, Status:$("status").value });
-    $("name").value = "";
-    save();
-}
+    function render() {
+        $("list").innerHTML = vault.records.map((x,i) => `
+            <tr><td>${x.Name}</td><td>${x.Status}</td>
+            <td><button onclick="del(${i})">X</button></td></tr>`).join("");
+        
+        // Sync Dashboard stats on render
+        $("total").textContent = vault.records.length;
+        $("pending").textContent = vault.records.filter(x => x.Status == "Pending").length;
+        $("success").textContent = vault.records.filter(x => x.Status == "Success").length;
+        $("rts").textContent = vault.records.filter(x => x.Status == "RTS").length;
+        $("award").textContent = vault.records.filter(x => x.Status == "AWARD CIRCUIT – NON-ROUTING").length;
+    }
 
-function del(i) { vault.records.splice(i,1); save(); }
+    function add() {
+        if(!$("name").value) return;
+        vault.records.push({ Name:$("name").value, Status:$("status").value });
+        $("name").value = "";
+        saveAndSync();
+    }
 
-function render() {
-    $("list").innerHTML = vault.records.map((x,i) => `
-        <tr><td>${x.Name}</td><td>${x.Status}</td>
-        <td><button onclick="del(${i})">X</button></td></tr>`).join("");
-    
-    $("total").textContent = vault.records.length;
-    $("pending").textContent = vault.records.filter(x => x.Status == "Pending").length;
-    $("success").textContent = vault.records.filter(x => x.Status == "Success").length;
-    $("rts").textContent = vault.records.filter(x => x.Status == "RTS").length;
-    $("award").textContent = vault.records.filter(x => x.Status == "AWARD CIRCUIT – NON-ROUTING").length;
-}
+    function del(i) { 
+        vault.records.splice(i,1); 
+        saveAndSync(); 
+    }
 
-function exportJSON() {
-    let a = document.createElement("a");
-    a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(vault));
-    a.download = "VaultOS_Backup.json";
-    a.click();
-}
+    function saveAndSync() {
+        localStorage.setItem("VaultOS_SR10", JSON.stringify(vault));
+        render();
+    }
 
-render();
+    function exportJSON() {
+        let a = document.createElement("a");
+        a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(vault));
+        a.download = "VaultOS_Backup.json";
+        a.click();
+    }
+
+    function importJSON(e) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            vault = JSON.parse(e.target.result);
+            saveAndSync();
+        };
+        reader.readAsText(e.target.files[0]);
+    }
+
+    render();
 </script>
 </body>
 </html>
