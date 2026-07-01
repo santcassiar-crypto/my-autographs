@@ -2,169 +2,185 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR10 Collector Edition</title>
+<title>VaultOS SR12 Ultimate Collector Edition</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-:root{--bg:#0f172a;--panel:#1e293b;--panel2:#334155;--border:#475569;--text:#f8fafc;--accent:#38bdf8}
+:root{--bg:#020617;--panel:#0f172a;--panel2:#1e293b;--line:#334155;--accent:#38bdf8;--text:#f8fafc}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:Arial;display:flex;min-height:100vh}
-aside{width:270px;background:#020617;padding:20px;border-right:1px solid var(--border)}
+aside{width:280px;background:#01040d;padding:20px;border-right:1px solid var(--line)}
 main{flex:1;padding:20px}
-.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+button,input,select,textarea{background:var(--panel2);color:white;border:1px solid var(--line);border-radius:8px;padding:10px;margin:4px}
+button{cursor:pointer}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 .stat{background:var(--panel2);padding:18px;border-radius:12px}
 .stat b{font-size:28px;color:var(--accent)}
-input,select,textarea,button{background:var(--panel2);color:white;border:1px solid var(--border);border-radius:8px;padding:10px;margin:4px}
-button{cursor:pointer}
 table{width:100%;border-collapse:collapse}
-td,th{padding:10px;border-bottom:1px solid var(--border);text-align:left}
-textarea{width:100%}
+td,th{padding:10px;border-bottom:1px solid var(--line)}
+textarea{width:100%;height:140px}
+.hidden{display:none}
+.badge{padding:5px;border-radius:8px}
 @media(max-width:800px){body{display:block}aside{width:100%}}
 </style>
 </head>
 <body>
+
 <aside>
-<h2>VaultOS SR10</h2>
-<p>Collector Command Centre</p>
-<button onclick="view('dash')">Dashboard</button>
-<button onclick="view('targets')">Targets</button>
-<textarea id="notes" placeholder="Collector notes"></textarea>
+<h2>VaultOS SR12</h2>
+<p>Ultimate Collector Command Centre</p>
+<button onclick="page('dash')">Dashboard</button>
+<button onclick="page('targets')">Targets</button>
+<button onclick="page('inventory')">Inventory</button>
+<button onclick="exportVault()">Export Backup</button>
+<input type="file" id="importFile">
+<textarea id="notes" placeholder="Collector master notes"></textarea>
 </aside>
 
 <main>
+
 <section id="dash">
 <div class="card">
-<h2>Dashboard</h2>
+<h2>Collector Dashboard</h2>
 <div class="grid">
-<div class="stat">Total<br><b id="total">0</b></div>
-<div class="stat">Pending<br><b id="pending">0</b></div>
-<div class="stat">Success<br><b id="success">0</b></div>
-<div class="stat">RTS<br><b id="rts">0</b></div>
-<div class="stat">Award Circuit<br><b id="award">0</b></div>
+<div class="stat">Targets<br><b id="cTotal">0</b></div>
+<div class="stat">Sent<br><b id="cSent">0</b></div>
+<div class="stat">Waiting<br><b id="cWaiting">0</b></div>
+<div class="stat">Success<br><b id="cSuccess">0</b></div>
+<div class="stat">RTS<br><b id="cRTS">0</b></div>
+<div class="stat">Signed Items<br><b id="cItems">0</b></div>
 </div>
 </div>
 </section>
 
-<section id="targets" style="display:none">
+<section id="targets" class="hidden">
 <div class="card">
-<h2>Add Target</h2>
-<input id="name" placeholder="Name" style="width: 250px;">
+<h2>Target Database</h2>
+<input id="name" placeholder="Name">
+<input id="sport" placeholder="Sport">
+<input id="team" placeholder="Team">
+<input id="method" placeholder="Method (TTM/IP/Event)">
+<input id="sentDate" placeholder="Date Sent">
 <select id="status">
-<option>Pending</option>
-<option>Research</option>
-<option>Sent</option>
-<option>Success</option>
-<option>RTS</option>
-<option>AWARD CIRCUIT – NON-ROUTING</option>
+<option>Research</option><option>Ready</option><option>Sent</option><option>Waiting</option><option>Success</option><option>Partial Success</option><option>RTS</option><option>No Response</option>
 </select>
-<button onclick="add()">Save Target</button>
-<button onclick="exportJSON()">Export JSON</button>
-<input type="file" id="fileInput">
+<input id="item" placeholder="Item Sent">
+<input id="value" placeholder="Estimated Value">
+<button onclick="addTarget()">Save Target</button>
 </div>
-
 <div class="card">
+<input id="search" placeholder="Search..." oninput="renderTargets()">
 <table>
-<thead>
-<tr><th>Name</th><th>Status</th><th>Action</th></tr>
-</thead>
-<tbody id="list"></tbody>
+<thead><tr><th>Name</th><th>Sport</th><th>Status</th><th>Method</th><th>Action</th></tr></thead>
+<tbody id="targetList"></tbody>
 </table>
 </div>
 </section>
+
+<section id="inventory" class="hidden">
+<div class="card">
+<h2>Signed Inventory</h2>
+<input id="invName" placeholder="Signed Item">
+<button onclick="addInventory()">Add</button>
+<table><tbody id="inventoryList"></tbody></table>
+</div>
+</section>
+
 </main>
 
 <script>
-let vault = { records: [] };
+let vault=JSON.parse(localStorage.getItem("VaultOS_SR12"))||{
+targets:[],inventory:[],notes:""
+};
 
-function view(id) {
-    document.getElementById('dash').style.display = 'none';
-    document.getElementById('targets').style.display = 'none';
-    document.getElementById(id).style.display = 'block';
+const $=id=>document.getElementById(id);
+
+function save(){
+localStorage.setItem("VaultOS_SR12",JSON.stringify(vault));
 }
 
-function render() {
-    let tbody = document.getElementById("list");
-    tbody.innerHTML = vault.records.map((x, i) => `
-        <tr>
-            <td><input value="${x.Name || ''}" oninput="updateRecord(${i}, 'Name', this.value)" style="background:transparent; border:none; color:white; width:100%; padding:4px;"></td>
-            <td>
-                <select onchange="updateRecord(${i}, 'Status', this.value)" style="background:var(--panel2); color:white; border:1px solid var(--border); padding:4px;">
-                    ${['Pending','Research','Sent','Success','RTS','AWARD CIRCUIT – NON-ROUTING'].map(st => 
-                        `<option value="${st}" ${x.Status === st ? 'selected' : ''}>${st}</option>`
-                    ).join('')}
-                </select>
-            </td>
-            <td><button onclick="del(${i})" style="background:#ef4444; color:white; border:none; border-radius:4px; padding:4px 8px;">X</button></td>
-        </tr>
-    `).join("");
-
-    syncDashboard();
+function page(id){
+["dash","targets","inventory"].forEach(x=>$(x).classList.add("hidden"));
+$(id).classList.remove("hidden");
 }
 
-function add() {
-    let nameInput = document.getElementById("name");
-    let statusSelect = document.getElementById("status");
-    if (!nameInput.value.trim()) return;
-
-    vault.records.push({
-        Name: nameInput.value.trim(),
-        Status: statusSelect.value
-    });
-    nameInput.value = "";
-    render();
-}
-
-function del(i) {
-    vault.records.splice(i, 1);
-    render();
-}
-
-function updateRecord(i, field, value) {
-    vault.records[i][field] = value;
-    syncDashboard();
-}
-
-function syncDashboard() {
-    const checkStatus = (statusStr) => vault.records.filter(x => (x.Status || "").trim() === statusStr).length;
-
-    document.getElementById("total").textContent = vault.records.length;
-    document.getElementById("pending").textContent = checkStatus("Pending");
-    document.getElementById("success").textContent = checkStatus("Success");
-    document.getElementById("rts").textContent = checkStatus("RTS");
-    document.getElementById("award").textContent = checkStatus("AWARD CIRCUIT – NON-ROUTING");
-}
-
-function exportJSON() {
-    let a = document.createElement("a");
-    a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(vault, null, 2));
-    a.download = "VaultOS_SR10_Backup.json";
-    a.click();
-}
-
-document.getElementById("fileInput").addEventListener("change", function(e) {
-    let file = e.target.files[0];
-    if (!file) return;
-    let reader = new FileReader();
-    reader.onload = function(evt) {
-        try {
-            let data = JSON.parse(evt.target.result);
-            let loadedRecords = data.records || data;
-            if (Array.isArray(loadedRecords)) {
-                vault.records = loadedRecords.map(item => ({
-                    Name: item.Name || item.name || "",
-                    Status: item.Status || item.status || "Pending"
-                }));
-                render();
-            }
-        } catch (err) {
-            alert("File parsing error.");
-        }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
+function addTarget(){
+if(!$("name").value.trim())return;
+vault.targets.push({
+name:$("name").value,
+sport:$("sport").value,
+team:$("team").value,
+method:$("method").value,
+sent:$("sentDate").value,
+status:$("status").value,
+item:$("item").value,
+value:$("value").value,
+created:new Date().toLocaleDateString()
 });
+save();
+renderTargets();
+update();
+}
 
-render();
+function renderTargets(){
+let q=($("search")?.value||"").toLowerCase();
+$("targetList").innerHTML=vault.targets.filter(t=>JSON.stringify(t).toLowerCase().includes(q)).map((t,i)=>`
+<tr>
+<td>${t.name}</td>
+<td>${t.sport}</td>
+<td>
+<select onchange="statusChange(${i},this.value)">
+${["Research","Ready","Sent","Waiting","Success","Partial Success","RTS","No Response"].map(s=>`<option ${t.status==s?"selected":""}>${s}</option>`)}
+</select>
+</td>
+<td>${t.method}</td>
+<td><button onclick="removeTarget(${i})">X</button></td>
+</tr>`).join("");
+}
+
+function statusChange(i,v){vault.targets[i].status=v;save();update()}
+function removeTarget(i){vault.targets.splice(i,1);save();renderTargets();update()}
+
+function addInventory(){
+if(!$("invName").value)return;
+vault.inventory.push($("invName").value);
+$("invName").value="";
+save();renderInventory();update();
+}
+
+function renderInventory(){
+$("inventoryList").innerHTML=vault.inventory.map(x=>"<tr><td>"+x+"</td></tr>").join("");
+}
+
+function update(){
+let t=vault.targets;
+cTotal.textContent=t.length;
+cSent.textContent=t.filter(x=>x.status=="Sent").length;
+cWaiting.textContent=t.filter(x=>x.status=="Waiting").length;
+cSuccess.textContent=t.filter(x=>x.status=="Success").length;
+cRTS.textContent=t.filter(x=>x.status=="RTS").length;
+cItems.textContent=vault.inventory.length;
+notes.value=vault.notes||"";
+}
+
+notes.oninput=()=>{vault.notes=notes.value;save()};
+
+function exportVault(){
+let a=document.createElement("a");
+a.href="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(vault,null,2));
+a.download="VaultOS_SR12_Backup.json";
+a.click();
+}
+
+importFile.onchange=e=>{
+let r=new FileReader();
+r.onload=()=>{try{vault=JSON.parse(r.result);save();renderTargets();renderInventory();update()}catch{alert("Invalid file")}};
+r.readAsText(e.target.files[0]);
+};
+
+renderTargets();
+renderInventory();
+update();
 </script>
 </body>
 </html>
