@@ -31,24 +31,66 @@ textarea{width:100%;height:140px}
 <button onclick="page('targets')">Targets</button>
 <button onclick="page('inventory')">Inventory</button>
 <button onclick="exportVault()">Export Backup</button>
-<input type="file" id="importFile" accept=".json">
-<textarea id="notes" placeholder="Collector master notes"></textarea>
-</aside>
+$("importFile").onchange=e=>{
+let r=new FileReader();
 
-<main>
-<section id="dash">
-<div class="card">
-<h2>Collector Dashboard</h2>
-<div class="grid">
-<div class="stat">Targets<br><b id="cTotal">0</b></div>
-<div class="stat">Sent<br><b id="cSent">0</b></div>
-<div class="stat">Waiting<br><b id="cWaiting">0</b></div>
-<div class="stat">Success<br><b id="cSuccess">0</b></div>
-<div class="stat">RTS<br><b id="cRTS">0</b></div>
-<div class="stat">Signed Items<br><b id="cItems">0</b></div>
-</div>
-</div>
-</section>
+r.onload=()=>{
+try{
+
+let d=JSON.parse(r.result);
+
+vault={
+version:"SR13",
+targets:[],
+inventory:[],
+notes:d.notes || ""
+};
+
+// Find targets from any VaultOS version
+if(Array.isArray(d.targets)){
+    vault.targets=d.targets;
+}
+else if(Array.isArray(d.records)){
+    vault.targets=d.records;
+}
+
+// Find inventory
+if(Array.isArray(d.inventory)){
+    vault.inventory=d.inventory;
+}
+else if(Array.isArray(d.items)){
+    vault.inventory=d.items;
+}
+
+// Normalise old records
+vault.targets=vault.targets.map(t=>({
+name:t.name||t.player||t.target||"",
+sport:t.sport||"",
+team:t.team||"",
+method:t.method||"",
+sent:t.sent||t.sentDate||"",
+status:t.status||"Research",
+item:t.item||"",
+value:t.value||""
+}));
+
+save();
+
+renderTargets();
+renderInventory();
+update();
+
+alert("Imported "+vault.targets.length+" targets and "+vault.inventory.length+" items");
+
+}
+catch(err){
+alert("Import failed: "+err.message);
+}
+
+};
+
+r.readAsText(e.target.files[0]);
+};
 
 <section id="targets" class="hidden">
 <div class="card">
