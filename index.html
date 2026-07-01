@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR12 Ultimate Collector Edition</title>
+<title>VaultOS SR13 Ultimate Collector Edition</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{--bg:#020617;--panel:#0f172a;--panel2:#1e293b;--line:#334155;--accent:#38bdf8;--text:#f8fafc}
@@ -20,25 +21,21 @@ table{width:100%;border-collapse:collapse}
 td,th{padding:10px;border-bottom:1px solid var(--line)}
 textarea{width:100%;height:140px}
 .hidden{display:none}
-.badge{padding:5px;border-radius:8px}
-@media(max-width:800px){body{display:block}aside{width:100%}}
 </style>
 </head>
 <body>
-
 <aside>
-<h2>VaultOS SR12</h2>
+<h2>VaultOS SR13</h2>
 <p>Ultimate Collector Command Centre</p>
 <button onclick="page('dash')">Dashboard</button>
 <button onclick="page('targets')">Targets</button>
 <button onclick="page('inventory')">Inventory</button>
 <button onclick="exportVault()">Export Backup</button>
-<input type="file" id="importFile">
+<input type="file" id="importFile" accept=".json">
 <textarea id="notes" placeholder="Collector master notes"></textarea>
 </aside>
 
 <main>
-
 <section id="dash">
 <div class="card">
 <h2>Collector Dashboard</h2>
@@ -59,128 +56,92 @@ textarea{width:100%;height:140px}
 <input id="name" placeholder="Name">
 <input id="sport" placeholder="Sport">
 <input id="team" placeholder="Team">
-<input id="method" placeholder="Method (TTM/IP/Event)">
+<input id="method" placeholder="Method">
 <input id="sentDate" placeholder="Date Sent">
 <select id="status">
-<option>Research</option><option>Ready</option><option>Sent</option><option>Waiting</option><option>Success</option><option>Partial Success</option><option>RTS</option><option>No Response</option>
+<option>Research</option><option>Ready</option><option>Sent</option><option>Waiting</option><option>Success</option><option>RTS</option>
 </select>
 <input id="item" placeholder="Item Sent">
-<input id="value" placeholder="Estimated Value">
+<input id="value" placeholder="Value">
 <button onclick="addTarget()">Save Target</button>
 </div>
 <div class="card">
 <input id="search" placeholder="Search..." oninput="renderTargets()">
-<table>
-<thead><tr><th>Name</th><th>Sport</th><th>Status</th><th>Method</th><th>Action</th></tr></thead>
-<tbody id="targetList"></tbody>
-</table>
+<table><tbody id="targetList"></tbody></table>
 </div>
 </section>
 
 <section id="inventory" class="hidden">
 <div class="card">
 <h2>Signed Inventory</h2>
-<input id="invName" placeholder="Signed Item">
+<input id="invName" placeholder="Signed item">
 <button onclick="addInventory()">Add</button>
 <table><tbody id="inventoryList"></tbody></table>
 </div>
 </section>
-
 </main>
 
 <script>
-let vault=JSON.parse(localStorage.getItem("VaultOS_SR12"))||{
-targets:[],inventory:[],notes:""
+let vault=JSON.parse(localStorage.getItem("VaultOS_SR13"))||{
+version:"SR13",targets:[],inventory:[],notes:""
 };
+const $=x=>document.getElementById(x);
 
-const $=id=>document.getElementById(id);
-
-function save(){
-localStorage.setItem("VaultOS_SR12",JSON.stringify(vault));
-}
-
-function page(id){
-["dash","targets","inventory"].forEach(x=>$(x).classList.add("hidden"));
-$(id).classList.remove("hidden");
-}
+function save(){localStorage.setItem("VaultOS_SR13",JSON.stringify(vault))}
+function page(id){["dash","targets","inventory"].forEach(x=>$(x).classList.add("hidden"));$(id).classList.remove("hidden")}
 
 function addTarget(){
 if(!$("name").value.trim())return;
 vault.targets.push({
-name:$("name").value,
-sport:$("sport").value,
-team:$("team").value,
-method:$("method").value,
-sent:$("sentDate").value,
-status:$("status").value,
-item:$("item").value,
-value:$("value").value,
-created:new Date().toLocaleDateString()
+name:$("name").value,sport:$("sport").value,team:$("team").value,
+method:$("method").value,sent:$("sentDate").value,status:$("status").value,
+item:$("item").value,value:$("value").value
 });
-save();
-renderTargets();
-update();
+save();renderTargets();update()
 }
 
 function renderTargets(){
 let q=($("search")?.value||"").toLowerCase();
-$("targetList").innerHTML=vault.targets.filter(t=>JSON.stringify(t).toLowerCase().includes(q)).map((t,i)=>`
-<tr>
-<td>${t.name}</td>
-<td>${t.sport}</td>
-<td>
-<select onchange="statusChange(${i},this.value)">
-${["Research","Ready","Sent","Waiting","Success","Partial Success","RTS","No Response"].map(s=>`<option ${t.status==s?"selected":""}>${s}</option>`)}
-</select>
-</td>
-<td>${t.method}</td>
-<td><button onclick="removeTarget(${i})">X</button></td>
-</tr>`).join("");
+$("targetList").innerHTML=vault.targets.filter(x=>JSON.stringify(x).toLowerCase().includes(q)).map((t,i)=>
+`<tr><td>${t.name}</td><td>${t.sport}</td><td>${t.status}</td><td>${t.method}</td><td><button onclick="removeTarget(${i})">X</button></td></tr>`).join("")
 }
-
-function statusChange(i,v){vault.targets[i].status=v;save();update()}
 function removeTarget(i){vault.targets.splice(i,1);save();renderTargets();update()}
-
-function addInventory(){
-if(!$("invName").value)return;
-vault.inventory.push($("invName").value);
-$("invName").value="";
-save();renderInventory();update();
-}
-
-function renderInventory(){
-$("inventoryList").innerHTML=vault.inventory.map(x=>"<tr><td>"+x+"</td></tr>").join("");
-}
+function addInventory(){if($("invName").value){vault.inventory.push($("invName").value);$("invName").value="";save();renderInventory();update()}}
+function renderInventory(){$("inventoryList").innerHTML=vault.inventory.map(x=>"<tr><td>"+x+"</td></tr>").join("")}
 
 function update(){
-let t=vault.targets;
-cTotal.textContent=t.length;
-cSent.textContent=t.filter(x=>x.status=="Sent").length;
-cWaiting.textContent=t.filter(x=>x.status=="Waiting").length;
-cSuccess.textContent=t.filter(x=>x.status=="Success").length;
-cRTS.textContent=t.filter(x=>x.status=="RTS").length;
-cItems.textContent=vault.inventory.length;
-notes.value=vault.notes||"";
+$("cTotal").textContent=vault.targets.length;
+$("cSent").textContent=vault.targets.filter(x=>x.status=="Sent").length;
+$("cWaiting").textContent=vault.targets.filter(x=>x.status=="Waiting").length;
+$("cSuccess").textContent=vault.targets.filter(x=>x.status=="Success").length;
+$("cRTS").textContent=vault.targets.filter(x=>x.status=="RTS").length;
+$("cItems").textContent=vault.inventory.length;
+$("notes").value=vault.notes||""
 }
 
-notes.oninput=()=>{vault.notes=notes.value;save()};
+$("notes").oninput=()=>{vault.notes=$("notes").value;save()}
 
 function exportVault(){
+vault.version="SR13";
 let a=document.createElement("a");
 a.href="data:text/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(vault,null,2));
-a.download="VaultOS_SR12_Backup.json";
-a.click();
+a.download="VaultOS_SR13_Backup.json";
+a.click()
 }
 
-importFile.onchange=e=>{
+$("importFile").onchange=e=>{
 let r=new FileReader();
-r.onload=()=>{try{vault=JSON.parse(r.result);save();renderTargets();renderInventory();update()}catch{alert("Invalid file")}};
-r.readAsText(e.target.files[0]);
+r.onload=()=>{
+try{
+let d=JSON.parse(r.result);
+vault={version:"SR13",targets:Array.isArray(d.targets)?d.targets:[],inventory:Array.isArray(d.inventory)?d.inventory:[],notes:d.notes||""};
+save();renderTargets();renderInventory();update();alert("Import successful")
+}catch(err){alert("Import failed: "+err.message)}
+};
+r.readAsText(e.target.files[0])
 };
 
-renderTargets();
-renderInventory();
-update();
+renderTargets();renderInventory();update();
 </script>
 </body>
 </html>
