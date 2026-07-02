@@ -1,10 +1,11 @@
 
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR15 Fixed Import</title>
+<title>VaultOS SR15 Editable</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
@@ -23,11 +24,10 @@ aside{
 }
 main{flex:1;padding:20px}
 
-button,input,select{
+button,input{
   background:var(--panel2);color:white;border:1px solid var(--line);
-  border-radius:8px;padding:10px;margin:4px;width:100%
+  border-radius:8px;padding:8px;margin:4px;width:100%
 }
-button{cursor:pointer}
 
 .card{
   background:var(--panel);border:1px solid var(--line);
@@ -35,9 +35,16 @@ button{cursor:pointer}
 }
 
 table{width:100%;border-collapse:collapse}
-td,th{padding:10px;border-bottom:1px solid var(--line)}
+td,th{padding:8px;border-bottom:1px solid var(--line)}
+td input{
+  width:100%;
+  background:transparent;
+  border:1px solid var(--line);
+  color:white;
+  padding:6px;
+  border-radius:6px;
+}
 
-.hidden{display:none}
 </style>
 </head>
 
@@ -45,41 +52,27 @@ td,th{padding:10px;border-bottom:1px solid var(--line)}
 
 <aside>
 <h2>VaultOS SR15</h2>
-
-<button onclick="page('dash')">Dashboard</button>
-<button onclick="page('targets')">Targets</button>
-
 <input type="file" id="importFile" accept=".json">
 </aside>
 
 <main>
 
-<section id="dash">
 <div class="card">
-<h2>Stats</h2>
-<p>Targets: <b id="total">0</b></p>
-<p>Success: <b id="success">0</b></p>
-<p>Pending: <b id="pending">0</b></p>
-<p>RTS: <b id="rts">0</b></p>
-</div>
-</section>
-
-<section id="targets" class="hidden">
-<div class="card">
-<h2>Targets</h2>
+<h2>Targets (Editable)</h2>
 
 <table>
 <thead>
 <tr>
 <th>Name</th>
 <th>Status</th>
+<th>Possible Address Used</th>
+<th></th>
 </tr>
 </thead>
 <tbody id="list"></tbody>
 </table>
 
 </div>
-</section>
 
 </main>
 
@@ -87,78 +80,100 @@ td,th{padding:10px;border-bottom:1px solid var(--line)}
 
 const $ = id => document.getElementById(id);
 
-let vault = {
-  targets:[]
+let vault = JSON.parse(localStorage.getItem("VaultOS_SR15_EDIT")) || {
+targets:[]
 };
 
-function page(id){
-  ["dash","targets"].forEach(x=>$(x).classList.add("hidden"));
-  $(id).classList.remove("hidden");
+function save(){
+localStorage.setItem("VaultOS_SR15_EDIT", JSON.stringify(vault));
 }
 
-/* ✅ CLEAN STATUS NORMALISER */
+/* 🧠 CLEAN STATUS */
 function cleanStatus(s){
-  return (s || "PENDING")
-    .toString()
-    .trim()
-    .toUpperCase();
+return (s || "PENDING").toString().trim().toUpperCase();
 }
 
-/* 📊 RENDER */
+/* 📊 RENDER (editable table) */
 function render(){
 
-  $("list").innerHTML = vault.targets.map(t=>`
-    <tr>
-      <td>${t.name}</td>
-      <td>${t.status}</td>
-    </tr>
-  `).join("");
+$("list").innerHTML = vault.targets.map((t,i)=>`
 
-  $("total").textContent = vault.targets.length;
-  $("success").textContent = vault.targets.filter(x=>cleanStatus(x.status)==="SUCCESS").length;
-  $("pending").textContent = vault.targets.filter(x=>cleanStatus(x.status)==="PENDING").length;
-  $("rts").textContent = vault.targets.filter(x=>cleanStatus(x.status)==="RTS").length;
+<tr>
+
+<td>
+<input value="${t.name||""}"
+oninput="vault.targets[${i}].name=this.value; save()">
+</td>
+
+<td>
+<input value="${t.status||""}"
+oninput="vault.targets[${i}].status=this.value; save()">
+</td>
+
+<td>
+<input value="${t.address||""}"
+placeholder="Add address used"
+oninput="vault.targets[${i}].address=this.value; save()">
+</td>
+
+<td>
+<button onclick="remove(${i})">X</button>
+</td>
+
+</tr>
+
+`).join("");
+
 }
 
-/* 📥 FIXED IMPORT (YOUR FORMAT SUPPORT) */
+/* ❌ REMOVE */
+function remove(i){
+vault.targets.splice(i,1);
+save();
+render();
+}
+
+/* 📥 IMPORT (YOUR FORMAT FIXED) */
 document.getElementById("importFile").addEventListener("change",(e)=>{
 
-  const file = e.target.files?.[0];
-  if(!file) return;
+const file = e.target.files?.[0];
+if(!file) return;
 
-  const reader = new FileReader();
+const reader = new FileReader();
 
-  reader.onload = () => {
-    try {
+reader.onload = () => {
+try{
 
-      const d = JSON.parse(reader.result || "{}");
+const d = JSON.parse(reader.result || "{}");
 
-      const raw =
-        Array.isArray(d.records) ? d.records :
-        Array.isArray(d.targets) ? d.targets :
-        [];
+const raw =
+Array.isArray(d.records) ? d.records :
+Array.isArray(d.targets) ? d.targets :
+[];
 
-      vault.targets = raw.map((t,i)=>({
+vault.targets = raw.map((t,i)=>({
 
-        id: t.id || Date.now()+i,
+id: t.id || Date.now()+i,
 
-        // ✅ supports YOUR file
-        name: t.name || t.Name || "Unknown",
+name: t.name || t.Name || "Unknown",
 
-        // store raw but cleaned for stats
-        status: cleanStatus(t.status || t.Status)
+status: cleanStatus(t.status || t.Status),
 
-      }));
+address: t.address || t.addr || ""
 
-      render();
-      alert("Import successful: " + vault.targets.length + " loaded");
+}));
 
-    } catch(err){
-      alert("Import failed: " + err.message);
-    }
-  };
+save();
+render();
 
-  reader.readAsText(file);
+alert("Imported: " + vault.targets.length + " entries");
+
+}catch(err){
+alert("Import failed: " + err.message);
+}
+};
+
+reader.readAsText(file);
 });
 
 render();
