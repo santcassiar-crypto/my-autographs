@@ -5,112 +5,108 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR20 Engine</title>
+<title>VaultOS Core v1 Stable</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
 body{
-margin:0;font-family:Arial;background:#020617;color:#fff;display:flex;min-height:100vh;
+margin:0;
+font-family:Arial;
+background:#020617;
+color:#fff;
+display:flex;
+min-height:100vh;
 }
+
 aside{
-width:260px;background:#01040d;padding:15px;border-right:1px solid #334155;
+width:260px;
+background:#01040d;
+padding:15px;
+border-right:1px solid #334155;
 }
+
 main{flex:1;padding:15px}
 
 .card{
-background:#0f172a;padding:15px;border-radius:10px;margin-bottom:15px;
+background:#0f172a;
+padding:15px;
+border-radius:10px;
+margin-bottom:15px;
 }
 
 input,select,button{
-width:100%;padding:8px;margin-top:6px;
-background:#1e293b;color:#fff;border:1px solid #334155;border-radius:6px;
+width:100%;
+padding:8px;
+margin-top:6px;
+background:#1e293b;
+color:#fff;
+border:1px solid #334155;
+border-radius:6px;
 }
 
 table{width:100%;border-collapse:collapse}
-td,th{border-bottom:1px solid #334155;padding:8px}
+td,th{border-bottom:1px solid #334155;padding:6px;font-size:13px}
 
-.hidden{display:none}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.stat{background:#1e293b;padding:10px;border-radius:8px;text-align:center}
-.stat b{display:block;color:#38bdf8;font-size:20px}
-.small{opacity:0.7;font-size:12px}
+.stat{
+background:#1e293b;
+padding:10px;
+border-radius:8px;
+text-align:center;
+}
+
+.stat b{display:block;font-size:18px;color:#38bdf8;margin-top:5px}
+
 </style>
 </head>
 
 <body>
 
 <aside>
-<h2>VaultOS SR20</h2>
+<h3>VaultOS Core v1</h3>
 
-<button onclick="show('dash')">Dashboard</button>
-<button onclick="show('data')">Database</button>
+<button onclick="addRandom()">+ Add Record</button>
+<button onclick="exportData()">Export</button>
 
 <input type="file" id="importFile">
-<button onclick="exportJSON()">Export</button>
+
 </aside>
 
 <main>
 
-<!-- DASH -->
-<div id="dash">
 <div class="card">
-<h3>Analytics Engine</h3>
+<h3>Dashboard</h3>
 
 <div class="grid">
-<div class="stat">Total<b id="t">0</b></div>
-<div class="stat">Success<b id="s">0</b></div>
-<div class="stat">Pending<b id="p">0</b></div>
-<div class="stat">RTS<b id="r">0</b></div>
+<div class="stat">Total<b id="total">0</b></div>
+<div class="stat">Success<b id="success">0</b></div>
+<div class="stat">Pending<b id="pending">0</b></div>
+</div>
+
+<div class="grid" style="margin-top:10px">
+<div class="stat">RTS<b id="rts">0</b></div>
+<div class="stat">Sent<b id="sent">0</b></div>
+<div class="stat">Success %<b id="rate">0%</b></div>
+</div>
+
 </div>
 
 <div class="card">
-<h3>Route Intelligence</h3>
-<div id="routes"></div>
-</div>
-</div>
-</div>
-
-<!-- DATA -->
-<div id="data" class="hidden">
-
-<div class="card">
-<h3>Add Record</h3>
-
-<input id="name" placeholder="Name">
-
-<select id="status">
-<option>PENDING</option>
-<option>SENT</option>
-<option>SUCCESS</option>
-<option>RTS</option>
-</select>
-
-<select id="route">
-<option>Club Route</option>
-<option>Agency Route</option>
-<option>Event Route</option>
-<option>Foundation Route</option>
-<option>General Route</option>
-</select>
-
-<select id="method">
-<option>TTM</option>
-<option>IP</option>
-<option>EVENT</option>
-</select>
-
-<button onclick="DB.add()">Add</button>
-</div>
-
-<div class="card">
-<input id="search" placeholder="Search..." oninput="render()">
-
+<h3>Targets</h3>
 <table>
-<tbody id="table"></tbody>
+<thead>
+<tr>
+<th>Name</th>
+<th>Status</th>
+<th>Route</th>
+<th>Method</th>
+<th>Address</th>
+<th></th>
+</tr>
+</thead>
+<tbody id="list"></tbody>
 </table>
-</div>
-
 </div>
 
 </main>
@@ -118,189 +114,247 @@ td,th{border-bottom:1px solid #334155;padding:8px}
 <script>
 
 /* =========================
-   DATABASE ENGINE (SR20 CORE)
+   INDEXEDDB CORE
 ========================= */
-let vault = JSON.parse(localStorage.getItem("VAULT_SR20")) || {
-targets:[]
+let db;
+let DB_NAME = "VAULT_CORE_V1";
+
+function initDB(){
+let req = indexedDB.open(DB_NAME,1);
+
+req.onupgradeneeded = e=>{
+db = e.target.result;
+db.createObjectStore("targets",{keyPath:"id"});
 };
 
-const DB = {
-
-save(){
-localStorage.setItem("VAULT_SR20", JSON.stringify(vault));
-},
-
-normalizeStatus(s){
-return (s||"PENDING").toString().trim().toUpperCase();
-},
-
-normalize(t){
-return {
-id:Date.now()+Math.random(),
-name:t.name || t.Name || "Unknown",
-status:this.normalizeStatus(t.status || t.Status),
-route:t.route || "General Route",
-method:t.method || "TTM"
+req.onsuccess = e=>{
+db = e.target.result;
+loadAll();
 };
-},
-
-add(){
-if(!name.value.trim()) return;
-
-vault.targets.push(this.normalize({
-name:name.value,
-status:status.value,
-route:route.value,
-method:method.value
-}));
-
-this.save();
-render();
-},
-
-update(){
-this.save();
-render();
-},
-
-remove(id){
-vault.targets = vault.targets.filter(x=>x.id!==id);
-this.save();
-render();
 }
 
+function tx(store,mode="readwrite"){
+return db.transaction(store,mode).objectStore(store);
+}
+
+/* =========================
+   NORMALISER ENGINE
+========================= */
+function cleanStatus(s){
+if(!s) return "PENDING";
+s = String(s).toUpperCase();
+if(s.includes("SUCCESS")) return "SUCCESS";
+if(s.includes("RTS") || s.includes("FAIL")) return "RTS";
+if(s.includes("SENT")) return "SENT";
+return "PENDING";
+}
+
+/* =========================
+   ADDRESS AI (SIMPLE INTELLIGENCE)
+========================= */
+const addressAI = {
+"Club Route":["Training Ground HQ","Stadium Office"],
+"Agency Route":["Talent Agency HQ","Management Office"],
+"Event Route":["Event Venue Office","Organiser HQ"],
+"Foundation Route":["Charity HQ","Foundation Office"],
+"General":["Unknown Location"]
 };
 
 /* =========================
-   NAV
+   STATE
 ========================= */
-function show(id){
-dash.classList.add("hidden");
-data.classList.add("hidden");
-$(id).classList.remove("hidden");
-}
-
-const $ = id=>document.getElementById(id);
+let cache = [];
 
 /* =========================
-   DASHBOARD ENGINE
+   LOAD
 ========================= */
-function updateDash(){
-
-let t = vault.targets;
-
-let total = t.length;
-let success = t.filter(x=>x.status==="SUCCESS").length;
-let pending = t.filter(x=>x.status==="PENDING").length;
-let rts = t.filter(x=>x.status.includes("RTS")).length;
-
-t.text = t;
-
-tEl.textContent = total;
-sEl.textContent = success;
-pEl.textContent = pending;
-rEl.textContent = rts;
-
-/* route intelligence */
-let routes = {};
-
-t.forEach(x=>{
-if(!routes[x.route]) routes[x.route]={t:0,s:0};
-routes[x.route].t++;
-if(x.status==="SUCCESS") routes[x.route].s++;
-});
-
-let html="";
-Object.entries(routes).forEach(([k,v])=>{
-let pct = v.t ? ((v.s/v.t)*100).toFixed(1) : 0;
-html+=`
-<div class="small">
-<b>${k}</b> → ${pct}% success (${v.s}/${v.t})
-</div>`;
-});
-
-routesEl.innerHTML = html;
+function loadAll(){
+let req = tx("targets").getAll();
+req.onsuccess = e=>{
+cache = e.target.result || [];
+render();
+updateDashboard();
+};
 }
 
 /* =========================
-   TABLE RENDER
+   SAVE
 ========================= */
-function render(){
-
-let q = (search.value||"").toLowerCase();
-
-table.innerHTML = vault.targets
-.filter(x=>JSON.stringify(x).toLowerCase().includes(q))
-.map((t,i)=>`
-
-<tr>
-
-<td>
-<input value="${t.name}"
-oninput="vault.targets[${i}].name=this.value; DB.update()">
-</td>
-
-<td>${t.status}</td>
-<td>${t.route}</td>
-<td>${t.method}</td>
-
-<td>
-<button onclick="DB.remove('${t.id}')">X</button>
-</td>
-
-</tr>
-
-`).join("");
-
-updateDash();
+function save(item){
+tx("targets").put(item);
 }
 
 /* =========================
-   IMPORT FIX (SR20 SAFE)
+   DELETE
 ========================= */
-importFile.onchange = e=>{
+function del(id){
+tx("targets").delete(id);
+setTimeout(loadAll,50);
+}
 
-let f=e.target.files[0];
-let r=new FileReader();
+/* =========================
+   ADD
+========================= */
+function addRandom(){
+let item = {
+id: Date.now(),
+name: "New Target " + Math.floor(Math.random()*1000),
+status: "PENDING",
+route: "Club Route",
+method: "TTM",
+address: ""
+};
+save(item);
+setTimeout(loadAll,50);
+}
+
+/* =========================
+   IMPORT FIXED PIPELINE
+========================= */
+document.getElementById("importFile").addEventListener("change",e=>{
+let f = e.target.files[0];
+let r = new FileReader();
 
 r.onload=()=>{
+let d = JSON.parse(r.result||"{}");
+let raw = d.records || [];
 
-try{
+raw.forEach((t,i)=>{
 
-let d=JSON.parse(r.result||"{}");
+let item = {
+id: Date.now()+i,
+name: t.Name || t.name || "Unknown",
+status: cleanStatus(t.Status || t.status),
+route: "General",
+method: "TTM",
+address: ""
+};
 
-let raw =
-d.records || d.targets || d.data || [];
+save(item);
 
-vault.targets = raw.map(x=>DB.normalize(x));
+});
 
-DB.save();
-render();
-
-alert("Imported: "+vault.targets.length);
-
-}catch(err){
-alert("Import failed: "+err.message);
-}
-
+setTimeout(loadAll,100);
 };
 
 r.readAsText(f);
-};
+});
+
+/* =========================
+   ANALYTICS ENGINE
+========================= */
+function updateDashboard(){
+
+let total = cache.length;
+let success = cache.filter(x=>x.status==="SUCCESS").length;
+let pending = cache.filter(x=>x.status==="PENDING").length;
+let rts = cache.filter(x=>x.status==="RTS").length;
+let sent = cache.filter(x=>x.status==="SENT").length;
+
+let rate = total ? ((success/total)*100).toFixed(1) : 0;
+
+totalEl.textContent = total;
+successEl.textContent = success;
+pendingEl.textContent = pending;
+rtsEl.textContent = rts;
+sentEl.textContent = sent;
+rateEl.textContent = rate + "%";
+
+}
+
+/* =========================
+   RENDER TABLE
+========================= */
+function render(){
+
+list.innerHTML = cache.map((t,i)=>{
+
+let suggestions = addressAI[t.route] || ["Unknown"];
+
+return `
+<tr>
+
+<td><input value="${t.name}"
+oninput="updateField(${t.id},'name',this.value)"></td>
+
+<td>
+<select onchange="updateField(${t.id},'status',this.value)">
+<option ${t.status==="PENDING"?"selected":""}>PENDING</option>
+<option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${t.status==="RTS"?"selected":""}>RTS</option>
+<option ${t.status==="SENT"?"selected":""}>SENT</option>
+</select>
+</td>
+
+<td>
+<select onchange="updateField(${t.id},'route',this.value)">
+<option>Club Route</option>
+<option>Agency Route</option>
+<option>Event Route</option>
+<option>Foundation Route</option>
+<option>General</option>
+</select>
+</td>
+
+<td>
+<select onchange="updateField(${t.id},'method',this.value)">
+<option>TTM</option>
+<option>IP</option>
+<option>EVENT</option>
+</select>
+</td>
+
+<td>
+<select onchange="updateField(${t.id},'address',this.value)">
+${suggestions.map(a=>`<option ${t.address===a?"selected":""}>${a}</option>`).join("")}
+</select>
+</td>
+
+<td><button onclick="del(${t.id})">X</button></td>
+
+</tr>
+`;
+
+}).join("");
+
+}
+
+/* =========================
+   UPDATE FIELD
+========================= */
+function updateField(id,key,value){
+
+let item = cache.find(x=>x.id===id);
+if(!item) return;
+
+item[key] = value;
+
+save(item);
+setTimeout(loadAll,50);
+
+}
 
 /* =========================
    EXPORT
 ========================= */
-function exportJSON(){
-let blob=new Blob([JSON.stringify(vault,null,2)],{type:"application/json"});
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="VaultSR20.json";
+function exportData(){
+
+let blob = new Blob(
+[JSON.stringify(cache,null,2)],
+{type:"application/json"}
+);
+
+let a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "VaultOS_Core_v1.json";
 a.click();
+
 }
 
-/* INIT */
-render();
+/* =========================
+   INIT
+========================= */
+initDB();
 
 </script>
 
