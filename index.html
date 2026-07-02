@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR15+ Collector Edition</title>
+<title>VaultOS SR15 Smart Learning Edition</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
@@ -25,26 +25,25 @@ table{width:100%;border-collapse:collapse}
 td,th{padding:10px;border-bottom:1px solid var(--line)}
 .hidden{display:none}
 textarea{width:100%;height:120px}
+small{opacity:0.7}
 </style>
 </head>
 
 <body>
 
 <aside>
-<h2>VaultOS SR15+</h2>
-<p>Collector Command Centre</p>
+<h2>VaultOS SR15 AI</h2>
+<p>Self-Learning System</p>
 
 <button onclick="page('dash')">Dashboard</button>
 <button onclick="page('targets')">Targets</button>
-<button onclick="page('bulk')">Bulk Import</button>
 
-<button onclick="exportVault()">Export Backup</button>
+<button onclick="exportVault()">Export</button>
 <input type="file" id="importFile" accept=".json">
 </aside>
 
 <main>
 
-<!-- DASH -->
 <section id="dash">
 <div class="card">
 <h1>Dashboard</h1>
@@ -55,25 +54,21 @@ textarea{width:100%;height:120px}
 <div class="stat">Success <b id="cSuccess">0</b></div>
 </div>
 </div>
-
-<div class="card">
-<h2>Notes</h2>
-<textarea id="notes"></textarea>
-</div>
 </section>
 
-<!-- TARGETS -->
 <section id="targets" class="hidden">
 
 <div class="card">
-<h2>Add Target</h2>
+<h2>Add Target (Smart Auto-Learning)</h2>
 
-<input id="name" placeholder="Name">
-<input id="sport" placeholder="Sport/Field">
-<input id="team" placeholder="Team/Show/Org">
+<input id="name" placeholder="Name" oninput="autoFillAddress()">
+<input id="sport" placeholder="Sport / Field">
+<input id="team" placeholder="Team / Show / Org">
 <input id="method" placeholder="Method">
 <input id="sentDate" placeholder="Date Sent">
-<input id="address" placeholder="Possible Address Sent">
+
+<input id="address" placeholder="Possible Address (auto-fills)">
+<small id="hint"></small>
 
 <select id="status">
 <option>Research</option>
@@ -88,8 +83,6 @@ textarea{width:100%;height:120px}
 </div>
 
 <div class="card">
-<input id="search" placeholder="Search..." oninput="renderTargets()">
-
 <table>
 <thead>
 <tr>
@@ -106,149 +99,152 @@ textarea{width:100%;height:120px}
 
 </section>
 
-<!-- BULK ADDRESS ENGINE -->
-<section id="bulk" class="hidden">
-
-<div class="card">
-<h2>Bulk Name → Address Suggestion Engine</h2>
-
-<p>Paste names (one per line):</p>
-<textarea id="bulkInput" placeholder="Gary Oldman&#10;Geoff Hurst&#10;Wendell Pierce"></textarea>
-
-<button onclick="suggestAddresses()">Suggest Addresses</button>
-
-<div class="card">
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Suggested Address Route</th>
-</tr>
-</thead>
-<tbody id="bulkOutput"></tbody>
-</table>
-</div>
-
-</div>
-
-</section>
-
 </main>
 
 <script>
 
 const $ = id => document.getElementById(id);
 
-let vault = JSON.parse(localStorage.getItem("VaultOS_SR15")) || {
-version:"SR15",
+let vault = JSON.parse(localStorage.getItem("VaultOS_SR15_AI")) || {
+version:"SR15_AI",
 targets:[],
-notes:""
+memory:{}   // 🧠 learning storage
 };
 
 function save(){
-localStorage.setItem("VaultOS_SR15", JSON.stringify(vault));
+localStorage.setItem("VaultOS_SR15_AI", JSON.stringify(vault));
 }
 
+/* NAV */
 function page(id){
-["dash","targets","bulk"].forEach(x=>$(x).classList.add("hidden"));
+["dash","targets"].forEach(x=>$(x).classList.add("hidden"));
 $(id).classList.remove("hidden");
 }
 
-/* SIMPLE DOMAIN ROUTING ENGINE (offline heuristics) */
+/* 🧠 SMART LEARNING ENGINE */
 function guessAddress(name){
 
-name = name.toLowerCase();
+const n = name.toLowerCase();
 
-if(name.includes("hurst")) return "Football Club / Stadium Association Contact Route";
-if(name.includes("oldman")) return "Theatre / Production Agency / Film Studio Contact Route";
-if(name.includes("pierce")) return "TV/Film Production Studio or Agency Contact Route";
-if(name.includes("actor") || name.includes("film")) return "Production Company / Agency Routing";
-if(name.includes("player") || name.includes("fc")) return "Club Stadium / Sports Association Route";
-
-return "General Agency / Management / Public Organisation Contact Route";
+/* 1. MEMORY FIRST (learned behaviour) */
+if(vault.memory[n]){
+return {text:vault.memory[n], source:"memory"};
 }
 
-/* BULK ENGINE */
-function suggestAddresses(){
+/* 2. PATTERN RULES */
+if(n.includes("oldman"))
+return {text:"Film / Theatre Agency Route", source:"rule"};
 
-const lines = $("bulkInput").value.split("\n").map(x=>x.trim()).filter(Boolean);
+if(n.includes("hurst"))
+return {text:"Football Club / Stadium Association Route", source:"rule"};
 
-$("bulkOutput").innerHTML = lines.map(name=>`
-<tr>
-<td>${name}</td>
-<td>${guessAddress(name)}</td>
-</tr>
-`).join("");
+if(n.includes("pierce"))
+return {text:"TV / Film Production Studio Route", source:"rule"};
+
+if(n.includes("player") || n.includes("fc"))
+return {text:"Sports Club / Organisation Route", source:"rule"};
+
+return {text:"General Agency / Organisation Route", source:"fallback"};
 }
 
-/* TARGETS */
+/* 🔁 AUTO-FILL */
+function autoFillAddress(){
+
+const name = $("name").value.trim();
+if(!name) return;
+
+const result = guessAddress(name);
+
+$("address").value = result.text;
+
+/* smart hint */
+$("hint").textContent =
+result.source === "memory"
+? "🧠 Learned from your previous entries"
+: result.source === "rule"
+? "⚙️ Suggested from pattern rules"
+: "⚠️ Generic fallback suggestion";
+}
+
+/* 💾 SAVE + LEARN */
 function addTarget(){
+
+const name = $("name").value.trim();
+if(!name) return;
+
+const address = $("address").value.trim();
+
+/* 🧠 LEARNING STEP */
+const key = name.toLowerCase();
+
+/* if user accepts/edits address → store it */
+if(address){
+vault.memory[key] = address;
+}
 
 vault.targets.push({
 id:Date.now(),
-name:$("name").value || "",
-sport:$("sport").value || "",
-team:$("team").value || "",
-method:$("method").value || "",
-sent:$("sentDate").value || "",
-status:$("status").value || "Research",
-address:$("address").value || ""
+name,
+sport:$("sport").value||"",
+team:$("team").value||"",
+method:$("method").value||"",
+sent:$("sentDate").value||"",
+status:$("status").value||"Research",
+address
 });
 
 save();
-renderTargets();
-update();
+render();
+clearForm();
 }
 
-/* RENDER */
-function renderTargets(){
+/* 🧹 CLEAR */
+function clearForm(){
+$("name").value="";
+$("sport").value="";
+$("team").value="";
+$("method").value="";
+$("sentDate").value="";
+$("address").value="";
+$("hint").textContent="";
+}
 
-const q = ($("search")?.value || "").toLowerCase();
+/* 📊 RENDER */
+function render(){
 
-$("targetList").innerHTML = vault.targets
-.filter(t=>JSON.stringify(t).toLowerCase().includes(q))
-.map((t,i)=>`
+$("targetList").innerHTML = vault.targets.map((t,i)=>`
 <tr>
 <td>${t.name}</td>
 <td>${t.sport}</td>
 <td>${t.status}</td>
-<td>${t.address || ""}</td>
+<td>${t.address||""}</td>
 <td><button onclick="removeTarget(${i})">X</button></td>
 </tr>
 `).join("");
-}
 
-function removeTarget(i){
-vault.targets.splice(i,1);
-save();
-renderTargets();
-update();
-}
-
-/* STATS */
-function update(){
 $("cTotal").textContent = vault.targets.length;
 $("cSent").textContent = vault.targets.filter(x=>x.status==="Sent").length;
 $("cWaiting").textContent = vault.targets.filter(x=>x.status==="Waiting").length;
 $("cSuccess").textContent = vault.targets.filter(x=>x.status==="Success").length;
-$("notes").value = vault.notes || "";
 }
 
-$("notes").oninput = ()=>{
-vault.notes = $("notes").value;
+/* ❌ REMOVE */
+function removeTarget(i){
+vault.targets.splice(i,1);
 save();
-};
+render();
+}
 
-/* EXPORT */
+/* 📤 EXPORT */
 function exportVault(){
 const a=document.createElement("a");
 a.href="data:text/json;charset=utf-8,"+
 encodeURIComponent(JSON.stringify(vault,null,2));
-a.download="VaultOS_SR15Plus.json";
+a.download="VaultOS_SR15_AI.json";
 a.click();
 }
 
-/* IMPORT */
+/* 📥 IMPORT */
 $("importFile").addEventListener("change",(e)=>{
 const file=e.target.files?.[0];
 if(!file)return;
@@ -260,25 +256,15 @@ try{
 const d=JSON.parse(r.result||"{}");
 
 vault={
-version:"SR15",
-targets:(d.targets||[]).map(t=>({
-id:t.id||Date.now(),
-name:t.name||"",
-sport:t.sport||"",
-team:t.team||"",
-method:t.method||"",
-sent:t.sent||"",
-status:t.status||"Research",
-address:t.address||""
-})),
-notes:d.notes||""
+version:"SR15_AI",
+targets:d.targets||[],
+memory:d.memory||{}
 };
 
 save();
-renderTargets();
-update();
+render();
 
-alert("Import successful");
+alert("Import complete (AI memory restored)");
 
 }catch(err){
 alert("Import failed: "+err.message);
@@ -288,8 +274,7 @@ alert("Import failed: "+err.message);
 r.readAsText(file);
 });
 
-renderTargets();
-update();
+render();
 
 </script>
 
