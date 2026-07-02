@@ -5,81 +5,77 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR19 Intelligence Layer</title>
+<title>VaultOS SR20 Engine</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
 body{
-margin:0;
-font-family:Arial;
-background:#020617;
-color:#fff;
-display:flex;
-min-height:100vh;
+margin:0;font-family:Arial;background:#020617;color:#fff;display:flex;min-height:100vh;
 }
-
 aside{
-width:280px;
-background:#01040d;
-padding:15px;
-border-right:1px solid #334155;
+width:260px;background:#01040d;padding:15px;border-right:1px solid #334155;
 }
-
 main{flex:1;padding:15px}
 
 .card{
-background:#0f172a;
-padding:15px;
-border-radius:10px;
-margin-bottom:15px;
+background:#0f172a;padding:15px;border-radius:10px;margin-bottom:15px;
 }
 
 input,select,button{
-width:100%;
-padding:8px;
-margin-top:6px;
-background:#1e293b;
-color:#fff;
-border:1px solid #334155;
-border-radius:6px;
+width:100%;padding:8px;margin-top:6px;
+background:#1e293b;color:#fff;border:1px solid #334155;border-radius:6px;
 }
 
-table{
-width:100%;
-border-collapse:collapse;
-}
+table{width:100%;border-collapse:collapse}
+td,th{border-bottom:1px solid #334155;padding:8px}
 
-td,th{
-border-bottom:1px solid #334155;
-padding:8px;
-}
+.hidden{display:none}
 
-.stat{
-display:inline-block;
-padding:10px;
-margin:5px;
-background:#1e293b;
-border-radius:8px;
-min-width:120px;
-text-align:center;
-}
-
-.stat b{
-display:block;
-font-size:18px;
-color:#38bdf8;
-}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{background:#1e293b;padding:10px;border-radius:8px;text-align:center}
+.stat b{display:block;color:#38bdf8;font-size:20px}
+.small{opacity:0.7;font-size:12px}
 </style>
 </head>
 
 <body>
 
 <aside>
+<h2>VaultOS SR20</h2>
 
-<h3>VaultOS SR19</h3>
+<button onclick="show('dash')">Dashboard</button>
+<button onclick="show('data')">Database</button>
+
+<input type="file" id="importFile">
+<button onclick="exportJSON()">Export</button>
+</aside>
+
+<main>
+
+<!-- DASH -->
+<div id="dash">
+<div class="card">
+<h3>Analytics Engine</h3>
+
+<div class="grid">
+<div class="stat">Total<b id="t">0</b></div>
+<div class="stat">Success<b id="s">0</b></div>
+<div class="stat">Pending<b id="p">0</b></div>
+<div class="stat">RTS<b id="r">0</b></div>
+</div>
 
 <div class="card">
-<h4>Add Record</h4>
+<h3>Route Intelligence</h3>
+<div id="routes"></div>
+</div>
+</div>
+</div>
+
+<!-- DATA -->
+<div id="data" class="hidden">
+
+<div class="card">
+<h3>Add Record</h3>
 
 <input id="name" placeholder="Name">
 
@@ -98,44 +94,22 @@ color:#38bdf8;
 <option>General Route</option>
 </select>
 
-<select id="addressMode">
-<option value="AUTO">AUTO ADDRESS</option>
-<option value="MANUAL">MANUAL ADDRESS</option>
+<select id="method">
+<option>TTM</option>
+<option>IP</option>
+<option>EVENT</option>
 </select>
 
-<input id="address" placeholder="Manual Address">
-
-<button onclick="addRecord()">Add Record</button>
-</div>
-
-<button onclick="exportData()">Export</button>
-
-</aside>
-
-<main>
-
-<div class="card">
-<h3>Dashboard</h3>
-<div id="stats"></div>
+<button onclick="DB.add()">Add</button>
 </div>
 
 <div class="card">
-<h3>Database</h3>
-
 <input id="search" placeholder="Search..." oninput="render()">
 
 <table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Status</th>
-<th>Route</th>
-<th>Address</th>
-<th>Delete</th>
-</tr>
-</thead>
-<tbody id="list"></tbody>
+<tbody id="table"></tbody>
 </table>
+</div>
 
 </div>
 
@@ -144,239 +118,189 @@ color:#38bdf8;
 <script>
 
 /* =========================
-   SR19 DATABASE CORE
+   DATABASE ENGINE (SR20 CORE)
 ========================= */
-
-let vault = JSON.parse(localStorage.getItem("VAULT_SR19")) || {
-version:"SR19",
-targets:[],
-memory:{}
+let vault = JSON.parse(localStorage.getItem("VAULT_SR20")) || {
+targets:[]
 };
 
-const $ = id => document.getElementById(id);
+const DB = {
 
-function save(){
-localStorage.setItem("VAULT_SR19", JSON.stringify(vault));
-}
+save(){
+localStorage.setItem("VAULT_SR20", JSON.stringify(vault));
+},
 
-/* =========================
-   CLEAN + NORMALISE
-========================= */
+normalizeStatus(s){
+return (s||"PENDING").toString().trim().toUpperCase();
+},
 
-function clean(v){
-return (v ?? "").toString().replace(/\u00A0/g," ").trim();
-}
-
-/* =========================
-   ROUTE ENGINE
-========================= */
-
-function getAddress(route){
-switch(route){
-case "Club Route": return "Training Ground / Stadium HQ";
-case "Agency Route": return "Talent Agency / Production Office";
-case "Event Route": return "Event Venue / HQ";
-case "Foundation Route": return "Charity / Foundation HQ";
-default: return "General Organisation";
-}
-}
-
-/* =========================
-   MEMORY ENGINE (SELF-LEARNING)
-========================= */
-
-function getMemory(name){
-return vault.memory[name.toLowerCase()] || null;
-}
-
-function setMemory(name, data){
-vault.memory[name.toLowerCase()] = data;
-}
-
-/* =========================
-   SMART AUTOFILL
-========================= */
-
-function getSmart(name){
-
-let mem = getMemory(name);
-
-if(mem){
-return mem;
-}
-
+normalize(t){
 return {
-route:"General Route",
-address:"General Organisation",
-method:"TTM"
+id:Date.now()+Math.random(),
+name:t.name || t.Name || "Unknown",
+status:this.normalizeStatus(t.status || t.Status),
+route:t.route || "General Route",
+method:t.method || "TTM"
 };
-}
+},
 
-/* =========================
-   ADD RECORD (INTELLIGENT)
-========================= */
-
-function addRecord(){
-
+add(){
 if(!name.value.trim()) return;
 
-let smart = getSmart(name.value);
+vault.targets.push(this.normalize({
+name:name.value,
+status:status.value,
+route:route.value,
+method:method.value
+}));
 
-let routeValue = route.value || smart.route;
+this.save();
+render();
+},
 
-let finalAddress =
-addressMode.value === "MANUAL"
-? address.value
-: smart.address || getAddress(routeValue);
+update(){
+this.save();
+render();
+},
 
-let record = {
-id: Date.now(),
-name: clean(name.value),
-status: status.value,
-route: routeValue,
-address: finalAddress,
-history:[
-{date:Date.now(),status:status.value}
-]
+remove(id){
+vault.targets = vault.targets.filter(x=>x.id!==id);
+this.save();
+render();
+}
+
 };
 
-/* LEARNING STEP */
-setMemory(name.value, {
-route: routeValue,
-address: finalAddress,
-method: status.value
+/* =========================
+   NAV
+========================= */
+function show(id){
+dash.classList.add("hidden");
+data.classList.add("hidden");
+$(id).classList.remove("hidden");
+}
+
+const $ = id=>document.getElementById(id);
+
+/* =========================
+   DASHBOARD ENGINE
+========================= */
+function updateDash(){
+
+let t = vault.targets;
+
+let total = t.length;
+let success = t.filter(x=>x.status==="SUCCESS").length;
+let pending = t.filter(x=>x.status==="PENDING").length;
+let rts = t.filter(x=>x.status.includes("RTS")).length;
+
+t.text = t;
+
+tEl.textContent = total;
+sEl.textContent = success;
+pEl.textContent = pending;
+rEl.textContent = rts;
+
+/* route intelligence */
+let routes = {};
+
+t.forEach(x=>{
+if(!routes[x.route]) routes[x.route]={t:0,s:0};
+routes[x.route].t++;
+if(x.status==="SUCCESS") routes[x.route].s++;
 });
 
-vault.targets.push(record);
+let html="";
+Object.entries(routes).forEach(([k,v])=>{
+let pct = v.t ? ((v.s/v.t)*100).toFixed(1) : 0;
+html+=`
+<div class="small">
+<b>${k}</b> → ${pct}% success (${v.s}/${v.t})
+</div>`;
+});
 
-name.value="";
-address.value="";
-
-save();
-render();
-update();
-analytics();
+routesEl.innerHTML = html;
 }
 
 /* =========================
-   DASHBOARD
+   TABLE RENDER
 ========================= */
-
-function update(){
-
-let total = vault.targets.length;
-let success=0, pending=0, sent=0, rts=0;
-
-vault.targets.forEach(t=>{
-
-if(t.status==="SUCCESS") success++;
-else if(t.status==="PENDING") pending++;
-else if(t.status==="SENT") sent++;
-else if(t.status==="RTS") rts++;
-
-});
-
-stats.innerHTML = `
-<div class="stat">Total<b>${total}</b></div>
-<div class="stat">Success<b>${success}</b></div>
-<div class="stat">Pending<b>${pending}</b></div>
-<div class="stat">Sent<b>${sent}</b></div>
-<div class="stat">RTS<b>${rts}</b></div>
-<div class="stat">Rate<b>${total?((success/total)*100).toFixed(1):0}%</b></div>
-`;
-
-}
-
-/* =========================
-   ANALYTICS LAYER
-========================= */
-
-function analytics(){
-
-let routeStats={};
-let methodStats={};
-
-vault.targets.forEach(t=>{
-
-if(!routeStats[t.route]) routeStats[t.route]={t:0,s:0};
-if(!methodStats[t.status]) methodStats[t.status]={t:0,s:0};
-
-routeStats[t.route].t++;
-methodStats[t.status].t++;
-
-if(t.status==="SUCCESS"){
-routeStats[t.route].s++;
-methodStats[t.status].s++;
-}
-
-});
-
-let bestRoute = Object.entries(routeStats)
-.sort((a,b)=>(b[1].s/b[1].t)-(a[1].s/a[1].t))[0];
-
-let container = document.getElementById("stats");
-
-container.innerHTML += `
-<hr>
-<h4>🧠 Intelligence</h4>
-<p>Best Route: <b>${bestRoute?.[0] || "N/A"}</b></p>
-<p>Memory Entries: <b>${Object.keys(vault.memory).length}</b></p>
-`;
-}
-
-/* =========================
-   RENDER TABLE
-========================= */
-
 function render(){
 
-let q = (search.value || "").toLowerCase();
+let q = (search.value||"").toLowerCase();
 
-list.innerHTML = vault.targets
-.filter(t => JSON.stringify(t).toLowerCase().includes(q))
+table.innerHTML = vault.targets
+.filter(x=>JSON.stringify(x).toLowerCase().includes(q))
 .map((t,i)=>`
 
 <tr>
-<td>${t.name}</td>
+
+<td>
+<input value="${t.name}"
+oninput="vault.targets[${i}].name=this.value; DB.update()">
+</td>
+
 <td>${t.status}</td>
 <td>${t.route}</td>
-<td>${t.address}</td>
+<td>${t.method}</td>
+
 <td>
-<button onclick="vault.targets.splice(${i},1); save(); render(); update();">
-X
-</button>
+<button onclick="DB.remove('${t.id}')">X</button>
 </td>
+
 </tr>
 
 `).join("");
 
+updateDash();
 }
+
+/* =========================
+   IMPORT FIX (SR20 SAFE)
+========================= */
+importFile.onchange = e=>{
+
+let f=e.target.files[0];
+let r=new FileReader();
+
+r.onload=()=>{
+
+try{
+
+let d=JSON.parse(r.result||"{}");
+
+let raw =
+d.records || d.targets || d.data || [];
+
+vault.targets = raw.map(x=>DB.normalize(x));
+
+DB.save();
+render();
+
+alert("Imported: "+vault.targets.length);
+
+}catch(err){
+alert("Import failed: "+err.message);
+}
+
+};
+
+r.readAsText(f);
+};
 
 /* =========================
    EXPORT
 ========================= */
-
-function exportData(){
-
-let blob = new Blob(
-[JSON.stringify(vault,null,2)],
-{type:"application/json"}
-);
-
-let a = document.createElement("a");
-a.href = URL.createObjectURL(blob);
-a.download = "VaultOS_SR19.json";
+function exportJSON(){
+let blob=new Blob([JSON.stringify(vault,null,2)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="VaultSR20.json";
 a.click();
-
 }
 
-/* =========================
-   INIT
-========================= */
-
+/* INIT */
 render();
-update();
-analytics();
 
 </script>
 
