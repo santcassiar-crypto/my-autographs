@@ -3,11 +3,13 @@
 
 
 
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR16</title>
+<title>VaultOS SR16 FIXED</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
@@ -70,121 +72,15 @@ font-size:20px;
 margin-top:5px;
 color:#38bdf8;
 }
-</style>
-</head>
 
-<body>
-
-<aside>
-<h2>VaultOS SR16</h2>
-
-<button onclick="show('dash')">Dashboard</button>
-<button onclick="show('data')">Targets</button>
-
-<button onclick="exportJSON()">Export</button>
-<input type="file" id="importFile">
-</aside>
-
-<main>
-
-<!-- DASHBOARD -->
-<div id="dash">
-
-<div class="card">
-<h3>Overview</h3>
-
-<div class="grid">
-<div class="stat">Total<b id="total">0</b></div>
-<div class="stat">Success<b id="success">0</b></div>
-<div class="stat">Pending<b id="pending">0</b></div>
-</div>
-
-<div class="grid" style="margin-top:10px">
-<div class="stat">Sent<b id="sent">0</b></div>
-<div class="stat">RTS<b id="rts">0</b></div>
-<div class="stat">Success %<b id="rate">0%</b></div>
-</div>
-
-</div>
-
-</div>
-
-<!-- DATA -->
-<div id="data" class="hidden">
-
-<div class="card">
-<h3>Loading database...</h3>
-</div>
-
-</div>
-
-</main>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>VaultOS SR16</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-
-<style>
-body{
-margin:0;
-font-family:Arial;
-background:#020617;
-color:#fff;
-display:flex;
-min-height:100vh;
-}
-
-aside{
-width:240px;
-background:#01040d;
-padding:15px;
-border-right:1px solid #334155;
-}
-
-main{
-flex:1;
-padding:15px;
-}
-
-.card{
-background:#0f172a;
-padding:15px;
-border-radius:10px;
-margin-bottom:15px;
-}
-
-button, input, select{
+table{
 width:100%;
-padding:8px;
-margin-top:8px;
-background:#1e293b;
-color:#fff;
-border:1px solid #334155;
-border-radius:6px;
+border-collapse:collapse;
 }
 
-.hidden{display:none}
-
-.grid{
-display:grid;
-grid-template-columns:repeat(3,1fr);
-gap:10px;
-}
-
-.stat{
-background:#1e293b;
-padding:10px;
-border-radius:8px;
-text-align:center;
-}
-
-.stat b{
-display:block;
-font-size:20px;
-margin-top:5px;
-color:#38bdf8;
+td,th{
+border-bottom:1px solid #334155;
+padding:6px;
 }
 </style>
 </head>
@@ -203,7 +99,7 @@ color:#38bdf8;
 
 <main>
 
-<!-- DASHBOARD -->
+<!-- DASH -->
 <div id="dash">
 
 <div class="card">
@@ -218,7 +114,7 @@ color:#38bdf8;
 <div class="grid" style="margin-top:10px">
 <div class="stat">Sent<b id="sent">0</b></div>
 <div class="stat">RTS<b id="rts">0</b></div>
-<div class="stat">Success %<b id="rate">0%</b></div>
+<div class="stat">Rate<b id="rate">0%</b></div>
 </div>
 
 </div>
@@ -229,416 +125,182 @@ color:#38bdf8;
 <div id="data" class="hidden">
 
 <div class="card">
-<h3>Loading database...</h3>
-</div>
 
-</div>
+<h3>Add Target</h3>
 
-</main>
-<script>
+<input id="name" placeholder="Name">
 
-let vault = JSON.parse(localStorage.getItem("VAULT_SR16")) || {
-targets:[]
-};
-
-/* =========================
-   NAVIGATION
-========================= */
-function show(id){
-document.getElementById("dash").classList.add("hidden");
-document.getElementById("data").classList.add("hidden");
-document.getElementById(id).classList.remove("hidden");
-}
-
-/* =========================
-   SAVE
-========================= */
-function save(){
-localStorage.setItem("VAULT_SR16", JSON.stringify(vault));
-}
-
-/* =========================
-   DASHBOARD ENGINE (CORE)
-========================= */
-function updateDashboard(){
-
-let total = vault.targets.length;
-
-/* status groups */
-let successList = vault.targets.filter(x =>
-(x.status||"").toUpperCase()==="SUCCESS"
-);
-
-let pendingList = vault.targets.filter(x =>
-(x.status||"").toUpperCase()==="PENDING"
-);
-
-let sentList = vault.targets.filter(x =>
-(x.status||"").toUpperCase()==="SENT"
-);
-
-let rtsList = vault.targets.filter(x =>
-(x.status||"").toUpperCase().includes("RTS")
-);
-
-/* basic stats */
-let success = successList.length;
-let pending = pendingList.length;
-let sent = sentList.length;
-let rts = rtsList.length;
-
-let rate = total ? ((success/total)*100).toFixed(1) : 0;
-
-/* =========================
-   ROUTE ANALYTICS
-========================= */
-let routeStats = {};
-
-vault.targets.forEach(t=>{
-let r = (t.route || "General").trim();
-
-if(!routeStats[r]){
-routeStats[r] = {total:0,success:0};
-}
-
-routeStats[r].total++;
-
-if((t.status||"").toUpperCase()==="SUCCESS"){
-routeStats[r].success++;
-}
-});
-
-/* =========================
-   METHOD ANALYTICS
-========================= */
-let methodStats = {};
-
-vault.targets.forEach(t=>{
-let m = (t.method || "UNKNOWN").trim();
-
-if(!methodStats[m]){
-methodStats[m] = {total:0,success:0};
-}
-
-methodStats[m].total++;
-
-if((t.status||"").toUpperCase()==="SUCCESS"){
-methodStats[m].success++;
-}
-});
-
-/* =========================
-   BEST ROUTE / METHOD
-========================= */
-let bestRoute = Object.entries(routeStats)
-.sort((a,b)=>
-(b[1].success/b[1].total)-(a[1].success/a[1].total)
-)[0];
-
-let bestMethod = Object.entries(methodStats)
-.sort((a,b)=>
-(b[1].success/b[1].total)-(a[1].success/a[1].total)
-)[0];
-
-/* =========================
-   RENDER DASHBOARD
-========================= */
-document.getElementById("total").textContent = total;
-document.getElementById("success").textContent = success;
-document.getElementById("pending").textContent = pending;
-document.getElementById("sent").textContent = sent;
-document.getElementById("rts").textContent = rts;
-document.getElementById("rate").textContent = rate + "%";
-
-/* render analytics panel */
-renderAnalytics(routeStats, methodStats, bestRoute, bestMethod);
-
-}
-
-/* =========================
-   ANALYTICS UI
-========================= */
-function renderAnalytics(routeStats, methodStats, bestRoute, bestMethod){
-
-let container = document.getElementById("analytics");
-
-if(!container){
-container = document.createElement("div");
-container.id = "analytics";
-document.getElementById("dash").appendChild(container);
-}
-
-let routeHTML = "<div class='card'><h3>Route Performance</h3>";
-
-for(let r in routeStats){
-
-let s = routeStats[r].success;
-let t = routeStats[r].total;
-let pct = t ? ((s/t)*100).toFixed(1) : 0;
-
-routeHTML += `
-<p><b>${r}</b> — ${pct}% (${s}/${t})</p>
-<div style="height:6px;background:#1e293b;border-radius:4px;margin-bottom:8px">
-<div style="width:${pct}%;height:6px;background:#38bdf8"></div>
-</div>
-`;
-}
-
-routeHTML += "</div>";
-
-let methodHTML = "<div class='card'><h3>Method Performance</h3>";
-
-for(let m in methodStats){
-
-let s = methodStats[m].success;
-let t = methodStats[m].total;
-let pct = t ? ((s/t)*100).toFixed(1) : 0;
-
-methodHTML += `
-<p><b>${m}</b> — ${pct}% (${s}/${t})</p>
-`;
-}
-
-methodHTML += "</div>";
-
-let insightHTML = `
-<div class="card">
-<h3>Insights</h3>
-
-<p><b>Best Route:</b> ${bestRoute ? bestRoute[0] : "N/A"}</p>
-<p><b>Best Method:</b> ${bestMethod ? bestMethod[0] : "N/A"}</p>
-<p><b>Success Rate:</b> ${rateText(vault.targets)}</p>
-</div>
-`;
-
-container.innerHTML =
-routeHTML + methodHTML + insightHTML;
-
-}
-
-/* =========================
-   HELPER
-========================= */
-function rateText(list){
-
-let total = list.length;
-
-let success = list.filter(x =>
-(x.status||"").toUpperCase()==="SUCCESS"
-).length;
-
-return total ? ((success/total)*100).toFixed(1) + "%" : "0%";
-}
-
-/* =========================
-   INIT
-========================= */
-updateDashboard();
-
-</script>
-<script>
-
-/* =========================
-   ADD TARGET
-========================= */
-function addTarget(){
-
-let nameEl = document.getElementById("name");
-let statusEl = document.getElementById("status");
-let routeEl = document.getElementById("route");
-let methodEl = document.getElementById("method");
-let addressEl = document.getElementById("address");
-
-vault.targets.push({
-id: Date.now(),
-name: nameEl.value || "Unknown",
-status: statusEl.value || "PENDING",
-route: routeEl.value || "General",
-method: methodEl.value || "TTM",
-address: addressEl.value || suggestAddress(routeEl.value)
-});
-
-nameEl.value = "";
-addressEl.value = "";
-
-refresh();
-renderTable();
-}
-
-/* =========================
-   DELETE TARGET
-========================= */
-function deleteTarget(i){
-vault.targets.splice(i,1);
-refresh();
-renderTable();
-}
-
-/* =========================
-   REFRESH ENGINE
-========================= */
-function refresh(){
-save();
-updateDashboard();
-renderTable();
-}
-
-/* =========================
-   ADDRESS SUGGESTION ENGINE
-========================= */
-function suggestAddress(route){
-
-switch(route){
-
-case "Club Route":
-return "Training Ground / Stadium HQ";
-
-case "Agency Route":
-return "Talent Agency / Production Office";
-
-case "Event Route":
-return "Event Venue / Organiser HQ";
-
-case "Foundation Route":
-return "Charity / Foundation HQ";
-
-default:
-return "General Organisation Route";
-}
-
-}
-
-</script>
-   <script>
-
-function renderTable(){
-
-let q = (document.getElementById("search")?.value || "").toLowerCase();
-
-let table = document.getElementById("table");
-
-if(!table) return;
-
-table.innerHTML = vault.targets
-.filter(t =>
-JSON.stringify(t).toLowerCase().includes(q)
-)
-.map((t,i)=>`
-
-<tr>
-
-<td>
-<input value="${t.name}"
-oninput="vault.targets[${i}].name=this.value; refresh();">
-</td>
-
-<td>
-<select onchange="vault.targets[${i}].status=this.value; refresh();">
-<option ${t.status==="PENDING"?"selected":""}>PENDING</option>
-<option ${t.status==="SENT"?"selected":""}>SENT</option>
-<option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${t.status==="RTS"?"selected":""}>RTS</option>
+<select id="status">
+<option>PENDING</option>
+<option>SENT</option>
+<option>SUCCESS</option>
+<option>RTS</option>
 </select>
-</td>
 
-<td>
-<select onchange="vault.targets[${i}].route=this.value; refresh();">
+<select id="route">
 <option>Club Route</option>
 <option>Agency Route</option>
 <option>Event Route</option>
 <option>Foundation Route</option>
 <option>General</option>
 </select>
-</td>
 
-<td>
-<select onchange="vault.targets[${i}].method=this.value; refresh();">
+<select id="method">
 <option>TTM</option>
 <option>IP</option>
 <option>EVENT</option>
 </select>
-</td>
 
-<td>
-<input value="${t.address || ""}"
-oninput="vault.targets[${i}].address=this.value; refresh();">
-</td>
+<input id="address" placeholder="Address (auto fills)">
+<button onclick="addTarget()">Add</button>
 
-<td>
-<button onclick="deleteTarget(${i})">Delete</button>
-</td>
+<input id="search" placeholder="Search..." oninput="renderTable()">
 
+</div>
+
+<div class="card">
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Status</th>
+<th>Route</th>
+<th>Method</th>
+<th>Address</th>
+<th>Action</th>
 </tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
+</div>
 
+</div>
+
+</main>
+
+<script>
+
+let vault = JSON.parse(localStorage.getItem("VAULT_SR16")) || {targets:[]};
+
+/* NAV */
+function show(id){
+dash.classList.add("hidden");
+data.classList.add("hidden");
+document.getElementById(id).classList.remove("hidden");
+}
+
+/* SAVE */
+function save(){
+localStorage.setItem("VAULT_SR16", JSON.stringify(vault));
+}
+
+/* AUTO ADDRESS */
+function suggestAddress(route){
+switch(route){
+case "Club Route": return "Training Ground / Stadium HQ";
+case "Agency Route": return "Talent Agency HQ";
+case "Event Route": return "Event Venue HQ";
+case "Foundation Route": return "Charity HQ";
+default: return "General Organisation";
+}
+}
+
+/* ADD */
+function addTarget(){
+
+vault.targets.push({
+id:Date.now(),
+name:name.value,
+status:status.value,
+route:route.value,
+method:method.value,
+address:address.value || suggestAddress(route.value)
+});
+
+name.value="";
+address.value="";
+
+save();
+update();
+renderTable();
+}
+
+/* DELETE */
+function del(i){
+vault.targets.splice(i,1);
+save();
+update();
+renderTable();
+}
+
+/* DASH */
+function update(){
+
+let t=vault.targets.length;
+let s=vault.targets.filter(x=>x.status==="SUCCESS").length;
+let p=vault.targets.filter(x=>x.status==="PENDING").length;
+let sent=vault.targets.filter(x=>x.status==="SENT").length;
+let rts=vault.targets.filter(x=>x.status==="RTS").length;
+
+total.textContent=t;
+success.textContent=s;
+pending.textContent=p;
+sentEl.textContent=sent;
+rtsEl.textContent=rts;
+rate.textContent=t?((s/t)*100).toFixed(1)+"%":"0%";
+
+}
+
+/* TABLE */
+function renderTable(){
+
+let q=(search.value||"").toLowerCase();
+
+table.innerHTML=vault.targets
+.filter(x=>JSON.stringify(x).toLowerCase().includes(q))
+.map((t,i)=>`
+<tr>
+<td><input value="${t.name}" oninput="vault.targets[${i}].name=this.value; save(); update();"></td>
+
+<td>${t.status}</td>
+<td>${t.route}</td>
+<td>${t.method}</td>
+<td><input value="${t.address}" oninput="vault.targets[${i}].address=this.value; save();"></td>
+
+<td><button onclick="del(${i})">X</button></td>
+</tr>
 `).join("");
 
 }
 
-</script>
-   <script>
-
-document.getElementById("importFile").addEventListener("change", e=>{
-
-let file = e.target.files[0];
-let r = new FileReader();
-
-r.onload = () => {
-try{
-
-let d = JSON.parse(r.result || "{}");
-
-let raw =
-d.records ||
-d.targets ||
-d.data ||
-[];
-
-vault.targets = raw.map((t,i)=>({
-
-id: Date.now()+i,
-name: t.name || t.Name || "Unknown",
-status: (t.status || t.Status || "PENDING").toUpperCase(),
-route: t.route || "General",
-method: t.method || "TTM",
-address: t.address || ""
-
-}));
-
-save();
-updateDashboard();
-renderTable();
-
-}catch(err){
-alert("Import failed: " + err.message);
+/* EXPORT */
+function exportJSON(){
+let a=document.createElement("a");
+a.href=URL.createObjectURL(new Blob([JSON.stringify(vault)],{type:"application/json"}));
+a.download="VaultOS_SR16.json";
+a.click();
 }
+
+/* IMPORT */
+importFile.onchange=e=>{
+let r=new FileReader();
+r.onload=()=>{
+try{
+let d=JSON.parse(r.result);
+vault.targets=d.records||d.targets||[];
+save();
+update();
+renderTable();
+}catch(err){alert("Import failed");}
+};
+r.readAsText(e.target.files[0]);
 };
 
-r.readAsText(file);
-
-});
-
-</script>
-   <script>
-
-function exportJSON(){
-
-const blob = new Blob(
-[JSON.stringify(vault,null,2)],
-{type:"application/json"}
-);
-
-const a = document.createElement("a");
-a.href = URL.createObjectURL(blob);
-a.download = "VaultOS_SR16_Backup.json";
-a.click();
-
-}
+/* INIT */
+update();
+renderTable();
 
 </script>
-   <script>
 
-/* initial render */
-if(typeof renderTable === "function") renderTable();
-updateDashboard();
-
-</script>
+</body>
+</html>
