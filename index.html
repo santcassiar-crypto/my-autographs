@@ -3,31 +3,72 @@
 
 
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS v5 Dropdown System</title>
+<title>VaultOS SR16</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
-body{margin:0;font-family:Arial;background:#020617;color:#fff;display:flex}
-aside{width:240px;background:#01040d;padding:15px}
-main{flex:1;padding:15px}
+body{
+margin:0;
+font-family:Arial;
+background:#020617;
+color:#fff;
+display:flex;
+min-height:100vh;
+}
 
-.card{background:#0f172a;padding:15px;border-radius:10px;margin-bottom:15px}
+aside{
+width:240px;
+background:#01040d;
+padding:15px;
+border-right:1px solid #334155;
+}
 
-table{width:100%;border-collapse:collapse}
-td,th{border-bottom:1px solid #334155;padding:8px}
+main{
+flex:1;
+padding:15px;
+}
 
-input,select{
+.card{
+background:#0f172a;
+padding:15px;
+border-radius:10px;
+margin-bottom:15px;
+}
+
+button, input, select{
 width:100%;
-padding:6px;
+padding:8px;
+margin-top:8px;
 background:#1e293b;
 color:#fff;
 border:1px solid #334155;
 border-radius:6px;
+}
+
+.hidden{display:none}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:10px;
+}
+
+.stat{
+background:#1e293b;
+padding:10px;
+border-radius:8px;
+text-align:center;
+}
+
+.stat b{
+display:block;
+font-size:20px;
+margin-top:5px;
+color:#38bdf8;
 }
 </style>
 </head>
@@ -35,171 +76,436 @@ border-radius:6px;
 <body>
 
 <aside>
-<h3>VaultOS v5</h3>
+<h2>VaultOS SR16</h2>
+
+<button onclick="show('dash')">Dashboard</button>
+<button onclick="show('data')">Targets</button>
+
+<button onclick="exportJSON()">Export</button>
 <input type="file" id="importFile">
 </aside>
 
 <main>
 
-<div class="card">
-<h3>Dashboard</h3>
-<p>Total: <b id="total"></b></p>
-<p>Success: <b id="success"></b></p>
-<p>RTS: <b id="rts"></b></p>
-</div>
+<!-- DASHBOARD -->
+<div id="dash">
 
 <div class="card">
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Status</th>
-<th>Route</th>
-<th>Method</th>
-<th>Address Type</th>
-<th>Auto Address</th>
-</tr>
-</thead>
-<tbody id="list"></tbody>
-</table>
+<h3>Overview</h3>
+
+<div class="grid">
+<div class="stat">Total<b id="total">0</b></div>
+<div class="stat">Success<b id="success">0</b></div>
+<div class="stat">Pending<b id="pending">0</b></div>
+</div>
+
+<div class="grid" style="margin-top:10px">
+<div class="stat">Sent<b id="sent">0</b></div>
+<div class="stat">RTS<b id="rts">0</b></div>
+<div class="stat">Success %<b id="rate">0%</b></div>
+</div>
+
+</div>
+
+</div>
+
+<!-- DATA -->
+<div id="data" class="hidden">
+
+<div class="card">
+<h3>Loading database...</h3>
+</div>
+
 </div>
 
 </main>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VaultOS SR16</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 
+<style>
+body{
+margin:0;
+font-family:Arial;
+background:#020617;
+color:#fff;
+display:flex;
+min-height:100vh;
+}
+
+aside{
+width:240px;
+background:#01040d;
+padding:15px;
+border-right:1px solid #334155;
+}
+
+main{
+flex:1;
+padding:15px;
+}
+
+.card{
+background:#0f172a;
+padding:15px;
+border-radius:10px;
+margin-bottom:15px;
+}
+
+button, input, select{
+width:100%;
+padding:8px;
+margin-top:8px;
+background:#1e293b;
+color:#fff;
+border:1px solid #334155;
+border-radius:6px;
+}
+
+.hidden{display:none}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:10px;
+}
+
+.stat{
+background:#1e293b;
+padding:10px;
+border-radius:8px;
+text-align:center;
+}
+
+.stat b{
+display:block;
+font-size:20px;
+margin-top:5px;
+color:#38bdf8;
+}
+</style>
+</head>
+
+<body>
+
+<aside>
+<h2>VaultOS SR16</h2>
+
+<button onclick="show('dash')">Dashboard</button>
+<button onclick="show('data')">Targets</button>
+
+<button onclick="exportJSON()">Export</button>
+<input type="file" id="importFile">
+</aside>
+
+<main>
+
+<!-- DASHBOARD -->
+<div id="dash">
+
+<div class="card">
+<h3>Overview</h3>
+
+<div class="grid">
+<div class="stat">Total<b id="total">0</b></div>
+<div class="stat">Success<b id="success">0</b></div>
+<div class="stat">Pending<b id="pending">0</b></div>
+</div>
+
+<div class="grid" style="margin-top:10px">
+<div class="stat">Sent<b id="sent">0</b></div>
+<div class="stat">RTS<b id="rts">0</b></div>
+<div class="stat">Success %<b id="rate">0%</b></div>
+</div>
+
+</div>
+
+</div>
+
+<!-- DATA -->
+<div id="data" class="hidden">
+
+<div class="card">
+<h3>Loading database...</h3>
+</div>
+
+</div>
+
+</main>
 <script>
 
-let vault = JSON.parse(localStorage.getItem("VAULT_V5")) || {
+let vault = JSON.parse(localStorage.getItem("VAULT_SR16")) || {
 targets:[]
 };
 
-const $ = id => document.getElementById(id);
+/* =========================
+   NAVIGATION
+========================= */
+function show(id){
+document.getElementById("dash").classList.add("hidden");
+document.getElementById("data").classList.add("hidden");
+document.getElementById(id).classList.remove("hidden");
+}
 
+/* =========================
+   SAVE
+========================= */
 function save(){
-localStorage.setItem("VAULT_V5", JSON.stringify(vault));
+localStorage.setItem("VAULT_SR16", JSON.stringify(vault));
 }
 
-/* 🧠 ROUTE ENGINE */
-function getAddress(route){
-switch(route){
-case "Club Route": return "Training Ground / Stadium HQ";
-case "Agency Route": return "Talent Agency / Production Office";
-case "Event Route": return "Event Venue / Organiser HQ";
-case "Foundation Route": return "Charity / Foundation HQ";
-default: return "General Organisation Route";
-}
-}
-
-/* 📊 DASH */
-function update(){
+/* =========================
+   DASHBOARD ENGINE (CORE)
+========================= */
+function updateDashboard(){
 
 let total = vault.targets.length;
 
-let success = vault.targets.filter(x =>
+/* status groups */
+let successList = vault.targets.filter(x =>
+(x.status||"").toUpperCase()==="SUCCESS"
+);
+
+let pendingList = vault.targets.filter(x =>
+(x.status||"").toUpperCase()==="PENDING"
+);
+
+let sentList = vault.targets.filter(x =>
+(x.status||"").toUpperCase()==="SENT"
+);
+
+let rtsList = vault.targets.filter(x =>
+(x.status||"").toUpperCase().includes("RTS")
+);
+
+/* basic stats */
+let success = successList.length;
+let pending = pendingList.length;
+let sent = sentList.length;
+let rts = rtsList.length;
+
+let rate = total ? ((success/total)*100).toFixed(1) : 0;
+
+/* =========================
+   ROUTE ANALYTICS
+========================= */
+let routeStats = {};
+
+vault.targets.forEach(t=>{
+let r = (t.route || "General").trim();
+
+if(!routeStats[r]){
+routeStats[r] = {total:0,success:0};
+}
+
+routeStats[r].total++;
+
+if((t.status||"").toUpperCase()==="SUCCESS"){
+routeStats[r].success++;
+}
+});
+
+/* =========================
+   METHOD ANALYTICS
+========================= */
+let methodStats = {};
+
+vault.targets.forEach(t=>{
+let m = (t.method || "UNKNOWN").trim();
+
+if(!methodStats[m]){
+methodStats[m] = {total:0,success:0};
+}
+
+methodStats[m].total++;
+
+if((t.status||"").toUpperCase()==="SUCCESS"){
+methodStats[m].success++;
+}
+});
+
+/* =========================
+   BEST ROUTE / METHOD
+========================= */
+let bestRoute = Object.entries(routeStats)
+.sort((a,b)=>
+(b[1].success/b[1].total)-(a[1].success/a[1].total)
+)[0];
+
+let bestMethod = Object.entries(methodStats)
+.sort((a,b)=>
+(b[1].success/b[1].total)-(a[1].success/a[1].total)
+)[0];
+
+/* =========================
+   RENDER DASHBOARD
+========================= */
+document.getElementById("total").textContent = total;
+document.getElementById("success").textContent = success;
+document.getElementById("pending").textContent = pending;
+document.getElementById("sent").textContent = sent;
+document.getElementById("rts").textContent = rts;
+document.getElementById("rate").textContent = rate + "%";
+
+/* render analytics panel */
+renderAnalytics(routeStats, methodStats, bestRoute, bestMethod);
+
+}
+
+/* =========================
+   ANALYTICS UI
+========================= */
+function renderAnalytics(routeStats, methodStats, bestRoute, bestMethod){
+
+let container = document.getElementById("analytics");
+
+if(!container){
+container = document.createElement("div");
+container.id = "analytics";
+document.getElementById("dash").appendChild(container);
+}
+
+let routeHTML = "<div class='card'><h3>Route Performance</h3>";
+
+for(let r in routeStats){
+
+let s = routeStats[r].success;
+let t = routeStats[r].total;
+let pct = t ? ((s/t)*100).toFixed(1) : 0;
+
+routeHTML += `
+<p><b>${r}</b> — ${pct}% (${s}/${t})</p>
+<div style="height:6px;background:#1e293b;border-radius:4px;margin-bottom:8px">
+<div style="width:${pct}%;height:6px;background:#38bdf8"></div>
+</div>
+`;
+}
+
+routeHTML += "</div>";
+
+let methodHTML = "<div class='card'><h3>Method Performance</h3>";
+
+for(let m in methodStats){
+
+let s = methodStats[m].success;
+let t = methodStats[m].total;
+let pct = t ? ((s/t)*100).toFixed(1) : 0;
+
+methodHTML += `
+<p><b>${m}</b> — ${pct}% (${s}/${t})</p>
+`;
+}
+
+methodHTML += "</div>";
+
+let insightHTML = `
+<div class="card">
+<h3>Insights</h3>
+
+<p><b>Best Route:</b> ${bestRoute ? bestRoute[0] : "N/A"}</p>
+<p><b>Best Method:</b> ${bestMethod ? bestMethod[0] : "N/A"}</p>
+<p><b>Success Rate:</b> ${rateText(vault.targets)}</p>
+</div>
+`;
+
+container.innerHTML =
+routeHTML + methodHTML + insightHTML;
+
+}
+
+/* =========================
+   HELPER
+========================= */
+function rateText(list){
+
+let total = list.length;
+
+let success = list.filter(x =>
 (x.status||"").toUpperCase()==="SUCCESS"
 ).length;
 
-let rts = vault.targets.filter(x =>
-(x.status||"").toUpperCase().includes("RTS")
-).length;
-
-totalEl.textContent = total;
-successEl.textContent = success;
-rtsEl.textContent = rts;
-
+return total ? ((success/total)*100).toFixed(1) + "%" : "0%";
 }
 
-/* 📊 RENDER */
-function render(){
-
-list.innerHTML = vault.targets.map((t,i)=>{
-
-let route = t.route || "General Route";
-let addr = getAddress(route);
-
-return `
-<tr>
-
-<td><input value="${t.name||""}"
-oninput="vault.targets[${i}].name=this.value; save(); update();"></td>
-
-<td>
-<select onchange="vault.targets[${i}].status=this.value; save(); update();">
-<option ${t.status==="PENDING"?"selected":""}>PENDING</option>
-<option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${t.status==="RTS"?"selected":""}>RTS</option>
-<option ${t.status==="WAITING"?"selected":""}>WAITING</option>
-</select>
-</td>
-
-<td>
-<select onchange="vault.targets[${i}].route=this.value; save(); render(); update();">
-<option ${route==="Club Route"?"selected":""}>Club Route</option>
-<option ${route==="Agency Route"?"selected":""}>Agency Route</option>
-<option ${route==="Event Route"?"selected":""}>Event Route</option>
-<option ${route==="Foundation Route"?"selected":""}>Foundation Route</option>
-<option ${route==="General Route"?"selected":""}>General Route</option>
-</select>
-</td>
-
-<td>
-<select onchange="vault.targets[${i}].method=this.value; save();">
-<option ${t.method==="TTM"?"selected":""}>TTM</option>
-<option ${t.method==="IP"?"selected":""}>IP</option>
-<option ${t.method==="EVENT"?"selected":""}>EVENT</option>
-</select>
-</td>
-
-<td>
-<select onchange="vault.targets[${i}].addrType=this.value; save();">
-<option ${t.addrType==="AUTO"?"selected":""}>AUTO</option>
-<option ${t.addrType==="CUSTOM"?"selected":""}>CUSTOM</option>
-</select>
-</td>
-
-<td>${addr}</td>
-
-</tr>
-`;
-
-}).join("");
-
-update();
-
-}
-
-/* 📥 IMPORT */
-importFile.onchange = e=>{
-
-let file=e.target.files[0];
-let r=new FileReader();
-
-r.onload=()=>{
-
-let d=JSON.parse(r.result||"{}");
-let raw=d.records||[];
-
-vault.targets = raw.map((t,i)=>({
-
-id:Date.now()+i,
-name:t.name||t.Name||"Unknown",
-status:(t.status||t.Status||"PENDING").toUpperCase(),
-route:t.route||"General Route",
-method:t.method||"TTM",
-addrType:"AUTO"
-
-}));
-
-save();
-render();
-
-};
-
-r.readAsText(file);
-};
-
-render();
+/* =========================
+   INIT
+========================= */
+updateDashboard();
 
 </script>
+<script>
 
-</body>
-</html>
+/* =========================
+   ADD TARGET
+========================= */
+function addTarget(){
+
+let nameEl = document.getElementById("name");
+let statusEl = document.getElementById("status");
+let routeEl = document.getElementById("route");
+let methodEl = document.getElementById("method");
+let addressEl = document.getElementById("address");
+
+vault.targets.push({
+id: Date.now(),
+name: nameEl.value || "Unknown",
+status: statusEl.value || "PENDING",
+route: routeEl.value || "General",
+method: methodEl.value || "TTM",
+address: addressEl.value || suggestAddress(routeEl.value)
+});
+
+nameEl.value = "";
+addressEl.value = "";
+
+refresh();
+renderTable();
+}
+
+/* =========================
+   DELETE TARGET
+========================= */
+function deleteTarget(i){
+vault.targets.splice(i,1);
+refresh();
+renderTable();
+}
+
+/* =========================
+   REFRESH ENGINE
+========================= */
+function refresh(){
+save();
+updateDashboard();
+renderTable();
+}
+
+/* =========================
+   ADDRESS SUGGESTION ENGINE
+========================= */
+function suggestAddress(route){
+
+switch(route){
+
+case "Club Route":
+return "Training Ground / Stadium HQ";
+
+case "Agency Route":
+return "Talent Agency / Production Office";
+
+case "Event Route":
+return "Event Venue / Organiser HQ";
+
+case "Foundation Route":
+return "Charity / Foundation HQ";
+
+default:
+return "General Organisation Route";
+}
+
+}
+
+</script>
