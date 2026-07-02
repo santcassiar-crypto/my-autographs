@@ -1,44 +1,54 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR15 Smart Learning Edition</title>
+<title>VaultOS SR15 Fixed Import</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
-:root{--bg:#020617;--panel:#0f172a;--panel2:#1e293b;--line:#334155;--accent:#38bdf8;--text:#f8fafc}
+:root{
+  --bg:#020617;--panel:#0f172a;--panel2:#1e293b;
+  --line:#334155;--accent:#38bdf8;--text:#f8fafc
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:Arial;display:flex;min-height:100vh}
-aside{width:260px;background:#01040d;padding:20px;border-right:1px solid var(--line)}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:Arial;display:flex;min-height:100vh
+}
+aside{
+  width:260px;background:#01040d;padding:20px;
+  border-right:1px solid var(--line)
+}
 main{flex:1;padding:20px}
-button,input,select,textarea{
-background:var(--panel2);color:white;border:1px solid var(--line);
-border-radius:8px;padding:10px;margin:4px;width:100%
+
+button,input,select{
+  background:var(--panel2);color:white;border:1px solid var(--line);
+  border-radius:8px;padding:10px;margin:4px;width:100%
 }
 button{cursor:pointer}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.stat{background:var(--panel2);padding:18px;border-radius:12px}
-.stat b{font-size:28px;color:var(--accent)}
+
+.card{
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:18px;margin-bottom:18px
+}
+
 table{width:100%;border-collapse:collapse}
 td,th{padding:10px;border-bottom:1px solid var(--line)}
+
 .hidden{display:none}
-textarea{width:100%;height:120px}
-small{opacity:0.7}
 </style>
 </head>
 
 <body>
 
 <aside>
-<h2>VaultOS SR15 AI</h2>
-<p>Self-Learning System</p>
+<h2>VaultOS SR15</h2>
 
 <button onclick="page('dash')">Dashboard</button>
 <button onclick="page('targets')">Targets</button>
 
-<button onclick="exportVault()">Export</button>
 <input type="file" id="importFile" accept=".json">
 </aside>
 
@@ -46,57 +56,29 @@ small{opacity:0.7}
 
 <section id="dash">
 <div class="card">
-<h1>Dashboard</h1>
-<div class="grid">
-<div class="stat">Targets <b id="cTotal">0</b></div>
-<div class="stat">Sent <b id="cSent">0</b></div>
-<div class="stat">Waiting <b id="cWaiting">0</b></div>
-<div class="stat">Success <b id="cSuccess">0</b></div>
-</div>
+<h2>Stats</h2>
+<p>Targets: <b id="total">0</b></p>
+<p>Success: <b id="success">0</b></p>
+<p>Pending: <b id="pending">0</b></p>
+<p>RTS: <b id="rts">0</b></p>
 </div>
 </section>
 
 <section id="targets" class="hidden">
-
 <div class="card">
-<h2>Add Target (Smart Auto-Learning)</h2>
+<h2>Targets</h2>
 
-<input id="name" placeholder="Name" oninput="autoFillAddress()">
-<input id="sport" placeholder="Sport / Field">
-<input id="team" placeholder="Team / Show / Org">
-<input id="method" placeholder="Method">
-<input id="sentDate" placeholder="Date Sent">
-
-<input id="address" placeholder="Possible Address (auto-fills)">
-<small id="hint"></small>
-
-<select id="status">
-<option>Research</option>
-<option>Ready</option>
-<option>Sent</option>
-<option>Waiting</option>
-<option>Success</option>
-<option>RTS</option>
-</select>
-
-<button onclick="addTarget()">Save Target</button>
-</div>
-
-<div class="card">
 <table>
 <thead>
 <tr>
 <th>Name</th>
-<th>Field</th>
 <th>Status</th>
-<th>Address</th>
-<th></th>
 </tr>
 </thead>
-<tbody id="targetList"></tbody>
+<tbody id="list"></tbody>
 </table>
-</div>
 
+</div>
 </section>
 
 </main>
@@ -105,173 +87,78 @@ small{opacity:0.7}
 
 const $ = id => document.getElementById(id);
 
-let vault = JSON.parse(localStorage.getItem("VaultOS_SR15_AI")) || {
-version:"SR15_AI",
-targets:[],
-memory:{}   // 🧠 learning storage
+let vault = {
+  targets:[]
 };
 
-function save(){
-localStorage.setItem("VaultOS_SR15_AI", JSON.stringify(vault));
-}
-
-/* NAV */
 function page(id){
-["dash","targets"].forEach(x=>$(x).classList.add("hidden"));
-$(id).classList.remove("hidden");
+  ["dash","targets"].forEach(x=>$(x).classList.add("hidden"));
+  $(id).classList.remove("hidden");
 }
 
-/* 🧠 SMART LEARNING ENGINE */
-function guessAddress(name){
-
-const n = name.toLowerCase();
-
-/* 1. MEMORY FIRST (learned behaviour) */
-if(vault.memory[n]){
-return {text:vault.memory[n], source:"memory"};
-}
-
-/* 2. PATTERN RULES */
-if(n.includes("oldman"))
-return {text:"Film / Theatre Agency Route", source:"rule"};
-
-if(n.includes("hurst"))
-return {text:"Football Club / Stadium Association Route", source:"rule"};
-
-if(n.includes("pierce"))
-return {text:"TV / Film Production Studio Route", source:"rule"};
-
-if(n.includes("player") || n.includes("fc"))
-return {text:"Sports Club / Organisation Route", source:"rule"};
-
-return {text:"General Agency / Organisation Route", source:"fallback"};
-}
-
-/* 🔁 AUTO-FILL */
-function autoFillAddress(){
-
-const name = $("name").value.trim();
-if(!name) return;
-
-const result = guessAddress(name);
-
-$("address").value = result.text;
-
-/* smart hint */
-$("hint").textContent =
-result.source === "memory"
-? "🧠 Learned from your previous entries"
-: result.source === "rule"
-? "⚙️ Suggested from pattern rules"
-: "⚠️ Generic fallback suggestion";
-}
-
-/* 💾 SAVE + LEARN */
-function addTarget(){
-
-const name = $("name").value.trim();
-if(!name) return;
-
-const address = $("address").value.trim();
-
-/* 🧠 LEARNING STEP */
-const key = name.toLowerCase();
-
-/* if user accepts/edits address → store it */
-if(address){
-vault.memory[key] = address;
-}
-
-vault.targets.push({
-id:Date.now(),
-name,
-sport:$("sport").value||"",
-team:$("team").value||"",
-method:$("method").value||"",
-sent:$("sentDate").value||"",
-status:$("status").value||"Research",
-address
-});
-
-save();
-render();
-clearForm();
-}
-
-/* 🧹 CLEAR */
-function clearForm(){
-$("name").value="";
-$("sport").value="";
-$("team").value="";
-$("method").value="";
-$("sentDate").value="";
-$("address").value="";
-$("hint").textContent="";
+/* ✅ CLEAN STATUS NORMALISER */
+function cleanStatus(s){
+  return (s || "PENDING")
+    .toString()
+    .trim()
+    .toUpperCase();
 }
 
 /* 📊 RENDER */
 function render(){
 
-$("targetList").innerHTML = vault.targets.map((t,i)=>`
-<tr>
-<td>${t.name}</td>
-<td>${t.sport}</td>
-<td>${t.status}</td>
-<td>${t.address||""}</td>
-<td><button onclick="removeTarget(${i})">X</button></td>
-</tr>
-`).join("");
+  $("list").innerHTML = vault.targets.map(t=>`
+    <tr>
+      <td>${t.name}</td>
+      <td>${t.status}</td>
+    </tr>
+  `).join("");
 
-$("cTotal").textContent = vault.targets.length;
-$("cSent").textContent = vault.targets.filter(x=>x.status==="Sent").length;
-$("cWaiting").textContent = vault.targets.filter(x=>x.status==="Waiting").length;
-$("cSuccess").textContent = vault.targets.filter(x=>x.status==="Success").length;
+  $("total").textContent = vault.targets.length;
+  $("success").textContent = vault.targets.filter(x=>cleanStatus(x.status)==="SUCCESS").length;
+  $("pending").textContent = vault.targets.filter(x=>cleanStatus(x.status)==="PENDING").length;
+  $("rts").textContent = vault.targets.filter(x=>cleanStatus(x.status)==="RTS").length;
 }
 
-/* ❌ REMOVE */
-function removeTarget(i){
-vault.targets.splice(i,1);
-save();
-render();
-}
+/* 📥 FIXED IMPORT (YOUR FORMAT SUPPORT) */
+document.getElementById("importFile").addEventListener("change",(e)=>{
 
-/* 📤 EXPORT */
-function exportVault(){
-const a=document.createElement("a");
-a.href="data:text/json;charset=utf-8,"+
-encodeURIComponent(JSON.stringify(vault,null,2));
-a.download="VaultOS_SR15_AI.json";
-a.click();
-}
+  const file = e.target.files?.[0];
+  if(!file) return;
 
-/* 📥 IMPORT */
-$("importFile").addEventListener("change",(e)=>{
-const file=e.target.files?.[0];
-if(!file)return;
+  const reader = new FileReader();
 
-const r=new FileReader();
+  reader.onload = () => {
+    try {
 
-r.onload=()=>{
-try{
-const d=JSON.parse(r.result||"{}");
+      const d = JSON.parse(reader.result || "{}");
 
-vault={
-version:"SR15_AI",
-targets:d.targets||[],
-memory:d.memory||{}
-};
+      const raw =
+        Array.isArray(d.records) ? d.records :
+        Array.isArray(d.targets) ? d.targets :
+        [];
 
-save();
-render();
+      vault.targets = raw.map((t,i)=>({
 
-alert("Import complete (AI memory restored)");
+        id: t.id || Date.now()+i,
 
-}catch(err){
-alert("Import failed: "+err.message);
-}
-};
+        // ✅ supports YOUR file
+        name: t.name || t.Name || "Unknown",
 
-r.readAsText(file);
+        // store raw but cleaned for stats
+        status: cleanStatus(t.status || t.Status)
+
+      }));
+
+      render();
+      alert("Import successful: " + vault.targets.length + " loaded");
+
+    } catch(err){
+      alert("Import failed: " + err.message);
+    }
+  };
+
+  reader.readAsText(file);
 });
 
 render();
