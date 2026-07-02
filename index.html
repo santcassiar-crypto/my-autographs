@@ -9,7 +9,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR18 Database Engine</title>
+<title>VaultOS SR18.1</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
@@ -57,38 +57,20 @@ td,th{
 border-bottom:1px solid #334155;
 padding:8px;
 }
-
-.stat{
-display:inline-block;
-padding:10px;
-background:#1e293b;
-border-radius:8px;
-margin:5px;
-min-width:120px;
-text-align:center;
-}
-
-.stat b{
-display:block;
-font-size:18px;
-color:#38bdf8;
-}
-
-.hidden{display:none}
 </style>
 </head>
 
 <body>
 
 <aside>
-<h3>VaultOS SR18</h3>
 
-<input type="file" id="importFile">
-<button onclick="exportData()">Export</button>
+<h3>VaultOS SR18.1</h3>
 
-<hr>
+<div class="card">
+<h3>Add Record</h3>
 
 <input id="name" placeholder="Name">
+
 <select id="status">
 <option>PENDING</option>
 <option>SENT</option>
@@ -97,21 +79,32 @@ color:#38bdf8;
 </select>
 
 <select id="route">
-<option>Club Route</option>
-<option>Agency Route</option>
-<option>Event Route</option>
-<option>Foundation Route</option>
-<option>General Route</option>
+<option value="Club Route">Club Route</option>
+<option value="Agency Route">Agency Route</option>
+<option value="Event Route">Event Route</option>
+<option value="Foundation Route">Foundation Route</option>
+<option value="General Route">General Route</option>
 </select>
 
+<select id="addressMode">
+<option value="AUTO">AUTO ADDRESS</option>
+<option value="MANUAL">MANUAL ADDRESS</option>
+</select>
+
+<input id="address" placeholder="Manual Address (if needed)">
+
 <button onclick="addRecord()">Add Record</button>
+</div>
+
+<button onclick="exportData()">Export</button>
+<input type="file" id="importFile">
+
 </aside>
 
 <main>
 
 <div class="card">
 <h3>Dashboard</h3>
-
 <div id="stats"></div>
 </div>
 
@@ -125,7 +118,7 @@ color:#38bdf8;
 <th>Status</th>
 <th>Route</th>
 <th>Address</th>
-<th>Actions</th>
+<th>Delete</th>
 </tr>
 </thead>
 <tbody id="list"></tbody>
@@ -138,11 +131,10 @@ color:#38bdf8;
 <script>
 
 /* =========================
-   DATABASE CORE
+   DATABASE
 ========================= */
 
 let vault = JSON.parse(localStorage.getItem("VAULT_SR18")) || {
-version:"SR18",
 targets:[]
 };
 
@@ -150,22 +142,6 @@ const $ = id => document.getElementById(id);
 
 function save(){
 localStorage.setItem("VAULT_SR18", JSON.stringify(vault));
-}
-
-/* =========================
-   CLEAN + NORMALISE
-========================= */
-
-function clean(v){
-return (v ?? "").toString().replace(/\u00A0/g," ").trim();
-}
-
-function normaliseStatus(s){
-s = clean(s).toUpperCase();
-if(s.includes("SUCCESS")) return "SUCCESS";
-if(s.includes("RTS") || s.includes("FAIL")) return "RTS";
-if(s.includes("SENT")) return "SENT";
-return "PENDING";
 }
 
 /* =========================
@@ -183,29 +159,31 @@ default: return "General Organisation";
 }
 
 /* =========================
-   ADD RECORD
+   ADD RECORD (FIXED)
 ========================= */
 
 function addRecord(){
 
 if(!name.value.trim()) return;
 
-let record = {
+let routeValue = route.value;
+let mode = addressMode.value;
+
+let finalAddress =
+mode === "MANUAL"
+? address.value
+: getAddress(routeValue);
+
+vault.targets.push({
 id: Date.now(),
-profile:{name: clean(name.value)},
-current:{
+name: name.value.trim(),
 status: status.value,
-route: route.value,
-address: getAddress(route.value)
-},
-history:[
-{date:Date.now(),status:status.value}
-]
-};
+route: routeValue,
+address: finalAddress
+});
 
-vault.targets.push(record);
-
-name.value="";
+name.value = "";
+address.value = "";
 
 save();
 render();
@@ -213,7 +191,7 @@ update();
 }
 
 /* =========================
-   IMPORT ENGINE FIXED
+   IMPORT FIXED
 ========================= */
 
 importFile.onchange = e => {
@@ -222,45 +200,24 @@ let file = e.target.files[0];
 let r = new FileReader();
 
 r.onload = () => {
-try{
 
 let d = JSON.parse(r.result || "{}");
 let raw = d.records || [];
 
-let seen = new Set();
+vault.targets = raw.map((t,i)=>({
 
-vault.targets = raw.map((t,i)=>{
-
-let name = clean(t.Name || t.name || "Unknown");
-let key = name.toLowerCase();
-
-if(seen.has(key)) return null;
-seen.add(key);
-
-return {
 id: Date.now()+i,
-profile:{name},
-current:{
-status: normaliseStatus(t.Status),
-route:"General Route",
-address:getAddress("General Route")
-},
-history:[
-{date:Date.now(),status:normaliseStatus(t.Status)}
-]
-};
+name: t.Name || t.name || "Unknown",
+status: (t.Status || t.status || "PENDING").toUpperCase(),
+route: "General Route",
+address: getAddress("General Route")
 
-}).filter(Boolean);
+}));
 
 save();
 render();
 update();
 
-alert("Import complete: "+vault.targets.length);
-
-}catch(err){
-alert("Import failed: "+err.message);
-}
 };
 
 r.readAsText(file);
@@ -280,7 +237,7 @@ let rts = 0;
 
 vault.targets.forEach(t=>{
 
-let s = t.current.status;
+let s = t.status;
 
 if(s==="SUCCESS") success++;
 else if(s==="PENDING") pending++;
@@ -290,12 +247,12 @@ else if(s==="RTS") rts++;
 });
 
 stats.innerHTML = `
-<div class="stat">Total<b>${total}</b></div>
-<div class="stat">Success<b>${success}</b></div>
-<div class="stat">Pending<b>${pending}</b></div>
-<div class="stat">Sent<b>${sent}</b></div>
-<div class="stat">RTS<b>${rts}</b></div>
-<div class="stat">Rate<b>${total?((success/total)*100).toFixed(1):0}%</b></div>
+<p>Total: <b>${total}</b></p>
+<p>Success: <b>${success}</b></p>
+<p>Pending: <b>${pending}</b></p>
+<p>Sent: <b>${sent}</b></p>
+<p>RTS: <b>${rts}</b></p>
+<p>Rate: <b>${total?((success/total)*100).toFixed(1):0}%</b></p>
 `;
 
 }
@@ -309,24 +266,23 @@ function render(){
 list.innerHTML = vault.targets.map((t,i)=>`
 
 <tr>
-<td>${t.profile.name}</td>
+<td>${t.name}</td>
 
 <td>
-<select onchange="vault.targets[${i}].current.status=this.value; save(); update();">
-<option ${t.current.status==="PENDING"?"selected":""}>PENDING</option>
-<option ${t.current.status==="SENT"?"selected":""}>SENT</option>
-<option ${t.current.status==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${t.current.status==="RTS"?"selected":""}>RTS</option>
+<select onchange="vault.targets[${i}].status=this.value; save(); update();">
+<option ${t.status==="PENDING"?"selected":""}>PENDING</option>
+<option ${t.status==="SENT"?"selected":""}>SENT</option>
+<option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${t.status==="RTS"?"selected":""}>RTS</option>
 </select>
 </td>
 
-<td>${t.current.route}</td>
-
-<td>${t.current.address}</td>
+<td>${t.route}</td>
+<td>${t.address}</td>
 
 <td>
 <button onclick="vault.targets.splice(${i},1); save(); render(); update();">
-Delete
+X
 </button>
 </td>
 
