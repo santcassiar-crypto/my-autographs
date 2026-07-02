@@ -9,7 +9,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR16 FIXED</title>
+<title>VaultOS SR18 Database Engine</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
@@ -23,16 +23,13 @@ min-height:100vh;
 }
 
 aside{
-width:240px;
+width:260px;
 background:#01040d;
 padding:15px;
 border-right:1px solid #334155;
 }
 
-main{
-flex:1;
-padding:15px;
-}
+main{flex:1;padding:15px}
 
 .card{
 background:#0f172a;
@@ -41,36 +38,14 @@ border-radius:10px;
 margin-bottom:15px;
 }
 
-button, input, select{
+input,select,button{
 width:100%;
 padding:8px;
-margin-top:8px;
+margin-top:6px;
 background:#1e293b;
 color:#fff;
 border:1px solid #334155;
 border-radius:6px;
-}
-
-.hidden{display:none}
-
-.grid{
-display:grid;
-grid-template-columns:repeat(3,1fr);
-gap:10px;
-}
-
-.stat{
-background:#1e293b;
-padding:10px;
-border-radius:8px;
-text-align:center;
-}
-
-.stat b{
-display:block;
-font-size:20px;
-margin-top:5px;
-color:#38bdf8;
 }
 
 table{
@@ -80,56 +55,40 @@ border-collapse:collapse;
 
 td,th{
 border-bottom:1px solid #334155;
-padding:6px;
+padding:8px;
 }
+
+.stat{
+display:inline-block;
+padding:10px;
+background:#1e293b;
+border-radius:8px;
+margin:5px;
+min-width:120px;
+text-align:center;
+}
+
+.stat b{
+display:block;
+font-size:18px;
+color:#38bdf8;
+}
+
+.hidden{display:none}
 </style>
 </head>
 
 <body>
 
 <aside>
-<h2>VaultOS SR16</h2>
+<h3>VaultOS SR18</h3>
 
-<button onclick="show('dash')">Dashboard</button>
-<button onclick="show('data')">Targets</button>
-
-<button onclick="exportJSON()">Export</button>
 <input type="file" id="importFile">
-</aside>
+<button onclick="exportData()">Export</button>
 
-<main>
-
-<!-- DASH -->
-<div id="dash">
-
-<div class="card">
-<h3>Overview</h3>
-
-<div class="grid">
-<div class="stat">Total<b id="total">0</b></div>
-<div class="stat">Success<b id="success">0</b></div>
-<div class="stat">Pending<b id="pending">0</b></div>
-</div>
-
-<div class="grid" style="margin-top:10px">
-<div class="stat">Sent<b id="sent">0</b></div>
-<div class="stat">RTS<b id="rts">0</b></div>
-<div class="stat">Rate<b id="rate">0%</b></div>
-</div>
-
-</div>
-
-</div>
-
-<!-- DATA -->
-<div id="data" class="hidden">
-
-<div class="card">
-
-<h3>Add Target</h3>
+<hr>
 
 <input id="name" placeholder="Name">
-
 <select id="status">
 <option>PENDING</option>
 <option>SENT</option>
@@ -142,37 +101,35 @@ padding:6px;
 <option>Agency Route</option>
 <option>Event Route</option>
 <option>Foundation Route</option>
-<option>General</option>
+<option>General Route</option>
 </select>
 
-<select id="method">
-<option>TTM</option>
-<option>IP</option>
-<option>EVENT</option>
-</select>
+<button onclick="addRecord()">Add Record</button>
+</aside>
 
-<input id="address" placeholder="Address (auto fills)">
-<button onclick="addTarget()">Add</button>
+<main>
 
-<input id="search" placeholder="Search..." oninput="renderTable()">
+<div class="card">
+<h3>Dashboard</h3>
 
+<div id="stats"></div>
 </div>
 
 <div class="card">
+<h3>Database</h3>
+
 <table>
 <thead>
 <tr>
 <th>Name</th>
 <th>Status</th>
 <th>Route</th>
-<th>Method</th>
 <th>Address</th>
-<th>Action</th>
+<th>Actions</th>
 </tr>
 </thead>
-<tbody id="table"></tbody>
+<tbody id="list"></tbody>
 </table>
-</div>
 
 </div>
 
@@ -180,125 +137,229 @@ padding:6px;
 
 <script>
 
-let vault = JSON.parse(localStorage.getItem("VAULT_SR16")) || {targets:[]};
+/* =========================
+   DATABASE CORE
+========================= */
 
-/* NAV */
-function show(id){
-dash.classList.add("hidden");
-data.classList.add("hidden");
-document.getElementById(id).classList.remove("hidden");
-}
+let vault = JSON.parse(localStorage.getItem("VAULT_SR18")) || {
+version:"SR18",
+targets:[]
+};
 
-/* SAVE */
+const $ = id => document.getElementById(id);
+
 function save(){
-localStorage.setItem("VAULT_SR16", JSON.stringify(vault));
+localStorage.setItem("VAULT_SR18", JSON.stringify(vault));
 }
 
-/* AUTO ADDRESS */
-function suggestAddress(route){
+/* =========================
+   CLEAN + NORMALISE
+========================= */
+
+function clean(v){
+return (v ?? "").toString().replace(/\u00A0/g," ").trim();
+}
+
+function normaliseStatus(s){
+s = clean(s).toUpperCase();
+if(s.includes("SUCCESS")) return "SUCCESS";
+if(s.includes("RTS") || s.includes("FAIL")) return "RTS";
+if(s.includes("SENT")) return "SENT";
+return "PENDING";
+}
+
+/* =========================
+   ADDRESS ENGINE
+========================= */
+
+function getAddress(route){
 switch(route){
 case "Club Route": return "Training Ground / Stadium HQ";
-case "Agency Route": return "Talent Agency HQ";
-case "Event Route": return "Event Venue HQ";
-case "Foundation Route": return "Charity HQ";
+case "Agency Route": return "Talent Agency / Production Office";
+case "Event Route": return "Event Venue / HQ";
+case "Foundation Route": return "Charity / Foundation HQ";
 default: return "General Organisation";
 }
 }
 
-/* ADD */
-function addTarget(){
+/* =========================
+   ADD RECORD
+========================= */
 
-vault.targets.push({
-id:Date.now(),
-name:name.value,
-status:status.value,
-route:route.value,
-method:method.value,
-address:address.value || suggestAddress(route.value)
-});
+function addRecord(){
+
+if(!name.value.trim()) return;
+
+let record = {
+id: Date.now(),
+profile:{name: clean(name.value)},
+current:{
+status: status.value,
+route: route.value,
+address: getAddress(route.value)
+},
+history:[
+{date:Date.now(),status:status.value}
+]
+};
+
+vault.targets.push(record);
 
 name.value="";
-address.value="";
 
 save();
+render();
 update();
-renderTable();
 }
 
-/* DELETE */
-function del(i){
-vault.targets.splice(i,1);
+/* =========================
+   IMPORT ENGINE FIXED
+========================= */
+
+importFile.onchange = e => {
+
+let file = e.target.files[0];
+let r = new FileReader();
+
+r.onload = () => {
+try{
+
+let d = JSON.parse(r.result || "{}");
+let raw = d.records || [];
+
+let seen = new Set();
+
+vault.targets = raw.map((t,i)=>{
+
+let name = clean(t.Name || t.name || "Unknown");
+let key = name.toLowerCase();
+
+if(seen.has(key)) return null;
+seen.add(key);
+
+return {
+id: Date.now()+i,
+profile:{name},
+current:{
+status: normaliseStatus(t.Status),
+route:"General Route",
+address:getAddress("General Route")
+},
+history:[
+{date:Date.now(),status:normaliseStatus(t.Status)}
+]
+};
+
+}).filter(Boolean);
+
 save();
+render();
 update();
-renderTable();
-}
 
-/* DASH */
+alert("Import complete: "+vault.targets.length);
+
+}catch(err){
+alert("Import failed: "+err.message);
+}
+};
+
+r.readAsText(file);
+};
+
+/* =========================
+   DASHBOARD
+========================= */
+
 function update(){
 
-let t=vault.targets.length;
-let s=vault.targets.filter(x=>x.status==="SUCCESS").length;
-let p=vault.targets.filter(x=>x.status==="PENDING").length;
-let sent=vault.targets.filter(x=>x.status==="SENT").length;
-let rts=vault.targets.filter(x=>x.status==="RTS").length;
+let total = vault.targets.length;
+let success = 0;
+let pending = 0;
+let sent = 0;
+let rts = 0;
 
-total.textContent=t;
-success.textContent=s;
-pending.textContent=p;
-sentEl.textContent=sent;
-rtsEl.textContent=rts;
-rate.textContent=t?((s/t)*100).toFixed(1)+"%":"0%";
+vault.targets.forEach(t=>{
+
+let s = t.current.status;
+
+if(s==="SUCCESS") success++;
+else if(s==="PENDING") pending++;
+else if(s==="SENT") sent++;
+else if(s==="RTS") rts++;
+
+});
+
+stats.innerHTML = `
+<div class="stat">Total<b>${total}</b></div>
+<div class="stat">Success<b>${success}</b></div>
+<div class="stat">Pending<b>${pending}</b></div>
+<div class="stat">Sent<b>${sent}</b></div>
+<div class="stat">RTS<b>${rts}</b></div>
+<div class="stat">Rate<b>${total?((success/total)*100).toFixed(1):0}%</b></div>
+`;
 
 }
 
-/* TABLE */
-function renderTable(){
+/* =========================
+   RENDER TABLE
+========================= */
 
-let q=(search.value||"").toLowerCase();
+function render(){
 
-table.innerHTML=vault.targets
-.filter(x=>JSON.stringify(x).toLowerCase().includes(q))
-.map((t,i)=>`
+list.innerHTML = vault.targets.map((t,i)=>`
+
 <tr>
-<td><input value="${t.name}" oninput="vault.targets[${i}].name=this.value; save(); update();"></td>
+<td>${t.profile.name}</td>
 
-<td>${t.status}</td>
-<td>${t.route}</td>
-<td>${t.method}</td>
-<td><input value="${t.address}" oninput="vault.targets[${i}].address=this.value; save();"></td>
+<td>
+<select onchange="vault.targets[${i}].current.status=this.value; save(); update();">
+<option ${t.current.status==="PENDING"?"selected":""}>PENDING</option>
+<option ${t.current.status==="SENT"?"selected":""}>SENT</option>
+<option ${t.current.status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${t.current.status==="RTS"?"selected":""}>RTS</option>
+</select>
+</td>
 
-<td><button onclick="del(${i})">X</button></td>
+<td>${t.current.route}</td>
+
+<td>${t.current.address}</td>
+
+<td>
+<button onclick="vault.targets.splice(${i},1); save(); render(); update();">
+Delete
+</button>
+</td>
+
 </tr>
+
 `).join("");
 
 }
 
-/* EXPORT */
-function exportJSON(){
-let a=document.createElement("a");
-a.href=URL.createObjectURL(new Blob([JSON.stringify(vault)],{type:"application/json"}));
-a.download="VaultOS_SR16.json";
+/* =========================
+   EXPORT
+========================= */
+
+function exportData(){
+
+let blob = new Blob(
+[JSON.stringify(vault,null,2)],
+{type:"application/json"}
+);
+
+let a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "VaultOS_SR18.json";
 a.click();
+
 }
 
-/* IMPORT */
-importFile.onchange=e=>{
-let r=new FileReader();
-r.onload=()=>{
-try{
-let d=JSON.parse(r.result);
-vault.targets=d.records||d.targets||[];
-save();
-update();
-renderTable();
-}catch(err){alert("Import failed");}
-};
-r.readAsText(e.target.files[0]);
-};
+/* =========================
+   INIT
+========================= */
 
-/* INIT */
+render();
 update();
-renderTable();
 
 </script>
 
