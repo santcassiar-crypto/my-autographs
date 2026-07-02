@@ -5,271 +5,245 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS Core AI v2</title>
+<title>VaultOS Core v1 Stable</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
-body{
-margin:0;font-family:Arial;background:#020617;color:#fff;display:flex;min-height:100vh;
-}
-aside{
-width:260px;background:#01040d;padding:15px;border-right:1px solid #334155;
-}
+body{margin:0;font-family:Arial;background:#020617;color:#fff;display:flex;min-height:100vh}
+aside{width:260px;background:#01040d;padding:15px;border-right:1px solid #334155}
 main{flex:1;padding:15px}
 
 .card{background:#0f172a;padding:15px;border-radius:10px;margin-bottom:15px}
 
 input,select,button{
-width:100%;padding:8px;margin-top:6px;
-background:#1e293b;color:#fff;
-border:1px solid #334155;border-radius:6px;
+width:100%;padding:8px;margin-top:8px;
+background:#1e293b;color:#fff;border:1px solid #334155;border-radius:6px
 }
 
 table{width:100%;border-collapse:collapse}
-td,th{border-bottom:1px solid #334155;padding:6px;font-size:12px}
+td,th{border-bottom:1px solid #334155;padding:8px;font-size:13px}
 
-.badge{
-padding:3px 6px;border-radius:6px;font-size:11px;
-background:#1e293b;display:inline-block
-}
-
-.high{color:#22c55e}
-.mid{color:#facc15}
-.low{color:#ef4444}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:#1e293b;padding:10px;border-radius:8px;text-align:center}
+.stat b{display:block;font-size:18px;color:#38bdf8;margin-top:5px}
+small{color:#94a3b8}
 </style>
 </head>
 
 <body>
 
 <aside>
-<h3>VaultOS AI v2</h3>
-<input type="file" id="importFile">
-<button onclick="addRecord()">+ Add</button>
+<h3>VaultOS Core v1</h3>
+
+<button onclick="refresh()">Refresh</button>
 <button onclick="exportData()">Export</button>
+
+<input type="file" id="importFile">
+
+<hr>
+
+<h4>Add Target</h4>
+
+<input id="name" placeholder="Name">
+
+<select id="status">
+<option>PENDING</option>
+<option>SENT</option>
+<option>SUCCESS</option>
+<option>RTS</option>
+</select>
+
+<select id="route">
+<option>Club Route</option>
+<option>Agency Route</option>
+<option>Event Route</option>
+<option>Foundation Route</option>
+<option>General</option>
+</select>
+
+<select id="method">
+<option>TTM</option>
+<option>IP</option>
+<option>EVENT</option>
+</select>
+
+<select id="address">
+<option>AUTO</option>
+<option>TRAINING GROUND</option>
+<option>AGENCY OFFICE</option>
+<option>EVENT VENUE</option>
+<option>HOME ADDRESS</option>
+</select>
+
+<button onclick="addTarget()">Add Record</button>
 </aside>
 
 <main>
 
 <div class="card">
-<h3>AI Dashboard</h3>
-<div id="dash"></div>
+<h3>Dashboard</h3>
+
+<div class="grid">
+<div class="stat">Total<b id="t">0</b></div>
+<div class="stat">Success<b id="s">0</b></div>
+<div class="stat">Pending<b id="p">0</b></div>
+</div>
+
+<div class="grid" style="margin-top:10px">
+<div class="stat">RTS<b id="r">0</b></div>
+<div class="stat">Success %<b id="rate">0%</b></div>
+<div class="stat">AI Score<b id="ai">0%</b></div>
+</div>
 </div>
 
 <div class="card">
-<h3>Targets (AI Scored)</h3>
+<h3>Targets</h3>
 <table>
 <thead>
 <tr>
 <th>Name</th>
 <th>Status</th>
 <th>Route</th>
-<th>AI Score</th>
-<th>Prediction</th>
+<th>Method</th>
+<th>Address</th>
+<th>AI</th>
+<th></th>
 </tr>
 </thead>
 <tbody id="list"></tbody>
 </table>
 </div>
 
+<div class="card">
+<h3>Analytics</h3>
+<div id="analytics"></div>
+</div>
+
 </main>
 
 <script>
 
-/* =========================
-   DB
-========================= */
-let db;
-let cache=[];
+let vault = JSON.parse(localStorage.getItem("VAULT_CORE")) || {targets:[]};
 
-function initDB(){
-let req=indexedDB.open("VAULT_AI_V2",1);
-
-req.onupgradeneeded=e=>{
-db=e.target.result;
-db.createObjectStore("targets",{keyPath:"id"});
-};
-
-req.onsuccess=e=>{
-db=e.target.result;
-load();
-};
+/* ---------- SAVE ---------- */
+function save(){
+localStorage.setItem("VAULT_CORE", JSON.stringify(vault));
 }
 
-function store(){return db.transaction("targets","readwrite").objectStore("targets");}
+/* ---------- NORMALISE STATUS ---------- */
+function cleanStatus(s){
+s = (s||"PENDING").toUpperCase().trim();
+if(s.includes("SUCCESS")) return "SUCCESS";
+if(s.includes("RTS") || s.includes("FAIL")) return "RTS";
+if(s.includes("SENT")) return "SENT";
+return "PENDING";
+}
 
-/* =========================
-   AI ENGINE (CORE LOGIC)
-========================= */
-
-/* convert everything into signals */
+/* ---------- AI SCORE ---------- */
 function aiScore(t){
-
 let score = 50;
 
-/* STATUS SIGNAL */
-if(t.status==="SUCCESS") score += 30;
-if(t.status==="RTS") score -= 35;
-if(t.status==="PENDING") score += 5;
-
-/* ROUTE SIGNAL */
-switch(t.route){
-case "Club Route": score += 10; break;
-case "Agency Route": score += 8; break;
-case "Event Route": score += 5; break;
-case "Foundation Route": score += 12; break;
-default: score += 0;
-}
-
-/* METHOD SIGNAL */
+if(t.status==="SUCCESS") score += 40;
+if(t.status==="RTS") score -= 30;
+if(t.route==="Club Route") score += 5;
 if(t.method==="IP") score += 10;
-if(t.method==="TTM") score += 5;
-if(t.method==="EVENT") score += 3;
 
-/* clamp */
-return Math.max(0,Math.min(100,score));
+return Math.max(0, Math.min(100, score));
 }
 
-/* prediction labels */
-function label(score){
-if(score>=75) return "HIGH SUCCESS";
-if(score>=50) return "MEDIUM";
-return "LOW / RTS RISK";
-}
+/* ---------- ADD ---------- */
+function addTarget(){
 
-/* color */
-function color(score){
-if(score>=75) return "high";
-if(score>=50) return "mid";
-return "low";
-}
-
-/* =========================
-   LOAD
-========================= */
-function load(){
-let req=store().getAll();
-req.onsuccess=e=>{
-cache=e.target.result||[];
-render();
-dash();
-};
-}
-
-/* =========================
-   SAVE
-========================= */
-function save(item){store().put(item);}
-
-/* =========================
-   UPDATE FIELD
-========================= */
-function update(id,key,val){
-
-let t=cache.find(x=>x.id===id);
-if(!t)return;
-
-t[key]=val;
-
-save(t);
-render();
-dash();
-}
-
-/* =========================
-   ADD
-========================= */
-function addRecord(){
-let t={
+vault.targets.push({
 id:Date.now(),
-name:"New Target",
-status:"PENDING",
-route:"Club Route",
-method:"TTM"
-};
-save(t);
-setTimeout(load,50);
+name:document.getElementById("name").value||"Unknown",
+status:document.getElementById("status").value,
+route:document.getElementById("route").value,
+method:document.getElementById("method").value,
+address:document.getElementById("address").value
+});
+
+save();
+refresh();
 }
 
-/* =========================
-   IMPORT (ROBUST)
-========================= */
-document.getElementById("importFile").addEventListener("change",e=>{
-let f=e.target.files[0];
-let r=new FileReader();
+/* ---------- DELETE ---------- */
+function del(i){
+vault.targets.splice(i,1);
+save();
+refresh();
+}
 
-r.onload=()=>{
-let d=JSON.parse(r.result||"{}");
-let raw=d.records||[];
+/* ---------- IMPORT ---------- */
+importFile.onchange = e=>{
+let r = new FileReader();
 
-raw.forEach((x,i)=>{
+r.onload = ()=>{
 
-let t={
-id:Date.now()+i,
+let d = JSON.parse(r.result||"{}");
+let raw = d.records || d.targets || [];
+
+vault.targets = raw.map(x=>({
+id:Date.now()+Math.random(),
 name:x.Name||x.name||"Unknown",
-status:(x.Status||"PENDING").toUpperCase().includes("SUCCESS")?"SUCCESS":
-(x.Status||"PENDING").toUpperCase().includes("RTS")?"RTS":"PENDING",
-route:"General",
-method:"TTM"
+status:cleanStatus(x.Status||x.status),
+route:x.route||"General Route",
+method:x.method||"TTM",
+address:x.address||"AUTO"
+}));
+
+save();
+refresh();
 };
 
-save(t);
-
-});
-
-setTimeout(load,100);
+r.readAsText(e.target.files[0]);
 };
 
-r.readAsText(f);
-});
+/* ---------- DASHBOARD ---------- */
+function dashboard(){
 
-/* =========================
-   DASHBOARD AI
-========================= */
-function dash(){
+let t = vault.targets.length;
+let s = vault.targets.filter(x=>x.status==="SUCCESS").length;
+let p = vault.targets.filter(x=>x.status==="PENDING").length;
+let r = vault.targets.filter(x=>x.status==="RTS").length;
 
-let total=cache.length;
+document.getElementById("t").textContent=t;
+document.getElementById("s").textContent=s;
+document.getElementById("p").textContent=p;
+document.getElementById("r").textContent=r;
+document.getElementById("rate").textContent = t?((s/t)*100).toFixed(1)+"%":"0%";
 
-let scores=cache.map(aiScore);
+let avgAI = vault.targets.length ?
+(vault.targets.reduce((a,b)=>a+aiScore(b),0)/t).toFixed(1) : 0;
 
-let avg=(scores.reduce((a,b)=>a+b,0)/Math.max(1,total)).toFixed(1);
-
-let high=scores.filter(s=>s>=75).length;
-let mid=scores.filter(s=>s>=50&&s<75).length;
-let low=scores.filter(s=>s<50).length;
-
-document.getElementById("dash").innerHTML=`
-<p>Total: ${total}</p>
-<p>Avg AI Score: ${avg}</p>
-<p class="high">High Success: ${high}</p>
-<p class="mid">Medium: ${mid}</p>
-<p class="low">Risk/RTS: ${low}</p>
-`;
+document.getElementById("ai").textContent = avgAI+"%";
 }
 
-/* =========================
-   RENDER TABLE
-========================= */
+/* ---------- TABLE ---------- */
 function render(){
 
-list.innerHTML=cache.map(t=>{
+let html = "";
 
-let score=aiScore(t);
+vault.targets.forEach((t,i)=>{
 
-return `
+let ai = aiScore(t);
+
+html += `
 <tr>
-
-<td>${t.name}</td>
+<td><input value="${t.name}"
+oninput="vault.targets[${i}].name=this.value;save()"></td>
 
 <td>
-<select onchange="update(${t.id},'status',this.value)">
+<select onchange="vault.targets[${i}].status=this.value;save();refresh()">
 <option ${t.status==="PENDING"?"selected":""}>PENDING</option>
+<option ${t.status==="SENT"?"selected":""}>SENT</option>
 <option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
 <option ${t.status==="RTS"?"selected":""}>RTS</option>
 </select>
 </td>
 
 <td>
-<select onchange="update(${t.id},'route',this.value)">
+<select onchange="vault.targets[${i}].route=this.value;save()">
 <option>Club Route</option>
 <option>Agency Route</option>
 <option>Event Route</option>
@@ -278,31 +252,62 @@ return `
 </select>
 </td>
 
-<td><b>${score}</b></td>
-
 <td>
-<span class="badge ${color(score)}">${label(score)}</span>
+<select onchange="vault.targets[${i}].method=this.value;save()">
+<option>TTM</option>
+<option>IP</option>
+<option>EVENT</option>
+</select>
 </td>
 
+<td>${t.address}</td>
+
+<td>${ai}%</td>
+
+<td><button onclick="del(${i})">X</button></td>
 </tr>
 `;
+});
 
-}).join("");
+document.getElementById("list").innerHTML = html;
 }
 
-/* =========================
-   EXPORT
-========================= */
+/* ---------- ANALYTICS ---------- */
+function analytics(){
+
+let routes = {};
+let methods = {};
+
+vault.targets.forEach(t=>{
+routes[t.route]=(routes[t.route]||0)+1;
+methods[t.method]=(methods[t.method]||0)+1;
+});
+
+document.getElementById("analytics").innerHTML = `
+<pre>Routes: ${JSON.stringify(routes,null,2)}</pre>
+<pre>Methods: ${JSON.stringify(methods,null,2)}</pre>
+`;
+}
+
+/* ---------- MASTER REFRESH ---------- */
+function refresh(){
+save();
+render();
+dashboard();
+analytics();
+}
+
+/* ---------- EXPORT ---------- */
 function exportData(){
-let blob=new Blob([JSON.stringify(cache,null,2)],{type:"application/json"});
-let a=document.createElement("a");
-a.href=URL.createObjectURL(blob);
-a.download="VaultOS_AI_V2.json";
+let blob = new Blob([JSON.stringify(vault,null,2)],{type:"application/json"});
+let a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download="vault_core.json";
 a.click();
 }
 
 /* INIT */
-initDB();
+refresh();
 
 </script>
 
