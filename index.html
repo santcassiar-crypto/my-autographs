@@ -1,15 +1,11 @@
 
 
 
-
-
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR18.1</title>
+<title>VaultOS SR19 Intelligence Layer</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
@@ -23,7 +19,7 @@ min-height:100vh;
 }
 
 aside{
-width:260px;
+width:280px;
 background:#01040d;
 padding:15px;
 border-right:1px solid #334155;
@@ -57,6 +53,22 @@ td,th{
 border-bottom:1px solid #334155;
 padding:8px;
 }
+
+.stat{
+display:inline-block;
+padding:10px;
+margin:5px;
+background:#1e293b;
+border-radius:8px;
+min-width:120px;
+text-align:center;
+}
+
+.stat b{
+display:block;
+font-size:18px;
+color:#38bdf8;
+}
 </style>
 </head>
 
@@ -64,10 +76,10 @@ padding:8px;
 
 <aside>
 
-<h3>VaultOS SR18.1</h3>
+<h3>VaultOS SR19</h3>
 
 <div class="card">
-<h3>Add Record</h3>
+<h4>Add Record</h4>
 
 <input id="name" placeholder="Name">
 
@@ -79,11 +91,11 @@ padding:8px;
 </select>
 
 <select id="route">
-<option value="Club Route">Club Route</option>
-<option value="Agency Route">Agency Route</option>
-<option value="Event Route">Event Route</option>
-<option value="Foundation Route">Foundation Route</option>
-<option value="General Route">General Route</option>
+<option>Club Route</option>
+<option>Agency Route</option>
+<option>Event Route</option>
+<option>Foundation Route</option>
+<option>General Route</option>
 </select>
 
 <select id="addressMode">
@@ -91,13 +103,12 @@ padding:8px;
 <option value="MANUAL">MANUAL ADDRESS</option>
 </select>
 
-<input id="address" placeholder="Manual Address (if needed)">
+<input id="address" placeholder="Manual Address">
 
 <button onclick="addRecord()">Add Record</button>
 </div>
 
 <button onclick="exportData()">Export</button>
-<input type="file" id="importFile">
 
 </aside>
 
@@ -110,6 +121,8 @@ padding:8px;
 
 <div class="card">
 <h3>Database</h3>
+
+<input id="search" placeholder="Search..." oninput="render()">
 
 <table>
 <thead>
@@ -131,21 +144,31 @@ padding:8px;
 <script>
 
 /* =========================
-   DATABASE
+   SR19 DATABASE CORE
 ========================= */
 
-let vault = JSON.parse(localStorage.getItem("VAULT_SR18")) || {
-targets:[]
+let vault = JSON.parse(localStorage.getItem("VAULT_SR19")) || {
+version:"SR19",
+targets:[],
+memory:{}
 };
 
 const $ = id => document.getElementById(id);
 
 function save(){
-localStorage.setItem("VAULT_SR18", JSON.stringify(vault));
+localStorage.setItem("VAULT_SR19", JSON.stringify(vault));
 }
 
 /* =========================
-   ADDRESS ENGINE
+   CLEAN + NORMALISE
+========================= */
+
+function clean(v){
+return (v ?? "").toString().replace(/\u00A0/g," ").trim();
+}
+
+/* =========================
+   ROUTE ENGINE
 ========================= */
 
 function getAddress(route){
@@ -159,69 +182,81 @@ default: return "General Organisation";
 }
 
 /* =========================
-   ADD RECORD (FIXED)
+   MEMORY ENGINE (SELF-LEARNING)
+========================= */
+
+function getMemory(name){
+return vault.memory[name.toLowerCase()] || null;
+}
+
+function setMemory(name, data){
+vault.memory[name.toLowerCase()] = data;
+}
+
+/* =========================
+   SMART AUTOFILL
+========================= */
+
+function getSmart(name){
+
+let mem = getMemory(name);
+
+if(mem){
+return mem;
+}
+
+return {
+route:"General Route",
+address:"General Organisation",
+method:"TTM"
+};
+}
+
+/* =========================
+   ADD RECORD (INTELLIGENT)
 ========================= */
 
 function addRecord(){
 
 if(!name.value.trim()) return;
 
-let routeValue = route.value;
-let mode = addressMode.value;
+let smart = getSmart(name.value);
+
+let routeValue = route.value || smart.route;
 
 let finalAddress =
-mode === "MANUAL"
+addressMode.value === "MANUAL"
 ? address.value
-: getAddress(routeValue);
+: smart.address || getAddress(routeValue);
 
-vault.targets.push({
+let record = {
 id: Date.now(),
-name: name.value.trim(),
+name: clean(name.value),
 status: status.value,
 route: routeValue,
-address: finalAddress
+address: finalAddress,
+history:[
+{date:Date.now(),status:status.value}
+]
+};
+
+/* LEARNING STEP */
+setMemory(name.value, {
+route: routeValue,
+address: finalAddress,
+method: status.value
 });
 
-name.value = "";
-address.value = "";
+vault.targets.push(record);
+
+name.value="";
+address.value="";
 
 save();
 render();
 update();
+analytics();
 }
-
-/* =========================
-   IMPORT FIXED
-========================= */
-
-importFile.onchange = e => {
-
-let file = e.target.files[0];
-let r = new FileReader();
-
-r.onload = () => {
-
-let d = JSON.parse(r.result || "{}");
-let raw = d.records || [];
-
-vault.targets = raw.map((t,i)=>({
-
-id: Date.now()+i,
-name: t.Name || t.name || "Unknown",
-status: (t.Status || t.status || "PENDING").toUpperCase(),
-route: "General Route",
-address: getAddress("General Route")
-
-}));
-
-save();
-render();
-update();
-
-};
-
-r.readAsText(file);
-};
 
 /* =========================
    DASHBOARD
@@ -230,31 +265,63 @@ r.readAsText(file);
 function update(){
 
 let total = vault.targets.length;
-let success = 0;
-let pending = 0;
-let sent = 0;
-let rts = 0;
+let success=0, pending=0, sent=0, rts=0;
 
 vault.targets.forEach(t=>{
 
-let s = t.status;
-
-if(s==="SUCCESS") success++;
-else if(s==="PENDING") pending++;
-else if(s==="SENT") sent++;
-else if(s==="RTS") rts++;
+if(t.status==="SUCCESS") success++;
+else if(t.status==="PENDING") pending++;
+else if(t.status==="SENT") sent++;
+else if(t.status==="RTS") rts++;
 
 });
 
 stats.innerHTML = `
-<p>Total: <b>${total}</b></p>
-<p>Success: <b>${success}</b></p>
-<p>Pending: <b>${pending}</b></p>
-<p>Sent: <b>${sent}</b></p>
-<p>RTS: <b>${rts}</b></p>
-<p>Rate: <b>${total?((success/total)*100).toFixed(1):0}%</b></p>
+<div class="stat">Total<b>${total}</b></div>
+<div class="stat">Success<b>${success}</b></div>
+<div class="stat">Pending<b>${pending}</b></div>
+<div class="stat">Sent<b>${sent}</b></div>
+<div class="stat">RTS<b>${rts}</b></div>
+<div class="stat">Rate<b>${total?((success/total)*100).toFixed(1):0}%</b></div>
 `;
 
+}
+
+/* =========================
+   ANALYTICS LAYER
+========================= */
+
+function analytics(){
+
+let routeStats={};
+let methodStats={};
+
+vault.targets.forEach(t=>{
+
+if(!routeStats[t.route]) routeStats[t.route]={t:0,s:0};
+if(!methodStats[t.status]) methodStats[t.status]={t:0,s:0};
+
+routeStats[t.route].t++;
+methodStats[t.status].t++;
+
+if(t.status==="SUCCESS"){
+routeStats[t.route].s++;
+methodStats[t.status].s++;
+}
+
+});
+
+let bestRoute = Object.entries(routeStats)
+.sort((a,b)=>(b[1].s/b[1].t)-(a[1].s/a[1].t))[0];
+
+let container = document.getElementById("stats");
+
+container.innerHTML += `
+<hr>
+<h4>🧠 Intelligence</h4>
+<p>Best Route: <b>${bestRoute?.[0] || "N/A"}</b></p>
+<p>Memory Entries: <b>${Object.keys(vault.memory).length}</b></p>
+`;
 }
 
 /* =========================
@@ -263,29 +330,22 @@ stats.innerHTML = `
 
 function render(){
 
-list.innerHTML = vault.targets.map((t,i)=>`
+let q = (search.value || "").toLowerCase();
+
+list.innerHTML = vault.targets
+.filter(t => JSON.stringify(t).toLowerCase().includes(q))
+.map((t,i)=>`
 
 <tr>
 <td>${t.name}</td>
-
-<td>
-<select onchange="vault.targets[${i}].status=this.value; save(); update();">
-<option ${t.status==="PENDING"?"selected":""}>PENDING</option>
-<option ${t.status==="SENT"?"selected":""}>SENT</option>
-<option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${t.status==="RTS"?"selected":""}>RTS</option>
-</select>
-</td>
-
+<td>${t.status}</td>
 <td>${t.route}</td>
 <td>${t.address}</td>
-
 <td>
 <button onclick="vault.targets.splice(${i},1); save(); render(); update();">
 X
 </button>
 </td>
-
 </tr>
 
 `).join("");
@@ -305,7 +365,7 @@ let blob = new Blob(
 
 let a = document.createElement("a");
 a.href = URL.createObjectURL(blob);
-a.download = "VaultOS_SR18.json";
+a.download = "VaultOS_SR19.json";
 a.click();
 
 }
@@ -316,6 +376,7 @@ a.click();
 
 render();
 update();
+analytics();
 
 </script>
 
