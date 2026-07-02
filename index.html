@@ -509,3 +509,136 @@ return "General Organisation Route";
 }
 
 </script>
+   <script>
+
+function renderTable(){
+
+let q = (document.getElementById("search")?.value || "").toLowerCase();
+
+let table = document.getElementById("table");
+
+if(!table) return;
+
+table.innerHTML = vault.targets
+.filter(t =>
+JSON.stringify(t).toLowerCase().includes(q)
+)
+.map((t,i)=>`
+
+<tr>
+
+<td>
+<input value="${t.name}"
+oninput="vault.targets[${i}].name=this.value; refresh();">
+</td>
+
+<td>
+<select onchange="vault.targets[${i}].status=this.value; refresh();">
+<option ${t.status==="PENDING"?"selected":""}>PENDING</option>
+<option ${t.status==="SENT"?"selected":""}>SENT</option>
+<option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${t.status==="RTS"?"selected":""}>RTS</option>
+</select>
+</td>
+
+<td>
+<select onchange="vault.targets[${i}].route=this.value; refresh();">
+<option>Club Route</option>
+<option>Agency Route</option>
+<option>Event Route</option>
+<option>Foundation Route</option>
+<option>General</option>
+</select>
+</td>
+
+<td>
+<select onchange="vault.targets[${i}].method=this.value; refresh();">
+<option>TTM</option>
+<option>IP</option>
+<option>EVENT</option>
+</select>
+</td>
+
+<td>
+<input value="${t.address || ""}"
+oninput="vault.targets[${i}].address=this.value; refresh();">
+</td>
+
+<td>
+<button onclick="deleteTarget(${i})">Delete</button>
+</td>
+
+</tr>
+
+`).join("");
+
+}
+
+</script>
+   <script>
+
+document.getElementById("importFile").addEventListener("change", e=>{
+
+let file = e.target.files[0];
+let r = new FileReader();
+
+r.onload = () => {
+try{
+
+let d = JSON.parse(r.result || "{}");
+
+let raw =
+d.records ||
+d.targets ||
+d.data ||
+[];
+
+vault.targets = raw.map((t,i)=>({
+
+id: Date.now()+i,
+name: t.name || t.Name || "Unknown",
+status: (t.status || t.Status || "PENDING").toUpperCase(),
+route: t.route || "General",
+method: t.method || "TTM",
+address: t.address || ""
+
+}));
+
+save();
+updateDashboard();
+renderTable();
+
+}catch(err){
+alert("Import failed: " + err.message);
+}
+};
+
+r.readAsText(file);
+
+});
+
+</script>
+   <script>
+
+function exportJSON(){
+
+const blob = new Blob(
+[JSON.stringify(vault,null,2)],
+{type:"application/json"}
+);
+
+const a = document.createElement("a");
+a.href = URL.createObjectURL(blob);
+a.download = "VaultOS_SR16_Backup.json";
+a.click();
+
+}
+
+</script>
+   <script>
+
+/* initial render */
+if(typeof renderTable === "function") renderTable();
+updateDashboard();
+
+</script>
