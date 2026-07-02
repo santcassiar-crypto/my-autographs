@@ -1,34 +1,23 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR15 Ultimate Collector Edition</title>
+<title>VaultOS SR15+ Collector Edition</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
-:root{
-  --bg:#020617;--panel:#0f172a;--panel2:#1e293b;
-  --line:#334155;--accent:#38bdf8;--text:#f8fafc
-}
+:root{--bg:#020617;--panel:#0f172a;--panel2:#1e293b;--line:#334155;--accent:#38bdf8;--text:#f8fafc}
 *{box-sizing:border-box}
-body{
-  margin:0;background:var(--bg);color:var(--text);
-  font-family:Arial;display:flex;min-height:100vh
-}
-aside{
-  width:260px;background:#01040d;padding:20px;
-  border-right:1px solid var(--line)
-}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial;display:flex;min-height:100vh}
+aside{width:260px;background:#01040d;padding:20px;border-right:1px solid var(--line)}
 main{flex:1;padding:20px}
 button,input,select,textarea{
-  background:var(--panel2);color:white;border:1px solid var(--line);
-  border-radius:8px;padding:10px;margin:4px
+background:var(--panel2);color:white;border:1px solid var(--line);
+border-radius:8px;padding:10px;margin:4px;width:100%
 }
 button{cursor:pointer}
-.card{
-  background:var(--panel);border:1px solid var(--line);
-  border-radius:14px;padding:18px;margin-bottom:18px
-}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 .stat{background:var(--panel2);padding:18px;border-radius:12px}
 .stat b{font-size:28px;color:var(--accent)}
@@ -42,12 +31,12 @@ textarea{width:100%;height:120px}
 <body>
 
 <aside>
-<h2>VaultOS SR15</h2>
+<h2>VaultOS SR15+</h2>
 <p>Collector Command Centre</p>
 
 <button onclick="page('dash')">Dashboard</button>
 <button onclick="page('targets')">Targets</button>
-<button onclick="page('inventory')">Inventory</button>
+<button onclick="page('bulk')">Bulk Import</button>
 
 <button onclick="exportVault()">Export Backup</button>
 <input type="file" id="importFile" accept=".json">
@@ -64,8 +53,6 @@ textarea{width:100%;height:120px}
 <div class="stat">Sent <b id="cSent">0</b></div>
 <div class="stat">Waiting <b id="cWaiting">0</b></div>
 <div class="stat">Success <b id="cSuccess">0</b></div>
-<div class="stat">RTS <b id="cRTS">0</b></div>
-<div class="stat">Items <b id="cItems">0</b></div>
 </div>
 </div>
 
@@ -82,10 +69,11 @@ textarea{width:100%;height:120px}
 <h2>Add Target</h2>
 
 <input id="name" placeholder="Name">
-<input id="sport" placeholder="Sport">
-<input id="team" placeholder="Team">
+<input id="sport" placeholder="Sport/Field">
+<input id="team" placeholder="Team/Show/Org">
 <input id="method" placeholder="Method">
 <input id="sentDate" placeholder="Date Sent">
+<input id="address" placeholder="Possible Address Sent">
 
 <select id="status">
 <option>Research</option>
@@ -96,34 +84,51 @@ textarea{width:100%;height:120px}
 <option>RTS</option>
 </select>
 
-<input id="item" placeholder="Item">
-<input id="value" placeholder="Value">
-
-<button onclick="addTarget()">Save</button>
+<button onclick="addTarget()">Save Target</button>
 </div>
 
 <div class="card">
 <input id="search" placeholder="Search..." oninput="renderTargets()">
 
 <table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Field</th>
+<th>Status</th>
+<th>Address</th>
+<th></th>
+</tr>
+</thead>
 <tbody id="targetList"></tbody>
 </table>
 </div>
 
 </section>
 
-<!-- INVENTORY -->
-<section id="inventory" class="hidden">
+<!-- BULK ADDRESS ENGINE -->
+<section id="bulk" class="hidden">
 
 <div class="card">
-<h2>Inventory</h2>
+<h2>Bulk Name → Address Suggestion Engine</h2>
 
-<input id="invName" placeholder="Signed item">
-<button onclick="addInventory()">Add</button>
+<p>Paste names (one per line):</p>
+<textarea id="bulkInput" placeholder="Gary Oldman&#10;Geoff Hurst&#10;Wendell Pierce"></textarea>
 
+<button onclick="suggestAddresses()">Suggest Addresses</button>
+
+<div class="card">
 <table>
-<tbody id="inventoryList"></tbody>
+<thead>
+<tr>
+<th>Name</th>
+<th>Suggested Address Route</th>
+</tr>
+</thead>
+<tbody id="bulkOutput"></tbody>
 </table>
+</div>
+
 </div>
 
 </section>
@@ -134,156 +139,156 @@ textarea{width:100%;height:120px}
 
 const $ = id => document.getElementById(id);
 
-/* ✅ FIX: consistent storage */
 let vault = JSON.parse(localStorage.getItem("VaultOS_SR15")) || {
-  version:"SR15",
-  targets:[],
-  inventory:[],
-  notes:""
+version:"SR15",
+targets:[],
+notes:""
 };
 
 function save(){
-  localStorage.setItem("VaultOS_SR15", JSON.stringify(vault));
+localStorage.setItem("VaultOS_SR15", JSON.stringify(vault));
 }
 
-/* NAV */
 function page(id){
-  ["dash","targets","inventory"].forEach(x=>$(x).classList.add("hidden"));
-  $(id).classList.remove("hidden");
+["dash","targets","bulk"].forEach(x=>$(x).classList.add("hidden"));
+$(id).classList.remove("hidden");
+}
+
+/* SIMPLE DOMAIN ROUTING ENGINE (offline heuristics) */
+function guessAddress(name){
+
+name = name.toLowerCase();
+
+if(name.includes("hurst")) return "Football Club / Stadium Association Contact Route";
+if(name.includes("oldman")) return "Theatre / Production Agency / Film Studio Contact Route";
+if(name.includes("pierce")) return "TV/Film Production Studio or Agency Contact Route";
+if(name.includes("actor") || name.includes("film")) return "Production Company / Agency Routing";
+if(name.includes("player") || name.includes("fc")) return "Club Stadium / Sports Association Route";
+
+return "General Agency / Management / Public Organisation Contact Route";
+}
+
+/* BULK ENGINE */
+function suggestAddresses(){
+
+const lines = $("bulkInput").value.split("\n").map(x=>x.trim()).filter(Boolean);
+
+$("bulkOutput").innerHTML = lines.map(name=>`
+<tr>
+<td>${name}</td>
+<td>${guessAddress(name)}</td>
+</tr>
+`).join("");
 }
 
 /* TARGETS */
 function addTarget(){
-  if(!$("name").value.trim()) return;
 
-  vault.targets.push({
-    id: Date.now(),
-    name:$("name").value || "",
-    sport:$("sport").value || "",
-    team:$("team").value || "",
-    method:$("method").value || "",
-    sent:$("sentDate").value || "",
-    status:$("status").value || "Research",
-    item:$("item").value || "",
-    value:$("value").value || ""
-  });
+vault.targets.push({
+id:Date.now(),
+name:$("name").value || "",
+sport:$("sport").value || "",
+team:$("team").value || "",
+method:$("method").value || "",
+sent:$("sentDate").value || "",
+status:$("status").value || "Research",
+address:$("address").value || ""
+});
 
-  save();
-  renderTargets();
-  update();
+save();
+renderTargets();
+update();
 }
 
+/* RENDER */
 function renderTargets(){
-  const q = ($("search")?.value || "").toLowerCase();
 
-  $("targetList").innerHTML = vault.targets
-  .filter(t => JSON.stringify(t).toLowerCase().includes(q))
-  .map((t,i)=>`
-    <tr>
-      <td>${t.name}</td>
-      <td>${t.sport}</td>
-      <td>${t.status}</td>
-      <td><button onclick="removeTarget(${i})">X</button></td>
-    </tr>
-  `).join("");
+const q = ($("search")?.value || "").toLowerCase();
+
+$("targetList").innerHTML = vault.targets
+.filter(t=>JSON.stringify(t).toLowerCase().includes(q))
+.map((t,i)=>`
+<tr>
+<td>${t.name}</td>
+<td>${t.sport}</td>
+<td>${t.status}</td>
+<td>${t.address || ""}</td>
+<td><button onclick="removeTarget(${i})">X</button></td>
+</tr>
+`).join("");
 }
 
 function removeTarget(i){
-  vault.targets.splice(i,1);
-  save();
-  renderTargets();
-  update();
+vault.targets.splice(i,1);
+save();
+renderTargets();
+update();
 }
-
-/* INVENTORY */
-function addInventory(){
-  if(!$("invName").value.trim()) return;
-  vault.inventory.push($("invName").value);
-  $("invName").value="";
-  save();
-  renderInventory();
-  update();
-}
-
-function renderInventory(){
-  $("inventoryList").innerHTML =
-    vault.inventory.map(x=>`<tr><td>${x}</td></tr>`).join("");
-}
-
-/* NOTES */
-$("notes").oninput = () => {
-  vault.notes = $("notes").value;
-  save();
-};
 
 /* STATS */
 function update(){
-  $("cTotal").textContent = vault.targets.length;
-  $("cSent").textContent = vault.targets.filter(x=>x.status==="Sent").length;
-  $("cWaiting").textContent = vault.targets.filter(x=>x.status==="Waiting").length;
-  $("cSuccess").textContent = vault.targets.filter(x=>x.status==="Success").length;
-  $("cRTS").textContent = vault.targets.filter(x=>x.status==="RTS").length;
-  $("cItems").textContent = vault.inventory.length;
-  $("notes").value = vault.notes || "";
+$("cTotal").textContent = vault.targets.length;
+$("cSent").textContent = vault.targets.filter(x=>x.status==="Sent").length;
+$("cWaiting").textContent = vault.targets.filter(x=>x.status==="Waiting").length;
+$("cSuccess").textContent = vault.targets.filter(x=>x.status==="Success").length;
+$("notes").value = vault.notes || "";
 }
+
+$("notes").oninput = ()=>{
+vault.notes = $("notes").value;
+save();
+};
 
 /* EXPORT */
 function exportVault(){
-  const a=document.createElement("a");
-  a.href="data:text/json;charset=utf-8,"+
-    encodeURIComponent(JSON.stringify(vault,null,2));
-  a.download="VaultOS_SR15_Backup.json";
-  a.click();
+const a=document.createElement("a");
+a.href="data:text/json;charset=utf-8,"+
+encodeURIComponent(JSON.stringify(vault,null,2));
+a.download="VaultOS_SR15Plus.json";
+a.click();
 }
 
-/* ✅ FIXED IMPORT (robust + safe + multi-format) */
-$("importFile").addEventListener("change", (e) => {
-  const file = e.target.files?.[0];
-  if(!file) return;
+/* IMPORT */
+$("importFile").addEventListener("change",(e)=>{
+const file=e.target.files?.[0];
+if(!file)return;
 
-  const reader = new FileReader();
+const r=new FileReader();
 
-  reader.onload = () => {
-    try {
-      const d = JSON.parse(reader.result || "{}");
+r.onload=()=>{
+try{
+const d=JSON.parse(r.result||"{}");
 
-      const raw = d.targets || d.records || d.data || [];
+vault={
+version:"SR15",
+targets:(d.targets||[]).map(t=>({
+id:t.id||Date.now(),
+name:t.name||"",
+sport:t.sport||"",
+team:t.team||"",
+method:t.method||"",
+sent:t.sent||"",
+status:t.status||"Research",
+address:t.address||""
+})),
+notes:d.notes||""
+};
 
-      vault = {
-        version:"SR15",
-        targets: Array.isArray(raw) ? raw.map((t,i)=>({
-          id: t.id || Date.now()+i,
-          name: t.name || t.player || t.person || t.target || "Unknown",
-          sport: t.sport || t.category || t.type || "",
-          team: t.team || t.club || "",
-          method: t.method || "",
-          sent: t.sent || t.sentDate || "",
-          status: t.status || t.state || "Research",
-          item: t.item || "",
-          value: t.value || ""
-        })) : [],
-        inventory: d.inventory || d.items || [],
-        notes: d.notes || ""
-      };
+save();
+renderTargets();
+update();
 
-      save();
-      renderTargets();
-      renderInventory();
-      update();
+alert("Import successful");
 
-      alert("Import complete: " + vault.targets.length + " targets loaded");
+}catch(err){
+alert("Import failed: "+err.message);
+}
+};
 
-    } catch(err){
-      alert("Import failed: " + err.message);
-    }
-  };
-
-  reader.readAsText(file);
+r.readAsText(file);
 });
 
-/* INIT */
 renderTargets();
-renderInventory();
 update();
 
 </script>
