@@ -1,65 +1,35 @@
 
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS SR15 Editable</title>
+<title>VaultOS SR15 Auto Address</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
-:root{
-  --bg:#020617;--panel:#0f172a;--panel2:#1e293b;
-  --line:#334155;--accent:#38bdf8;--text:#f8fafc
-}
-*{box-sizing:border-box}
-body{
-  margin:0;background:var(--bg);color:var(--text);
-  font-family:Arial;display:flex;min-height:100vh
-}
-aside{
-  width:260px;background:#01040d;padding:20px;
-  border-right:1px solid var(--line)
-}
-main{flex:1;padding:20px}
-
-button,input{
-  background:var(--panel2);color:white;border:1px solid var(--line);
-  border-radius:8px;padding:8px;margin:4px;width:100%
-}
-
-.card{
-  background:var(--panel);border:1px solid var(--line);
-  border-radius:14px;padding:18px;margin-bottom:18px
-}
-
+body{margin:0;font-family:Arial;background:#020617;color:#fff;display:flex}
+aside{width:220px;background:#01040d;padding:15px}
+main{flex:1;padding:15px}
+.card{background:#0f172a;padding:15px;border-radius:10px;margin-bottom:15px}
 table{width:100%;border-collapse:collapse}
-td,th{padding:8px;border-bottom:1px solid var(--line)}
-td input{
-  width:100%;
-  background:transparent;
-  border:1px solid var(--line);
-  color:white;
-  padding:6px;
-  border-radius:6px;
-}
-
+td,th{border-bottom:1px solid #334155;padding:8px}
+input{width:100%;padding:6px;background:#1e293b;color:#fff;border:1px solid #334155}
+button{padding:6px;background:#1e293b;color:#fff;border:1px solid #334155;cursor:pointer}
 </style>
 </head>
 
 <body>
 
 <aside>
-<h2>VaultOS SR15</h2>
-<input type="file" id="importFile" accept=".json">
+<h3>VaultOS SR15</h3>
+<input type="file" id="importFile">
 </aside>
 
 <main>
 
 <div class="card">
-<h2>Targets (Editable)</h2>
-
+<h3>Targets</h3>
 <table>
 <thead>
 <tr>
@@ -71,54 +41,106 @@ td input{
 </thead>
 <tbody id="list"></tbody>
 </table>
-
 </div>
 
 </main>
 
 <script>
 
+let vault = JSON.parse(localStorage.getItem("VAULT_SR15_AUTO")) || {targets:[]};
+
 const $ = id => document.getElementById(id);
 
-let vault = JSON.parse(localStorage.getItem("VaultOS_SR15_EDIT")) || {
-targets:[]
+function save(){
+localStorage.setItem("VAULT_SR15_AUTO", JSON.stringify(vault));
+}
+
+/* 🧠 SMART ADDRESS ENGINE */
+function guessAddress(name){
+
+let n = name.toLowerCase();
+
+/* SPORTS */
+if(n.includes("arsenal") || n.includes("man utd") || n.includes("chelsea") || n.includes("liverpool"))
+return "Club Training Ground / Stadium HQ";
+
+if(n.includes("bellingham") || n.includes("kane") || n.includes("salah") || n.includes("haaland"))
+return "Club Training Facility / National Team Base";
+
+/* ACTORS */
+if(n.includes("oldman") || n.includes("reeves") || n.includes("fiennes") || n.includes("brosnan"))
+return "Film Production / Talent Agency Route";
+
+if(n.includes("redmayne") || n.includes("chalamet") || n.includes("downey"))
+return "Studio / Agency Representation Route";
+
+/* COMEDIANS / TV */
+if(n.includes("mack") || n.includes("beckett") || n.includes("ross"))
+return "TV Studio / Network Production HQ";
+
+/* SPORTS LEGENDS */
+if(n.includes("hurts") || n.includes("shearer") || n.includes("wright"))
+return "Club Legend / Stadium Heritage Route";
+
+/* EVENTS / GENERIC */
+if(n.includes("gala") || n.includes("event") || n.includes("foundation"))
+return "Event Organiser / Foundation HQ";
+
+return "General Agency / Organisation Route";
+}
+
+/* 📥 IMPORT */
+document.getElementById("importFile").addEventListener("change",(e)=>{
+
+let file=e.target.files?.[0];
+if(!file)return;
+
+let r=new FileReader();
+
+r.onload=()=>{
+
+let d=JSON.parse(r.result||"{}");
+
+let raw=d.records||d.targets||[];
+
+vault.targets=raw.map((t,i)=>{
+
+let name=t.name||t.Name||"Unknown";
+
+return{
+id:Date.now()+i,
+name,
+status:(t.status||t.Status||"PENDING").toUpperCase(),
+address: t.address || guessAddress(name) // ✅ AUTO POPULATE HERE
 };
 
-function save(){
-localStorage.setItem("VaultOS_SR15_EDIT", JSON.stringify(vault));
-}
+});
 
-/* 🧠 CLEAN STATUS */
-function cleanStatus(s){
-return (s || "PENDING").toString().trim().toUpperCase();
-}
+save();
+render();
 
-/* 📊 RENDER (editable table) */
+};
+
+r.readAsText(file);
+});
+
+/* 📊 RENDER */
 function render(){
 
 $("list").innerHTML = vault.targets.map((t,i)=>`
 
 <tr>
 
-<td>
-<input value="${t.name||""}"
-oninput="vault.targets[${i}].name=this.value; save()">
-</td>
+<td><input value="${t.name}"
+oninput="vault.targets[${i}].name=this.value; save()"></td>
 
-<td>
-<input value="${t.status||""}"
-oninput="vault.targets[${i}].status=this.value; save()">
-</td>
+<td><input value="${t.status}"
+oninput="vault.targets[${i}].status=this.value; save()"></td>
 
-<td>
-<input value="${t.address||""}"
-placeholder="Add address used"
-oninput="vault.targets[${i}].address=this.value; save()">
-</td>
+<td><input value="${t.address}"
+oninput="vault.targets[${i}].address=this.value; save()"></td>
 
-<td>
-<button onclick="remove(${i})">X</button>
-</td>
+<td><button onclick="remove(${i})">X</button></td>
 
 </tr>
 
@@ -132,49 +154,6 @@ vault.targets.splice(i,1);
 save();
 render();
 }
-
-/* 📥 IMPORT (YOUR FORMAT FIXED) */
-document.getElementById("importFile").addEventListener("change",(e)=>{
-
-const file = e.target.files?.[0];
-if(!file) return;
-
-const reader = new FileReader();
-
-reader.onload = () => {
-try{
-
-const d = JSON.parse(reader.result || "{}");
-
-const raw =
-Array.isArray(d.records) ? d.records :
-Array.isArray(d.targets) ? d.targets :
-[];
-
-vault.targets = raw.map((t,i)=>({
-
-id: t.id || Date.now()+i,
-
-name: t.name || t.Name || "Unknown",
-
-status: cleanStatus(t.status || t.Status),
-
-address: t.address || t.addr || ""
-
-}));
-
-save();
-render();
-
-alert("Imported: " + vault.targets.length + " entries");
-
-}catch(err){
-alert("Import failed: " + err.message);
-}
-};
-
-reader.readAsText(file);
-});
 
 render();
 
