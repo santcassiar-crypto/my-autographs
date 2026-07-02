@@ -5,104 +5,66 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS Core v1 Stable</title>
+<title>VaultOS Core AI v2</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
 body{
-margin:0;
-font-family:Arial;
-background:#020617;
-color:#fff;
-display:flex;
-min-height:100vh;
+margin:0;font-family:Arial;background:#020617;color:#fff;display:flex;min-height:100vh;
 }
-
 aside{
-width:260px;
-background:#01040d;
-padding:15px;
-border-right:1px solid #334155;
+width:260px;background:#01040d;padding:15px;border-right:1px solid #334155;
 }
-
 main{flex:1;padding:15px}
 
-.card{
-background:#0f172a;
-padding:15px;
-border-radius:10px;
-margin-bottom:15px;
-}
+.card{background:#0f172a;padding:15px;border-radius:10px;margin-bottom:15px}
 
 input,select,button{
-width:100%;
-padding:8px;
-margin-top:6px;
-background:#1e293b;
-color:#fff;
-border:1px solid #334155;
-border-radius:6px;
+width:100%;padding:8px;margin-top:6px;
+background:#1e293b;color:#fff;
+border:1px solid #334155;border-radius:6px;
 }
 
 table{width:100%;border-collapse:collapse}
-td,th{border-bottom:1px solid #334155;padding:6px;font-size:13px}
+td,th{border-bottom:1px solid #334155;padding:6px;font-size:12px}
 
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-
-.stat{
-background:#1e293b;
-padding:10px;
-border-radius:8px;
-text-align:center;
+.badge{
+padding:3px 6px;border-radius:6px;font-size:11px;
+background:#1e293b;display:inline-block
 }
 
-.stat b{display:block;font-size:18px;color:#38bdf8;margin-top:5px}
-
+.high{color:#22c55e}
+.mid{color:#facc15}
+.low{color:#ef4444}
 </style>
 </head>
 
 <body>
 
 <aside>
-<h3>VaultOS Core v1</h3>
-
-<button onclick="addRandom()">+ Add Record</button>
-<button onclick="exportData()">Export</button>
-
+<h3>VaultOS AI v2</h3>
 <input type="file" id="importFile">
-
+<button onclick="addRecord()">+ Add</button>
+<button onclick="exportData()">Export</button>
 </aside>
 
 <main>
 
 <div class="card">
-<h3>Dashboard</h3>
-
-<div class="grid">
-<div class="stat">Total<b id="total">0</b></div>
-<div class="stat">Success<b id="success">0</b></div>
-<div class="stat">Pending<b id="pending">0</b></div>
-</div>
-
-<div class="grid" style="margin-top:10px">
-<div class="stat">RTS<b id="rts">0</b></div>
-<div class="stat">Sent<b id="sent">0</b></div>
-<div class="stat">Success %<b id="rate">0%</b></div>
-</div>
-
+<h3>AI Dashboard</h3>
+<div id="dash"></div>
 </div>
 
 <div class="card">
-<h3>Targets</h3>
+<h3>Targets (AI Scored)</h3>
 <table>
 <thead>
 <tr>
 <th>Name</th>
 <th>Status</th>
 <th>Route</th>
-<th>Method</th>
-<th>Address</th>
-<th></th>
+<th>AI Score</th>
+<th>Prediction</th>
 </tr>
 </thead>
 <tbody id="list"></tbody>
@@ -114,152 +76,174 @@ text-align:center;
 <script>
 
 /* =========================
-   INDEXEDDB CORE
+   DB
 ========================= */
 let db;
-let DB_NAME = "VAULT_CORE_V1";
+let cache=[];
 
 function initDB(){
-let req = indexedDB.open(DB_NAME,1);
+let req=indexedDB.open("VAULT_AI_V2",1);
 
-req.onupgradeneeded = e=>{
-db = e.target.result;
+req.onupgradeneeded=e=>{
+db=e.target.result;
 db.createObjectStore("targets",{keyPath:"id"});
 };
 
-req.onsuccess = e=>{
-db = e.target.result;
-loadAll();
+req.onsuccess=e=>{
+db=e.target.result;
+load();
 };
 }
 
-function tx(store,mode="readwrite"){
-return db.transaction(store,mode).objectStore(store);
+function store(){return db.transaction("targets","readwrite").objectStore("targets");}
+
+/* =========================
+   AI ENGINE (CORE LOGIC)
+========================= */
+
+/* convert everything into signals */
+function aiScore(t){
+
+let score = 50;
+
+/* STATUS SIGNAL */
+if(t.status==="SUCCESS") score += 30;
+if(t.status==="RTS") score -= 35;
+if(t.status==="PENDING") score += 5;
+
+/* ROUTE SIGNAL */
+switch(t.route){
+case "Club Route": score += 10; break;
+case "Agency Route": score += 8; break;
+case "Event Route": score += 5; break;
+case "Foundation Route": score += 12; break;
+default: score += 0;
 }
 
-/* =========================
-   NORMALISER ENGINE
-========================= */
-function cleanStatus(s){
-if(!s) return "PENDING";
-s = String(s).toUpperCase();
-if(s.includes("SUCCESS")) return "SUCCESS";
-if(s.includes("RTS") || s.includes("FAIL")) return "RTS";
-if(s.includes("SENT")) return "SENT";
-return "PENDING";
+/* METHOD SIGNAL */
+if(t.method==="IP") score += 10;
+if(t.method==="TTM") score += 5;
+if(t.method==="EVENT") score += 3;
+
+/* clamp */
+return Math.max(0,Math.min(100,score));
 }
 
-/* =========================
-   ADDRESS AI (SIMPLE INTELLIGENCE)
-========================= */
-const addressAI = {
-"Club Route":["Training Ground HQ","Stadium Office"],
-"Agency Route":["Talent Agency HQ","Management Office"],
-"Event Route":["Event Venue Office","Organiser HQ"],
-"Foundation Route":["Charity HQ","Foundation Office"],
-"General":["Unknown Location"]
-};
+/* prediction labels */
+function label(score){
+if(score>=75) return "HIGH SUCCESS";
+if(score>=50) return "MEDIUM";
+return "LOW / RTS RISK";
+}
 
-/* =========================
-   STATE
-========================= */
-let cache = [];
+/* color */
+function color(score){
+if(score>=75) return "high";
+if(score>=50) return "mid";
+return "low";
+}
 
 /* =========================
    LOAD
 ========================= */
-function loadAll(){
-let req = tx("targets").getAll();
-req.onsuccess = e=>{
-cache = e.target.result || [];
+function load(){
+let req=store().getAll();
+req.onsuccess=e=>{
+cache=e.target.result||[];
 render();
-updateDashboard();
+dash();
 };
 }
 
 /* =========================
    SAVE
 ========================= */
-function save(item){
-tx("targets").put(item);
-}
+function save(item){store().put(item);}
 
 /* =========================
-   DELETE
+   UPDATE FIELD
 ========================= */
-function del(id){
-tx("targets").delete(id);
-setTimeout(loadAll,50);
+function update(id,key,val){
+
+let t=cache.find(x=>x.id===id);
+if(!t)return;
+
+t[key]=val;
+
+save(t);
+render();
+dash();
 }
 
 /* =========================
    ADD
 ========================= */
-function addRandom(){
-let item = {
-id: Date.now(),
-name: "New Target " + Math.floor(Math.random()*1000),
-status: "PENDING",
-route: "Club Route",
-method: "TTM",
-address: ""
+function addRecord(){
+let t={
+id:Date.now(),
+name:"New Target",
+status:"PENDING",
+route:"Club Route",
+method:"TTM"
 };
-save(item);
-setTimeout(loadAll,50);
+save(t);
+setTimeout(load,50);
 }
 
 /* =========================
-   IMPORT FIXED PIPELINE
+   IMPORT (ROBUST)
 ========================= */
 document.getElementById("importFile").addEventListener("change",e=>{
-let f = e.target.files[0];
-let r = new FileReader();
+let f=e.target.files[0];
+let r=new FileReader();
 
 r.onload=()=>{
-let d = JSON.parse(r.result||"{}");
-let raw = d.records || [];
+let d=JSON.parse(r.result||"{}");
+let raw=d.records||[];
 
-raw.forEach((t,i)=>{
+raw.forEach((x,i)=>{
 
-let item = {
-id: Date.now()+i,
-name: t.Name || t.name || "Unknown",
-status: cleanStatus(t.Status || t.status),
-route: "General",
-method: "TTM",
-address: ""
+let t={
+id:Date.now()+i,
+name:x.Name||x.name||"Unknown",
+status:(x.Status||"PENDING").toUpperCase().includes("SUCCESS")?"SUCCESS":
+(x.Status||"PENDING").toUpperCase().includes("RTS")?"RTS":"PENDING",
+route:"General",
+method:"TTM"
 };
 
-save(item);
+save(t);
 
 });
 
-setTimeout(loadAll,100);
+setTimeout(load,100);
 };
 
 r.readAsText(f);
 });
 
 /* =========================
-   ANALYTICS ENGINE
+   DASHBOARD AI
 ========================= */
-function updateDashboard(){
+function dash(){
 
-let total = cache.length;
-let success = cache.filter(x=>x.status==="SUCCESS").length;
-let pending = cache.filter(x=>x.status==="PENDING").length;
-let rts = cache.filter(x=>x.status==="RTS").length;
-let sent = cache.filter(x=>x.status==="SENT").length;
+let total=cache.length;
 
-let rate = total ? ((success/total)*100).toFixed(1) : 0;
+let scores=cache.map(aiScore);
 
-totalEl.textContent = total;
-successEl.textContent = success;
-pendingEl.textContent = pending;
-rtsEl.textContent = rts;
-sentEl.textContent = sent;
-rateEl.textContent = rate + "%";
+let avg=(scores.reduce((a,b)=>a+b,0)/Math.max(1,total)).toFixed(1);
 
+let high=scores.filter(s=>s>=75).length;
+let mid=scores.filter(s=>s>=50&&s<75).length;
+let low=scores.filter(s=>s<50).length;
+
+document.getElementById("dash").innerHTML=`
+<p>Total: ${total}</p>
+<p>Avg AI Score: ${avg}</p>
+<p class="high">High Success: ${high}</p>
+<p class="mid">Medium: ${mid}</p>
+<p class="low">Risk/RTS: ${low}</p>
+`;
 }
 
 /* =========================
@@ -267,27 +251,25 @@ rateEl.textContent = rate + "%";
 ========================= */
 function render(){
 
-list.innerHTML = cache.map((t,i)=>{
+list.innerHTML=cache.map(t=>{
 
-let suggestions = addressAI[t.route] || ["Unknown"];
+let score=aiScore(t);
 
 return `
 <tr>
 
-<td><input value="${t.name}"
-oninput="updateField(${t.id},'name',this.value)"></td>
+<td>${t.name}</td>
 
 <td>
-<select onchange="updateField(${t.id},'status',this.value)">
+<select onchange="update(${t.id},'status',this.value)">
 <option ${t.status==="PENDING"?"selected":""}>PENDING</option>
 <option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
 <option ${t.status==="RTS"?"selected":""}>RTS</option>
-<option ${t.status==="SENT"?"selected":""}>SENT</option>
 </select>
 </td>
 
 <td>
-<select onchange="updateField(${t.id},'route',this.value)">
+<select onchange="update(${t.id},'route',this.value)">
 <option>Club Route</option>
 <option>Agency Route</option>
 <option>Event Route</option>
@@ -296,64 +278,30 @@ oninput="updateField(${t.id},'name',this.value)"></td>
 </select>
 </td>
 
-<td>
-<select onchange="updateField(${t.id},'method',this.value)">
-<option>TTM</option>
-<option>IP</option>
-<option>EVENT</option>
-</select>
-</td>
+<td><b>${score}</b></td>
 
 <td>
-<select onchange="updateField(${t.id},'address',this.value)">
-${suggestions.map(a=>`<option ${t.address===a?"selected":""}>${a}</option>`).join("")}
-</select>
+<span class="badge ${color(score)}">${label(score)}</span>
 </td>
-
-<td><button onclick="del(${t.id})">X</button></td>
 
 </tr>
 `;
 
 }).join("");
-
-}
-
-/* =========================
-   UPDATE FIELD
-========================= */
-function updateField(id,key,value){
-
-let item = cache.find(x=>x.id===id);
-if(!item) return;
-
-item[key] = value;
-
-save(item);
-setTimeout(loadAll,50);
-
 }
 
 /* =========================
    EXPORT
 ========================= */
 function exportData(){
-
-let blob = new Blob(
-[JSON.stringify(cache,null,2)],
-{type:"application/json"}
-);
-
-let a = document.createElement("a");
-a.href = URL.createObjectURL(blob);
-a.download = "VaultOS_Core_v1.json";
+let blob=new Blob([JSON.stringify(cache,null,2)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="VaultOS_AI_V2.json";
 a.click();
-
 }
 
-/* =========================
-   INIT
-========================= */
+/* INIT */
 initDB();
 
 </script>
