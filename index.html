@@ -1,11 +1,14 @@
 
 
 
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>VaultOS Analytics v4</title>
+<title>VaultOS v5 Dropdown System</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 
 <style>
@@ -14,6 +17,7 @@ aside{width:240px;background:#01040d;padding:15px}
 main{flex:1;padding:15px}
 
 .card{background:#0f172a;padding:15px;border-radius:10px;margin-bottom:15px}
+
 table{width:100%;border-collapse:collapse}
 td,th{border-bottom:1px solid #334155;padding:8px}
 
@@ -25,42 +29,24 @@ color:#fff;
 border:1px solid #334155;
 border-radius:6px;
 }
-
-.small{opacity:0.7;font-size:12px}
 </style>
 </head>
 
 <body>
 
 <aside>
-<h3>VaultOS v4</h3>
-<button onclick="view('dash')">Dashboard</button>
-<button onclick="view('data')">Data</button>
+<h3>VaultOS v5</h3>
 <input type="file" id="importFile">
 </aside>
 
 <main>
 
-<!-- DASH -->
-<div id="dash">
-
 <div class="card">
-<h3>Overall Stats</h3>
+<h3>Dashboard</h3>
 <p>Total: <b id="total"></b></p>
 <p>Success: <b id="success"></b></p>
 <p>RTS: <b id="rts"></b></p>
-<p>Success Rate: <b id="rate"></b>%</p>
 </div>
-
-<div class="card">
-<h3>Route Intelligence</h3>
-<div id="routes"></div>
-</div>
-
-</div>
-
-<!-- DATA -->
-<div id="data" style="display:none">
 
 <div class="card">
 <table>
@@ -68,7 +54,9 @@ border-radius:6px;
 <tr>
 <th>Name</th>
 <th>Status</th>
-<th>Route Type</th>
+<th>Route</th>
+<th>Method</th>
+<th>Address Type</th>
 <th>Auto Address</th>
 </tr>
 </thead>
@@ -76,132 +64,75 @@ border-radius:6px;
 </table>
 </div>
 
-</div>
-
 </main>
 
 <script>
 
-let vault = JSON.parse(localStorage.getItem("VAULT_V4")) || {
+let vault = JSON.parse(localStorage.getItem("VAULT_V5")) || {
 targets:[]
 };
 
 const $ = id => document.getElementById(id);
 
 function save(){
-localStorage.setItem("VAULT_V4", JSON.stringify(vault));
+localStorage.setItem("VAULT_V5", JSON.stringify(vault));
 }
 
-/* 🧠 ROUTE CLASSIFIER */
-function getRoute(name){
-name = name.toLowerCase();
-
-if(name.includes("arsenal") || name.includes("chelsea") || name.includes("liverpool"))
-return "Club Route";
-
-if(name.includes("oldman") || name.includes("reeves") || name.includes("brosnan"))
-return "Agency Route";
-
-if(name.includes("gala") || name.includes("event"))
-return "Event Route";
-
-if(name.includes("foundation"))
-return "Foundation Route";
-
-return "General Route";
-}
-
-/* 📍 AUTO ADDRESS BY ROUTE */
+/* 🧠 ROUTE ENGINE */
 function getAddress(route){
-
-if(route==="Club Route") return "Training Ground / Stadium HQ";
-if(route==="Agency Route") return "Talent Agency / Production Office";
-if(route==="Event Route") return "Event Venue / Organiser HQ";
-if(route==="Foundation Route") return "Foundation / Charity Office";
-
-return "General Organisation Route";
+switch(route){
+case "Club Route": return "Training Ground / Stadium HQ";
+case "Agency Route": return "Talent Agency / Production Office";
+case "Event Route": return "Event Venue / Organiser HQ";
+case "Foundation Route": return "Charity / Foundation HQ";
+default: return "General Organisation Route";
+}
 }
 
-/* 📊 CALCULATE DASHBOARD */
-function updateStats(){
+/* 📊 DASH */
+function update(){
 
 let total = vault.targets.length;
 
 let success = vault.targets.filter(x =>
-(x.status||"").toUpperCase().includes("SUCCESS")
+(x.status||"").toUpperCase()==="SUCCESS"
 ).length;
 
 let rts = vault.targets.filter(x =>
 (x.status||"").toUpperCase().includes("RTS")
 ).length;
 
-let rate = total ? ((success/total)*100).toFixed(1) : 0;
-
-$("total").textContent = total;
-$("success").textContent = success;
-$("rts").textContent = rts;
-$("rate").textContent = rate;
-
-/* 🧠 ROUTE ANALYTICS */
-let stats = {};
-
-vault.targets.forEach(t=>{
-
-let r = t.routeType || "Unknown";
-
-if(!stats[r]){
-stats[r] = {total:0, success:0, rts:0};
-}
-
-stats[r].total++;
-
-let s = (t.status||"").toUpperCase();
-
-if(s.includes("SUCCESS")) stats[r].success++;
-if(s.includes("RTS")) stats[r].rts++;
-
-});
-
-/* render route stats */
-routes.innerHTML = Object.keys(stats).map(k=>{
-
-let s = stats[k];
-let sr = ((s.success/s.total)*100).toFixed(1);
-
-return `
-<p>
-<b>${k}</b><br>
-Success: ${s.success}/${s.total} (${sr}%)<br>
-RTS: ${s.rts}
-</p>
-`;
-
-}).join("");
+totalEl.textContent = total;
+successEl.textContent = success;
+rtsEl.textContent = rts;
 
 }
 
-/* 📊 RENDER TABLE */
+/* 📊 RENDER */
 function render(){
 
 list.innerHTML = vault.targets.map((t,i)=>{
 
-let route = t.routeType || getRoute(t.name);
-let addr = t.address || getAddress(route);
+let route = t.route || "General Route";
+let addr = getAddress(route);
 
 return `
 <tr>
 
-<td><input value="${t.name}"
-oninput="vault.targets[${i}].name=this.value; save(); updateStats();"></td>
-
-<td><input value="${t.status}"
-oninput="vault.targets[${i}].status=this.value; save(); updateStats();"></td>
+<td><input value="${t.name||""}"
+oninput="vault.targets[${i}].name=this.value; save(); update();"></td>
 
 <td>
-<select onchange="
-vault.targets[${i}].routeType=this.value;
-save(); updateStats();
-">
+<select onchange="vault.targets[${i}].status=this.value; save(); update();">
+<option ${t.status==="PENDING"?"selected":""}>PENDING</option>
+<option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
+<option ${t.status==="RTS"?"selected":""}>RTS</option>
+<option ${t.status==="WAITING"?"selected":""}>WAITING</option>
+</select>
+</td>
+
+<td>
+<select onchange="vault.targets[${i}].route=this.value; save(); render(); update();">
 <option ${route==="Club Route"?"selected":""}>Club Route</option>
 <option ${route==="Agency Route"?"selected":""}>Agency Route</option>
 <option ${route==="Event Route"?"selected":""}>Event Route</option>
@@ -211,16 +142,28 @@ save(); updateStats();
 </td>
 
 <td>
-<input value="${addr}"
-oninput="vault.targets[${i}].address=this.value; save();">
+<select onchange="vault.targets[${i}].method=this.value; save();">
+<option ${t.method==="TTM"?"selected":""}>TTM</option>
+<option ${t.method==="IP"?"selected":""}>IP</option>
+<option ${t.method==="EVENT"?"selected":""}>EVENT</option>
+</select>
 </td>
+
+<td>
+<select onchange="vault.targets[${i}].addrType=this.value; save();">
+<option ${t.addrType==="AUTO"?"selected":""}>AUTO</option>
+<option ${t.addrType==="CUSTOM"?"selected":""}>CUSTOM</option>
+</select>
+</td>
+
+<td>${addr}</td>
 
 </tr>
 `;
 
 }).join("");
 
-updateStats();
+update();
 
 }
 
@@ -235,20 +178,16 @@ r.onload=()=>{
 let d=JSON.parse(r.result||"{}");
 let raw=d.records||[];
 
-vault.targets = raw.map((t,i)=>{
+vault.targets = raw.map((t,i)=>({
 
-let name = t.name || t.Name || "Unknown";
-let route = getRoute(name);
-
-return{
 id:Date.now()+i,
-name,
-status:(t.status||t.Status||"PENDING"),
-routeType:route,
-address:getAddress(route)
-};
+name:t.name||t.Name||"Unknown",
+status:(t.status||t.Status||"PENDING").toUpperCase(),
+route:t.route||"General Route",
+method:t.method||"TTM",
+addrType:"AUTO"
 
-});
+}));
 
 save();
 render();
@@ -257,11 +196,6 @@ render();
 
 r.readAsText(file);
 };
-
-function view(v){
-dash.style.display = v==="dash"?"block":"none";
-data.style.display = v==="data"?"block":"none";
-}
 
 render();
 
