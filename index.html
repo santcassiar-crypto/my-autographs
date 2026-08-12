@@ -1,315 +1,37 @@
 
-
-
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>VaultOS Core v1 Stable</title>
+<html lang="en"><head><meta charset="UTF-8"><title>VaultOS Core v2 — Route Scrapbook</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-
 <style>
-body{margin:0;font-family:Arial;background:#020617;color:#fff;display:flex;min-height:100vh}
-aside{width:260px;background:#01040d;padding:15px;border-right:1px solid #334155}
-main{flex:1;padding:15px}
-
-.card{background:#0f172a;padding:15px;border-radius:10px;margin-bottom:15px}
-
-input,select,button{
-width:100%;padding:8px;margin-top:8px;
-background:#1e293b;color:#fff;border:1px solid #334155;border-radius:6px
-}
-
-table{width:100%;border-collapse:collapse}
-td,th{border-bottom:1px solid #334155;padding:8px;font-size:13px}
-
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.stat{background:#1e293b;padding:10px;border-radius:8px;text-align:center}
-.stat b{display:block;font-size:18px;color:#38bdf8;margin-top:5px}
-small{color:#94a3b8}
-</style>
-</head>
-
-<body>
-
-<aside>
-<h3>VaultOS Core v1</h3>
-
-<button onclick="refresh()">Refresh</button>
-<button onclick="exportData()">Export</button>
-
-<input type="file" id="importFile">
-
-<hr>
-
-<h4>Add Target</h4>
-
-<input id="name" placeholder="Name">
-
-<select id="status">
-<option>PENDING</option>
-<option>SENT</option>
-<option>SUCCESS</option>
-<option>RTS</option>
-</select>
-
-<select id="route">
-<option>Club Route</option>
-<option>Agency Route</option>
-<option>Event Route</option>
-<option>Foundation Route</option>
-<option>General</option>
-</select>
-
-<select id="method">
-<option>TTM</option>
-<option>IP</option>
-<option>EVENT</option>
-</select>
-
-<select id="address">
-<option>AUTO</option>
-<option>TRAINING GROUND</option>
-<option>AGENCY OFFICE</option>
-<option>EVENT VENUE</option>
-<option>HOME ADDRESS</option>
-</select>
-
-<button onclick="addTarget()">Add Record</button>
-</aside>
-
-<main>
-
-<div class="card">
-<h3>Dashboard</h3>
-
-<div class="grid">
-<div class="stat">Total<b id="t">0</b></div>
-<div class="stat">Success<b id="s">0</b></div>
-<div class="stat">Pending<b id="p">0</b></div>
-</div>
-
-<div class="grid" style="margin-top:10px">
-<div class="stat">RTS<b id="r">0</b></div>
-<div class="stat">Success %<b id="rate">0%</b></div>
-<div class="stat">AI Score<b id="ai">0%</b></div>
-</div>
-</div>
-
-<div class="card">
-<h3>Targets</h3>
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Status</th>
-<th>Route</th>
-<th>Method</th>
-<th>Address</th>
-<th>AI</th>
-<th></th>
-</tr>
-</thead>
-<tbody id="list"></tbody>
-</table>
-</div>
-
-<div class="card">
-<h3>Analytics</h3>
-<div id="analytics"></div>
-</div>
-
-</main>
-
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#020617;color:#fff;display:flex;min-height:100vh}aside{width:260px;background:#01040d;padding:15px;border-right:1px solid #334155}main{flex:1;padding:15px;overflow:auto}.card{background:#0f172a;padding:15px;border-radius:10px;margin-bottom:15px}input,select,button,textarea{width:100%;padding:8px;margin-top:8px;background:#1e293b;color:#fff;border:1px solid #334155;border-radius:6px}button{cursor:pointer}button:hover{background:#334155}textarea{min-height:70px;resize:vertical}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid #334155;padding:8px;font-size:13px;vertical-align:top}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.stat{background:#1e293b;padding:10px;border-radius:8px;text-align:center}.stat b{display:block;font-size:18px;color:#38bdf8;margin-top:5px}small{color:#94a3b8}.tabbar{display:flex;gap:8px;margin-bottom:15px}.tab{width:auto;margin:0;padding:10px 18px}.tab.active{background:#0284c7}.hidden{display:none}.badge{display:inline-block;padding:4px 7px;border-radius:5px;font-size:11px}.high{background:#166534}.medium{background:#854d0e}.low{background:#7f1d1d}.actions{display:flex;gap:6px}.actions button{width:auto;margin:0}@media(max-width:900px){aside{width:220px}.grid,.grid4{grid-template-columns:1fr 1fr}}
+</style></head><body>
+<aside><h3>VaultOS Core v2</h3><small>Target + Route Research System</small>
+<button onclick="refresh()">Refresh</button><button onclick="exportData()">Export All Data</button><input type="file" id="importFile" accept=".json"><hr>
+<h4>Add Target</h4><input id="name" placeholder="Name"><select id="status"><option>PENDING</option><option>SENT</option><option>SUCCESS</option><option>RTS</option></select><select id="route"><option>Club Route</option><option>Agency Route</option><option>Event Route</option><option>Foundation Route</option><option>General</option></select><select id="method"><option>TTM</option><option>IP</option><option>EVENT</option></select><select id="address"><option>AUTO</option><option>TRAINING GROUND</option><option>AGENCY OFFICE</option><option>EVENT VENUE</option><option>HOME ADDRESS</option></select><button onclick="addTarget()">Add Record</button><hr>
+<h4>Add Research Lead</h4><input id="rName" placeholder="Target / Name"><input id="rTeam" placeholder="Team / Organisation"><select id="rRoute"><option>Club Route</option><option>Agency Route</option><option>Event Route</option><option>Foundation Route</option><option>General</option></select><select id="rMethod"><option>TTM</option><option>IP</option><option>EVENT</option></select><input id="rAddress" placeholder="Possible address / route"><input id="rSource" placeholder="Source / where found"><select id="rConfidence"><option>High</option><option>Medium</option><option>Low</option></select><select id="rStatus"><option>New</option><option>Investigating</option><option>Promising</option><option>Needs verification</option><option>Dead end</option></select><textarea id="rNotes" placeholder="Research notes"></textarea><button onclick="addResearch()">Add to Scrapbook</button></aside>
+<main><div class="tabbar"><button class="tab active" id="targetsTab" onclick="showTab('targets')">🎯 Targets</button><button class="tab" id="researchTab" onclick="showTab('research')">📚 Route Scrapbook</button></div>
+<section id="targets"><div class="card"><h3>Dashboard</h3><div class="grid"><div class="stat">Total<b id="t">0</b></div><div class="stat">Success<b id="s">0</b></div><div class="stat">Pending<b id="p">0</b></div></div><div class="grid" style="margin-top:10px"><div class="stat">RTS<b id="r">0</b></div><div class="stat">Success %<b id="rate">0%</b></div><div class="stat">AI Score<b id="ai">0%</b></div></div></div>
+<div class="card"><h3>Targets</h3><table><thead><tr><th>Name</th><th>Status</th><th>Route</th><th>Method</th><th>Address</th><th>AI</th><th></th></tr></thead><tbody id="list"></tbody></table></div><div class="card"><h3>Analytics</h3><div id="analytics"></div></div></section>
+<section id="research" class="hidden"><div class="card"><h3>📚 Route Scrapbook</h3><small>Research leads live here until you decide they are good enough to become a real Pending route. Scrapbook records do not affect Target statistics.</small></div><div class="card"><div class="grid4"><div class="stat">Research Leads<b id="rtotal">0</b></div><div class="stat">Promising<b id="rpromising">0</b></div><div class="stat">Investigating<b id="rinvestigating">0</b></div><div class="stat">High Confidence<b id="rhigh">0</b></div></div></div><div class="card"><table><thead><tr><th>Target</th><th>Team / Organisation</th><th>Route</th><th>Method</th><th>Possible Route / Address</th><th>Source</th><th>Confidence</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead><tbody id="researchList"></tbody></table></div></section></main>
 <script>
-
-let vault = JSON.parse(localStorage.getItem("VAULT_CORE")) || {targets:[]};
-
-/* ---------- SAVE ---------- */
-function save(){
-localStorage.setItem("VAULT_CORE", JSON.stringify(vault));
-}
-
-/* ---------- NORMALISE STATUS ---------- */
-function cleanStatus(s){
-s = (s||"PENDING").toUpperCase().trim();
-if(s.includes("SUCCESS")) return "SUCCESS";
-if(s.includes("RTS") || s.includes("FAIL")) return "RTS";
-if(s.includes("SENT")) return "SENT";
-return "PENDING";
-}
-
-/* ---------- AI SCORE ---------- */
-function aiScore(t){
-let score = 50;
-
-if(t.status==="SUCCESS") score += 40;
-if(t.status==="RTS") score -= 30;
-if(t.route==="Club Route") score += 5;
-if(t.method==="IP") score += 10;
-
-return Math.max(0, Math.min(100, score));
-}
-
-/* ---------- ADD ---------- */
-function addTarget(){
-
-vault.targets.push({
-id:Date.now(),
-name:document.getElementById("name").value||"Unknown",
-status:document.getElementById("status").value,
-route:document.getElementById("route").value,
-method:document.getElementById("method").value,
-address:document.getElementById("address").value
-});
-
-save();
+let vault=JSON.parse(localStorage.getItem('VAULT_CORE'))||{targets:[]};let research=JSON.parse(localStorage.getItem('VAULT_RESEARCH'))||{leads:[]};
+function save(){localStorage.setItem('VAULT_CORE',JSON.stringify(vault));localStorage.setItem('VAULT_RESEARCH',JSON.stringify(research))}
+function cleanStatus(s){s=(s||'PENDING').toUpperCase().trim();if(s.includes('SUCCESS'))return'SUCCESS';if(s.includes('RTS')||s.includes('FAIL'))return'RTS';if(s.includes('SENT'))return'SENT';return'PENDING'}
+function aiScore(t){let score=50;if(t.status==='SUCCESS')score+=40;if(t.status==='RTS')score-=30;if(t.route==='Club Route')score+=5;if(t.method==='IP')score+=10;return Math.max(0,Math.min(100,score))}
+function addTarget(){let name=document.getElementById('name').value.trim();if(!name){alert('Enter a target name.');return}vault.targets.push({id:Date.now(),name,status:document.getElementById('status').value,route:document.getElementById('route').value,method:document.getElementById('method').value,address:document.getElementById('address').value});document.getElementById('name').value='';save();refresh();showTab('targets')}
+function del(i){if(confirm('Delete this target?')){vault.targets.splice(i,1);save();refresh()}}
+function addResearch(){let name=document.getElementById('rName').value.trim();if(!name){alert('Enter a target/name.');return}research.leads.push({id:Date.now()+Math.random(),name,team:document.getElementById('rTeam').value.trim(),route:document.getElementById('rRoute').value,method:document.getElementById('rMethod').value,address:document.getElementById('rAddress').value.trim(),source:document.getElementById('rSource').value.trim(),confidence:document.getElementById('rConfidence').value,status:document.getElementById('rStatus').value,notes:document.getElementById('rNotes').value.trim(),date:new Date().toISOString().slice(0,10)});['rName','rTeam','rAddress','rSource','rNotes'].forEach(id=>document.getElementById(id).value='');save();refresh();showTab('research')}
+function convertResearch(i){let x=research.leads[i];vault.targets.push({id:Date.now(),name:x.name,status:'PENDING',route:x.route,method:x.method,address:x.address||'AUTO'});research.leads.splice(i,1);save();refresh();showTab('targets')}
+function deleteResearch(i){if(confirm('Delete this research lead?')){research.leads.splice(i,1);save();refresh()}}
+function updateResearch(i,field,value){research.leads[i][field]=value;save();refreshResearch()}
+function dashboard(){let t=vault.targets.length,s=vault.targets.filter(x=>x.status==='SUCCESS').length,p=vault.targets.filter(x=>x.status==='PENDING').length,r=vault.targets.filter(x=>x.status==='RTS').length;document.getElementById('t').textContent=t;document.getElementById('s').textContent=s;document.getElementById('p').textContent=p;document.getElementById('r').textContent=r;document.getElementById('rate').textContent=t?((s/t)*100).toFixed(1)+'%':'0%';document.getElementById('ai').textContent=(t?(vault.targets.reduce((a,b)=>a+aiScore(b),0)/t).toFixed(1):0)+'%'}
+function render(){let html='';vault.targets.forEach((t,i)=>{html+=`<tr><td><input value="${esc(t.name)}" oninput="vault.targets[${i}].name=this.value;save()"></td><td><select onchange="vault.targets[${i}].status=this.value;save();refresh()"><option ${t.status==='PENDING'?'selected':''}>PENDING</option><option ${t.status==='SENT'?'selected':''}>SENT</option><option ${t.status==='SUCCESS'?'selected':''}>SUCCESS</option><option ${t.status==='RTS'?'selected':''}>RTS</option></select></td><td><select onchange="vault.targets[${i}].route=this.value;save();refresh()">${opt('Club Route',t.route)}${opt('Agency Route',t.route)}${opt('Event Route',t.route)}${opt('Foundation Route',t.route)}${opt('General',t.route)}</select></td><td><select onchange="vault.targets[${i}].method=this.value;save();refresh()">${opt('TTM',t.method)}${opt('IP',t.method)}${opt('EVENT',t.method)}</select></td><td>${esc(t.address||'AUTO')}</td><td>${aiScore(t)}%</td><td><button onclick="del(${i})">X</button></td></tr>`});document.getElementById('list').innerHTML=html}
+function refreshResearch(){let leads=research.leads;document.getElementById('rtotal').textContent=leads.length;document.getElementById('rpromising').textContent=leads.filter(x=>x.status==='Promising').length;document.getElementById('rinvestigating').textContent=leads.filter(x=>x.status==='Investigating').length;document.getElementById('rhigh').textContent=leads.filter(x=>x.confidence==='High').length;let html='';leads.forEach((x,i)=>{html+=`<tr><td><strong>${esc(x.name)}</strong><br><small>${x.date||''}</small></td><td>${esc(x.team||'')}</td><td><select onchange="updateResearch(${i},'route',this.value)">${opt('Club Route',x.route)}${opt('Agency Route',x.route)}${opt('Event Route',x.route)}${opt('Foundation Route',x.route)}${opt('General',x.route)}</select></td><td><select onchange="updateResearch(${i},'method',this.value)">${opt('TTM',x.method)}${opt('IP',x.method)}${opt('EVENT',x.method)}</select></td><td><input value="${esc(x.address||'')}" onchange="updateResearch(${i},'address',this.value)"></td><td><input value="${esc(x.source||'')}" onchange="updateResearch(${i},'source',this.value)"></td><td><select onchange="updateResearch(${i},'confidence',this.value)">${opt('High',x.confidence)}${opt('Medium',x.confidence)}${opt('Low',x.confidence)}</select></td><td><select onchange="updateResearch(${i},'status',this.value)">${opt('New',x.status)}${opt('Investigating',x.status)}${opt('Promising',x.status)}${opt('Needs verification',x.status)}${opt('Dead end',x.status)}</select></td><td><textarea onchange="updateResearch(${i},'notes',this.value)">${esc(x.notes||'')}</textarea></td><td><div class="actions"><button onclick="convertResearch(${i})">→ Pending</button><button onclick="deleteResearch(${i})">X</button></div></td></tr>`});document.getElementById('researchList').innerHTML=html}
+function analytics(){let routes={},methods={};vault.targets.forEach(t=>{routes[t.route]=(routes[t.route]||0)+1;methods[t.method]=(methods[t.method]||0)+1});document.getElementById('analytics').innerHTML='<pre>Routes: '+esc(JSON.stringify(routes,null,2))+'</pre><pre>Methods: '+esc(JSON.stringify(methods,null,2))+'</pre>'}
+function refresh(){save();render();dashboard();analytics();refreshResearch()}
+function exportData(){let data={version:'VaultOS Core v2',exported:new Date().toISOString(),targets:vault.targets,research:research.leads};let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='vaultos_core_v2.json';a.click();URL.revokeObjectURL(a.href)}
+document.getElementById('importFile').onchange=e=>{let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result||'{}');vault.targets=(d.targets||d.records||[]).map(x=>({id:Date.now()+Math.random(),name:x.Name||x.name||'Unknown',status:cleanStatus(x.Status||x.status),route:x.route||x.Route||'General',method:x.method||x.Method||'TTM',address:x.address||x.Address||'AUTO'}));research.leads=(d.research||d.researchLeads||[]).map(x=>({id:Date.now()+Math.random(),name:x.name||x.Name||'Unknown',team:x.team||x.Team||'',route:x.route||x.Route||'General',method:x.method||x.Method||'TTM',address:x.address||x.Address||'',source:x.source||x.Source||'',confidence:x.confidence||x.Confidence||'Medium',status:x.status||x.Status||'New',notes:x.notes||x.Notes||'',date:x.date||new Date().toISOString().slice(0,10)}));save();refresh();alert('VaultOS data imported.')}catch(err){alert('Import failed: invalid JSON.')}};r.readAsText(file)};
+function showTab(tab){document.getElementById('targets').classList.toggle('hidden',tab!=='targets');document.getElementById('research').classList.toggle('hidden',tab!=='research');document.getElementById('targetsTab').classList.toggle('active',tab==='targets');document.getElementById('researchTab').classList.toggle('active',tab==='research')}
+function opt(v,c){return `<option ${v===c?'selected':''}>${esc(v)}</option>`}function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
 refresh();
-}
-
-/* ---------- DELETE ---------- */
-function del(i){
-vault.targets.splice(i,1);
-save();
-refresh();
-}
-
-/* ---------- IMPORT ---------- */
-importFile.onchange = e=>{
-let r = new FileReader();
-
-r.onload = ()=>{
-
-let d = JSON.parse(r.result||"{}");
-let raw = d.records || d.targets || [];
-
-vault.targets = raw.map(x=>({
-id:Date.now()+Math.random(),
-name:x.Name||x.name||"Unknown",
-status:cleanStatus(x.Status||x.status),
-route:x.route||"General Route",
-method:x.method||"TTM",
-address:x.address||"AUTO"
-}));
-
-save();
-refresh();
-};
-
-r.readAsText(e.target.files[0]);
-};
-
-/* ---------- DASHBOARD ---------- */
-function dashboard(){
-
-let t = vault.targets.length;
-let s = vault.targets.filter(x=>x.status==="SUCCESS").length;
-let p = vault.targets.filter(x=>x.status==="PENDING").length;
-let r = vault.targets.filter(x=>x.status==="RTS").length;
-
-document.getElementById("t").textContent=t;
-document.getElementById("s").textContent=s;
-document.getElementById("p").textContent=p;
-document.getElementById("r").textContent=r;
-document.getElementById("rate").textContent = t?((s/t)*100).toFixed(1)+"%":"0%";
-
-let avgAI = vault.targets.length ?
-(vault.targets.reduce((a,b)=>a+aiScore(b),0)/t).toFixed(1) : 0;
-
-document.getElementById("ai").textContent = avgAI+"%";
-}
-
-/* ---------- TABLE ---------- */
-function render(){
-
-let html = "";
-
-vault.targets.forEach((t,i)=>{
-
-let ai = aiScore(t);
-
-html += `
-<tr>
-<td><input value="${t.name}"
-oninput="vault.targets[${i}].name=this.value;save()"></td>
-
-<td>
-<select onchange="vault.targets[${i}].status=this.value;save();refresh()">
-<option ${t.status==="PENDING"?"selected":""}>PENDING</option>
-<option ${t.status==="SENT"?"selected":""}>SENT</option>
-<option ${t.status==="SUCCESS"?"selected":""}>SUCCESS</option>
-<option ${t.status==="RTS"?"selected":""}>RTS</option>
-</select>
-</td>
-
-<td>
-<select onchange="vault.targets[${i}].route=this.value;save()">
-<option>Club Route</option>
-<option>Agency Route</option>
-<option>Event Route</option>
-<option>Foundation Route</option>
-<option>General</option>
-</select>
-</td>
-
-<td>
-<select onchange="vault.targets[${i}].method=this.value;save()">
-<option>TTM</option>
-<option>IP</option>
-<option>EVENT</option>
-</select>
-</td>
-
-<td>${t.address}</td>
-
-<td>${ai}%</td>
-
-<td><button onclick="del(${i})">X</button></td>
-</tr>
-`;
-});
-
-document.getElementById("list").innerHTML = html;
-}
-
-/* ---------- ANALYTICS ---------- */
-function analytics(){
-
-let routes = {};
-let methods = {};
-
-vault.targets.forEach(t=>{
-routes[t.route]=(routes[t.route]||0)+1;
-methods[t.method]=(methods[t.method]||0)+1;
-});
-
-document.getElementById("analytics").innerHTML = `
-<pre>Routes: ${JSON.stringify(routes,null,2)}</pre>
-<pre>Methods: ${JSON.stringify(methods,null,2)}</pre>
-`;
-}
-
-/* ---------- MASTER REFRESH ---------- */
-function refresh(){
-save();
-render();
-dashboard();
-analytics();
-}
-
-/* ---------- EXPORT ---------- */
-function exportData(){
-let blob = new Blob([JSON.stringify(vault,null,2)],{type:"application/json"});
-let a = document.createElement("a");
-a.href = URL.createObjectURL(blob);
-a.download="vault_core.json";
-a.click();
-}
-
-/* INIT */
-refresh();
-
-</script>
-
-</body>
-</html>
+</script></body></html>
